@@ -10,6 +10,45 @@ from openai import OpenAI
 from config import Config
 from mindmap_agent import MindMapSpecialistAgent # C: 引入我们的专业绘图 Agent / E: Import our professional drawing Agent
 
+def parse_args():
+    """
+    Parse cli arguments.
+    """
+    default_config = {
+        "api_key": Config.DEEPSEEK_API_KEY,
+        "base_url": Config.DEEPSEEK_BASE_URL,
+        "model": Config.DEEPSEEK_MODEL,
+        "timeout": Config.API_TIMEOUT
+    }
+
+    import sys
+    args = sys.argv
+    status = None
+    for arg in args:
+        if arg == "-api":
+            status = arg
+        elif arg == "-url":
+            status = arg
+        elif arg == "-model":
+            status = arg
+        elif arg == "-timeout":
+            status = arg
+        elif status == "-api":
+            default_config.api_key = arg
+            status = None
+        elif status == "-url":
+            default_config.base_url = arg
+            status = None
+        elif status == "-model":
+            default_config.model = arg
+            status = None
+        elif status == "-timeout":
+            default_config.timeout = int(arg)
+            status = None
+        else:
+            quit("Error during argument parsing.")
+
+
 app = FastAPI()
 
 app.add_middleware(
