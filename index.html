@@ -188,10 +188,10 @@
          id="canvas-container" @mousedown="startDrag" @mousemove="onDrag" @mouseup="stopDrag" @mouseleave="stopDrag">
         <div :style="{ transform: `translate(${canvasX}px, ${canvasY}px)` }" class="absolute transition-transform duration-75 origin-top-left">
             <svg class="absolute w-[3000px] h-[3000px] top-[-1500px] left-[-1500px] pointer-events-none">
-                <path v-for="link in links" :d="link.path" stroke="#cbd5e1" stroke-width="3" fill="none" class="transition-all duration-500" />
+                <path v-for="link in computedLinks" :key="link.source + '-' + link.target" :d="link.path" stroke="#cbd5e1" stroke-width="3" fill="none" class="transition-all duration-75" />
             </svg>
             <div v-for="node in nodes" :key="node.id"
-                 @click.stop="activeNode = node"
+                 @mousedown.stop="onNodePointerDown($event, node)"
                  class="absolute cursor-pointer px-6 py-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm border border-gray-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-md min-w-[140px]"
                  :class="{'ring-2 ring-blue-500 shadow-md': activeNode && activeNode.id === node.id}"
                  :style="{ top: node.y+'px', left: node.x+'px', backgroundColor: node.color }">
@@ -223,6 +223,11 @@
 
         <div class="absolute bottom-6 right-6 flex gap-3 items-center z-20">
             <span class="bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-xs text-gray-500 shadow-sm border border-gray-100">{{ t('dragToPan') }}</span>
+            
+            <button @click="clearAllNodes" class="w-12 h-12 bg-white rounded-full shadow-lg border border-red-100 hover:bg-red-50 flex items-center justify-center text-red-500 transition-transform active:scale-95" title="Clear All Nodes">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+
             <button @click="resetCanvas" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
             </button>
@@ -318,7 +323,8 @@
             syncToMap: 'Sync Chat to Map', syncDesc: 'AI dynamically updates map based on chat.',
             autoScroll: 'Auto-scroll Chat', autoScrollDesc: 'Always scroll to newest messages.',
             done: 'Done', dragToPan: 'Drag to pan',
-            sysReady: 'System ready. Waiting for audio context.'
+            sysReady: 'System ready. Waiting for audio context.', 
+            confirmClear: 'Are you sure you want to clear the canvas?'
         },
         zh: {
             appTitle: '语音智能体', totalTime: '总时长', transcript: '会议转录', agentChat: '智能对话',
@@ -329,7 +335,8 @@
             syncToMap: '对话同步至导图', syncDesc: 'AI 将根据您的聊天指令实时修改右侧导图。',
             autoScroll: '对话自动滚动', autoScrollDesc: '收到新消息时强制滚动到底部。',
             done: '完成设置', dragToPan: '拖拽空白处移动画布',
-            sysReady: '系统已就绪，请录音或上传音频文件。'
+            sysReady: '系统已就绪，请录音或上传音频文件。', 
+            confirmClear: '确定要清空画布上的所有节点吗？'
         }
     }
 
@@ -360,7 +367,7 @@
 
             const userInput = ref('')
             const chatHistory = ref([{ role: 'system', text: locales['en'].sysReady }])
-            const nodes = ref([{ id: 1, label: 'MVP Features', x: 250, y: 150, color: 'var(--node-blue)', details: ['Start recording or upload audio'] }])
+            const nodes = ref([])
             const links = ref([])
 
             const transcripts = ref([
@@ -599,26 +606,90 @@
             const filteredTranscripts = computed(() => transcripts.value.filter(t => (selectedSpeaker.value === 'All' || t.speaker === selectedSpeaker.value) && t.text.toLowerCase().includes(searchQuery.value.toLowerCase())));
 
             const canvasX = ref(200); const canvasY = ref(150); const isDragging = ref(false); const startX = ref(0); const startY = ref(0)
-            const startDrag = (e) => { isDragging.value = true; startX.value = e.clientX - canvasX.value; startY.value = e.clientY - canvasY.value }
-            const onDrag = (e) => { if (!isDragging.value) return; canvasX.value = e.clientX - startX.value; canvasY.value = e.clientY - startY.value }
-            const stopDrag = () => { isDragging.value = false }
+            
+            // 保留平移画布的起点记录功能
+            const startDrag = (e) => { 
+                isDragging.value = true; 
+                startX.value = e.clientX - canvasX.value; 
+                startY.value = e.clientY - canvasY.value; 
+            }
+            
             const resetCanvas = () => { canvasX.value = 200; canvasY.value = 150; activeNode.value = null }
 
-            // --- 新增：手动删除节点逻辑 ---
+            // --- 动态连线计算 ---
+            const computedLinks = computed(() => {
+                return links.value.map(link => {
+                    const sourceNode = nodes.value.find(n => n.id === link.source);
+                    const targetNode = nodes.value.find(n => n.id === link.target);
+                    
+                    if (sourceNode && targetNode) {
+                        const sx = sourceNode.x + 70;
+                        const sy = sourceNode.y + 40;
+                        const tx = targetNode.x + 70;
+                        const ty = targetNode.y + 40;
+                        
+                        const path = `M ${sx} ${sy} C ${sx} ${(sy + ty) / 2}, ${tx} ${(sy + ty) / 2}, ${tx} ${ty}`;
+                        return { ...link, path };
+                    }
+                    return link; 
+                });
+            });
+
+            // --- 节点拖拽状态变量 ---
+            const draggingNode = ref(null);
+            let startMouseX = 0; let startMouseY = 0;
+            let initialNodeX = 0; let initialNodeY = 0;
+
+            const onNodePointerDown = (e, node) => {
+                activeNode.value = node; 
+                draggingNode.value = node; 
+                startMouseX = e.clientX;
+                startMouseY = e.clientY;
+                initialNodeX = node.x;
+                initialNodeY = node.y;
+            };
+
+            // --- 整合后的拖拽功能核心 ---
+            const onDrag = (e) => {
+                if (draggingNode.value) {
+                    // 如果正在拖拽节点，更新节点坐标
+                    const dx = e.clientX - startMouseX;
+                    const dy = e.clientY - startMouseY;
+                    draggingNode.value.x = initialNodeX + dx;
+                    draggingNode.value.y = initialNodeY + dy;
+                } else if (isDragging.value) {
+                    // 如果拖拽的是画布空白处，平移整体画布
+                    canvasX.value = e.clientX - startX.value;
+                    canvasY.value = e.clientY - startY.value;
+                }
+            };
+
+            const stopDrag = () => {
+                isDragging.value = false;
+                draggingNode.value = null; // 释放拖拽
+            };
+
+            // --- 一键清空功能 ---
+            const clearAllNodes = () => {
+                if(confirm(t('confirmClear'))) {
+                    nodes.value = [];
+                    links.value = [];
+                    activeNode.value = null;
+                    chatHistory.value.push({ role: 'system', text: 'Canvas has been cleared manually.' });
+                    if (settings.autoScroll) scrollChat();
+                }
+            };
+
+            // --- 手动删除节点逻辑 ---
             const deleteActiveNode = () => {
                 if (!activeNode.value) return;
                 const idToDelete = activeNode.value.id;
                 
-                // 1. 删除节点本身
                 nodes.value = nodes.value.filter(n => n.id !== idToDelete);
-                
-                // 2. 删除与该节点相关的连线
                 links.value = links.value.filter(l => l.source !== idToDelete && l.target !== idToDelete);
                 
-                // 3. 关闭侧边栏
                 activeNode.value = null;
 
-                // 4. 在聊天框给个系统提示
                 chatHistory.value.push({ role: 'system', text: `Node removed manually. AI will acknowledge this change.` });
                 if (settings.autoScroll) scrollChat();
             };
@@ -632,7 +703,7 @@
                 onTimeUpdate, onLoadedMetadata, onEnded, seekAudio, togglePlay, toggleRecording,
                 triggerFileUpload, handleFileChange, getBubbleClass, sendMessage, toggleTrans,
                 canvasX, canvasY, startDrag, onDrag, stopDrag, resetCanvas,
-                deleteActiveNode
+                deleteActiveNode, computedLinks, onNodePointerDown, clearAllNodes
             }
         }
     }).mount('#app')

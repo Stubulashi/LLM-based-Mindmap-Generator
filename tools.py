@@ -5,7 +5,7 @@ def get_mindmap_tools():
             "type": "function",
             "function": {
                 "name": "modify_mind_map",
-                "description": "增量更新思维导图。根据对话，提取需要【新增】的节点、需要【更新细节】的已有节点，以及建立层级关系的【连线】。",
+                "description": "增量更新思维导图。根据对话，提取需要【新增】的节点、需要【更新细节】的已有节点、建立层级关系的【连线】，以及【删除】不需要的节点。",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -49,24 +49,7 @@ def get_mindmap_tools():
                                 },
                                 "required": ["source", "target", "type"]
                             }
-                        }
-                    }
-                }
-            }
-        }
-    ]
-
-def get_mindmap_tools():
-    return [
-        {
-            "type": "function",
-            "function": {
-                "name": "modify_mind_map",
-                "description": "增量更新思维导图。可以新增、更新细节、连线，以及【删除】节点。",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        # ... 保留之前的 add_nodes, update_nodes, add_links ...
+                        },
                         "delete_nodes": {
                             "type": "array",
                             "description": "需要删除的节点ID列表。如果用户要求移除某个概念，将其ID放入此列表。",

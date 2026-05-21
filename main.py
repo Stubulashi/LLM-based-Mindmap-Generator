@@ -73,7 +73,10 @@ async def handle_multimodal_chat(request: ChatRequest):
         # ---------------------------------------------------------
         # C: 规整化上下文：提取最近的一组对话发给绘图专家
         # E: Normalize context: extract the latest conversation to send to the drawing expert
-        formatted_history = f"C: 用户说：{user_msg}\nAI回复说：{ai_reply}\nE: User said: {user_msg}\nAI replied: {ai_reply}"
+        formatted_history = (
+            f"【最高优先级指令】用户说：{user_msg}\n"
+            f"【仅供参考的聊天记录，禁止将其中的逻辑分析画入导图】AI回复说：{ai_reply}"
+        )
         
         print("C: [Orchestrator] 正在唤醒 MindMap Agent 绘制导图...")
         print("E: [Orchestrator] Waking up MindMap Agent to generate map...")
