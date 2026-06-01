@@ -5,22 +5,22 @@ def get_mindmap_tools():
             "type": "function",
             "function": {
                 "name": "modify_mind_map",
-                "description": "增量更新思维导图。根据对话，提取需要【新增】的节点、需要【更新细节】的已有节点、建立层级关系的【连线】，以及【删除】不需要的节点。",
+                "description": "增量更新思维导图。根据对话，提取需要【新增】的节点、需要【更新细节】的已有节点、建立层级关系的【连线】，以及需要【删除】的节点。",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "add_nodes": {
                             "type": "array",
-                            "description": "需要全新添加的节点",
+                            "description": "需要全新添加的节点——label 必须精简为核心名词（≤2词），严禁完整句子",
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "id": {"type": "string", "description": "唯一英文标识，如 'node_tech'"},
-                                    "label": {"type": "string", "description": "简短标题"},
+                                    "id": {"type": "string", "description": "唯一英文标识，如 'node_cat'"},
+                                    "label": {"type": "string", "description": "核心名词/短语，最多2词。反例：'chicken has rabbies'；正例：'Rabies'"},
                                     "color": {"type": "string", "description": "背景色变量，如 var(--node-blue), var(--node-green), var(--node-red)"},
-                                    "details": {"type": "array", "items": {"type": "string"}},
-                                    "x": {"type": "integer", "description": "横坐标 200-1000"},
-                                    "y": {"type": "integer", "description": "纵坐标 100-800"}
+                                    "details": {"type": "array", "items": {"type": "string"}, "description": "详细解释和说明。所有非标签的描述性、解释性内容必须存入此数组"},
+                                    "x": {"type": "integer", "description": "横坐标 200-1200"},
+                                    "y": {"type": "integer", "description": "纵坐标 50-800"}
                                 },
                                 "required": ["id", "label", "color", "x", "y"]
                             }
