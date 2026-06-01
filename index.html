@@ -367,7 +367,8 @@
 
             const t = (key) => locales[settings.language][key] || key
 
-            // Markdown 渲染：使用 marked.js 将用户和 AI 文本转为 HTML
+            // C: Markdown 渲染 — 使用 marked.js 将用户和 AI 文本转为 HTML
+            // E: Markdown rendering — converts user and AI text to HTML using marked.js
             const renderMarkdown = (text) => {
                 if (typeof marked === 'undefined') return text;
                 return marked.parse(text, { breaks: true, gfm: true });
@@ -396,7 +397,8 @@
                 { speaker: 'Sarah (Dev)', time: '00:15', text: 'We need real-time sync between the chat and the visual map.', color: '#007b83' }
             ])
 
-            // --- 核心音频逻辑变量 ---
+            // C: --- 核心音频逻辑变量 ---
+            // E: --- Core audio logic variables ---
             let audioContext = null;
             let analyser = null;
             let source = null;
@@ -409,9 +411,10 @@
             const currentTime = ref(0);
             const duration = ref(0);
             const progress = ref(0);
-            const visualizerData = ref(new Array(50).fill(10)); // 50根柱子的初始高度
+            const visualizerData = ref(new Array(50).fill(10)); // C: 50根柱子的初始高度 / E: initial height for 50 bars
 
-            // --- 初始化 Web Audio ---
+            // C: --- 初始化 Web Audio ---
+            // E: --- Initialize Web Audio ---
             const initAudioContext = () => {
                 if (!audioContext) {
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -420,18 +423,21 @@
                 }
             };
 
-            // --- 实时更新频谱动画 ---
+            // C: --- 实时更新频谱动画 ---
+            // E: --- Real-time spectrum animation update ---
             const updateVisualizer = () => {
                 if (!analyser) return;
                 const bufferLength = analyser.frequencyBinCount;
                 const dataArray = new Uint8Array(bufferLength);
                 analyser.getByteFrequencyData(dataArray);
 
-                // 将数据映射到 50 根柱子上
+                // C: 将数据映射到 50 根柱子上
+                // E: Map data to 50 bars
                 const step = Math.floor(bufferLength / 50);
                 for (let i = 0; i < 50; i++) {
                     const value = dataArray[i * step];
-                    // 映射到 10% - 90% 的高度
+                    // C: 映射到 10% - 90% 的高度
+                    // E: Map to 10% - 90% height range
                     visualizerData.value[i] = 10 + (value / 255) * 80;
                 }
                 animationFrameId = requestAnimationFrame(updateVisualizer);
@@ -459,7 +465,8 @@
                 visualizerData.value.fill(10);
             };
 
-            // --- 进度条拖动/跳转 ---
+            // C: --- 进度条拖动/跳转 ---
+            // E: --- Progress bar drag/seek ---
             const seekAudio = (e) => {
                 if (!audioPlayerEl.value || !audioPlayerEl.value.src || duration.value === 0) return;
                 const rect = e.currentTarget.getBoundingClientRect();
@@ -468,7 +475,8 @@
                 audioPlayerEl.value.currentTime = percentage * duration.value;
             };
 
-            // --- 播放/暂停控制 ---
+            // C: --- 播放/暂停控制 ---
+            // E: --- Play/Pause control ---
             const togglePlay = async () => {
                 if (!audioPlayerEl.value || !audioPlayerEl.value.src) return alert("Please load audio first.");
                 
@@ -479,7 +487,8 @@
                     cancelAnimationFrame(animationFrameId);
                     isPlaying.value = false;
                 } else {
-                    // 连接播放器到分析器
+                    // C: 连接播放器到分析器
+                    // E: Connect player to analyser
                     if (!source) {
                         source = audioContext.createMediaElementSource(audioPlayerEl.value);
                         source.connect(analyser);
@@ -496,21 +505,25 @@
                 }
             };
 
-            // --- 录音逻辑 ---
+            // C: --- 录音逻辑 ---
+            // E: --- Recording logic ---
             const toggleRecording = async () => {
                 if (isRecording.value) {
-                    // 停止录音
+                    // C: 停止录音
+                    // E: Stop recording
                     mediaRecorder.stop();
                     isRecording.value = false;
                     cancelAnimationFrame(animationFrameId);
                     visualizerData.value.fill(10);
                 } else {
-                    // 开始录音
+                    // C: 开始录音
+                    // E: Start recording
                     try {
                         initAudioContext();
                         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                         
-                        // 连接麦克风到分析器
+                        // C: 连接麦克风到分析器
+                        // E: Connect microphone to analyser
                         const micSource = audioContext.createMediaStreamSource(stream);
                         micSource.connect(analyser);
                         
@@ -523,14 +536,17 @@
                             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                             const audioUrl = URL.createObjectURL(audioBlob);
                             
-                            // 停止流轨道以释放麦克风红灯
+                            // C: 停止流轨道以释放麦克风红灯
+                            // E: Stop stream tracks to release the microphone indicator
                             stream.getTracks().forEach(track => track.stop());
                             
-                            // 更新播放器
+                            // C: 更新播放器
+                            // E: Update the player
                             audioPlayerEl.value.src = audioUrl;
                             audioPlayerEl.value.load();
                             
-                            // --- 保存录音到后端 (WSL 接入点) ---
+                            // C: 保存录音到后端 (WSL 接入点)
+                            // E: Save recording to backend (WSL entry point)
                             saveAudioToServer(audioBlob);
                         };
 
@@ -547,13 +563,15 @@
                 }
             };
 
-            // --- 真实的后端保存功能 ---
+            // C: --- 真实的后端保存功能 ---
+            // E: --- Real backend save function ---
             const saveAudioToServer = async (blob) => {
                 const formData = new FormData();
                 formData.append('audio', blob, `recording_${Date.now()}.webm`);
                 
                 try {
-                    // 假设你的 WSL 后端有一个 /upload_audio 路由
+                    // C: 假设你的 WSL 后端有一个 /upload_audio 路由
+                    // E: Assuming your WSL backend has a /upload_audio route
                     const response = await fetch('/upload_audio', {
                         method: 'POST',
                         body: formData
@@ -578,7 +596,8 @@
                 e.target.value = ''
             };
 
-            // 碰撞检测：防止节点视觉重叠
+            // C: 碰撞检测：防止节点视觉重叠
+            // E: Collision detection: prevent visual node overlapping
             const resolveOverlaps = (nodeList, maxIterations = 5) => {
                 const MIN_DX = 180, MIN_DY = 100;
                 for (let iter = 0; iter < maxIterations; iter++) {
@@ -652,7 +671,8 @@
 
             const canvasX = ref(200); const canvasY = ref(150); const isDragging = ref(false); const startX = ref(0); const startY = ref(0)
             
-            // 保留平移画布的起点记录功能
+            // C: 保留平移画布的起点记录功能
+            // E: Preserve the canvas pan starting point recording functionality
             const startDrag = (e) => { 
                 isDragging.value = true; 
                 startX.value = e.clientX - canvasX.value; 
@@ -661,7 +681,8 @@
             
             const resetCanvas = () => { canvasX.value = 200; canvasY.value = 150; activeNode.value = null }
 
-            // --- 动态连线计算 ---
+            // C: --- 动态连线计算 ---
+            // E: --- Dynamic link computation ---
             const computedLinks = computed(() => {
                 return links.value.map(link => {
                     const sourceNode = nodes.value.find(n => n.id === link.source);
@@ -680,7 +701,8 @@
                 });
             });
 
-            // --- 节点拖拽状态变量 ---
+            // C: --- 节点拖拽状态变量 ---
+            // E: --- Node drag state variables ---
             const draggingNode = ref(null);
             let startMouseX = 0; let startMouseY = 0;
             let initialNodeX = 0; let initialNodeY = 0;
@@ -694,16 +716,19 @@
                 initialNodeY = node.y;
             };
 
-            // --- 整合后的拖拽功能核心 ---
+            // C: --- 整合后的拖拽功能核心 ---
+            // E: --- Integrated drag function core ---
             const onDrag = (e) => {
                 if (draggingNode.value) {
-                    // 如果正在拖拽节点，更新节点坐标
+                    // C: 如果正在拖拽节点，更新节点坐标
+                    // E: If dragging a node, update node coordinates
                     const dx = e.clientX - startMouseX;
                     const dy = e.clientY - startMouseY;
                     draggingNode.value.x = initialNodeX + dx;
                     draggingNode.value.y = initialNodeY + dy;
                 } else if (isDragging.value) {
-                    // 如果拖拽的是画布空白处，平移整体画布
+                    // C: 如果拖拽的是画布空白处，平移整体画布
+                    // E: If dragging canvas empty area, pan the entire canvas
                     canvasX.value = e.clientX - startX.value;
                     canvasY.value = e.clientY - startY.value;
                 }
@@ -711,10 +736,11 @@
 
             const stopDrag = () => {
                 isDragging.value = false;
-                draggingNode.value = null; // 释放拖拽
+                draggingNode.value = null; // C: 释放拖拽 / E: release drag
             };
 
-            // --- 一键清空功能 ---
+            // C: --- 一键清空功能 ---
+            // E: --- Clear all nodes function ---
             const clearAllNodes = () => {
                 if(confirm(t('confirmClear'))) {
                     nodes.value = [];
@@ -725,7 +751,8 @@
                 }
             };
 
-            // --- 手动删除节点逻辑 ---
+            // C: --- 手动删除节点逻辑 ---
+            // E: --- Manual node deletion logic ---
             const deleteActiveNode = () => {
                 if (!activeNode.value) return;
                 const idToDelete = activeNode.value.id;

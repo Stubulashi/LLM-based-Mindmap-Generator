@@ -1,5 +1,10 @@
-# /home/akku/ai-mindmap-agent/tools.py
+# C: /home/akku/ai-mindmap-agent/tools.py
+# E: /home/akku/ai-mindmap-agent/tools.py
+# C: MindMap 工具定义 — 为 LLM function calling 提供 modify_mind_map 的 JSON Schema
+# E: MindMap tool definitions — provides modify_mind_map JSON Schema for LLM function calling
 def get_mindmap_tools():
+    # C: 返回完整的工具列表，包含 add_nodes / update_nodes / add_links / delete_nodes 四个能力
+    # E: Return the complete tool list, containing all four capabilities: add_nodes, update_nodes, add_links, delete_nodes
     return [
         {
             "type": "function",
