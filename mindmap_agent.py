@@ -11,15 +11,50 @@ class MindMapSpecialistAgent:
         self.tools = get_mindmap_tools()
 
     def _get_system_prompt(self):
-        return """你是一个专业的 MCP 思维导图绘图引擎。
-你的任务是：根据对话历史，决定如何【增量修改】当前的思维导图。
-规则：
-1. 建立纵深与层级：当提到一个大概念下的子概念时，请使用 add_links 连接它们（父节点为 source，子节点为 target）。
-2. 不要重复创建：如果节点已存在，只需使用 update_nodes 追加详情。
-3. 坐标分布：父节点通常在上方或左侧，子节点在下方或右侧。"""
+        return """你是一个专业的 MCP 思维导图绘图引擎，遵循 ReAct（Reasoning + Acting）模式工作。
+你的任务是：根据对话历史，对当前导图进行【增量修改】，而非从头重建。
+
+【ReAct 工作流程 - 每轮调用前必须在心中完成】
+步骤一（READ）：阅读当前导图全量结构。识别已有节点、它们的父子关系、以及各节点的 details 内容。
+步骤二（REASON）：对照近期对话，推理需要做什么：
+  - 对话中出现了哪些新概念？→ 用 add_nodes 创建，精简为原子化标签
+  - 哪些概念是对已有节点的补充？→ 用 update_nodes 追加 details
+  - 哪些新关系需要建立？→ 用 add_links 连接
+  - 哪些内容已被推翻或冗余？→ 用 delete_nodes 移除
+步骤三（ACT）：调用 modify_mind_map 工具，只传递增量差异（delta），不要重建整个 map。
+
+【原子化标签规则 - 必须严格遵守】
+1. 节点 label 必须是精简的核心名词或短语，最多 2 个词。
+2. 严禁使用完整句子作为 label！例如：
+   - ❌ 错误：'chicken has rabbies'
+   - ✅ 正确：label='Rabies', details=['Discussed that chickens can have rabbies']
+   - ❌ 错误：'I am a cat that likes fish'
+   - ✅ 正确：label='Cat', details=['Likes fish', 'Self-identifies as a cat']
+3. 所有解释性、描述性、逻辑性内容必须放入 details 数组。
+
+【常规绘图规则】
+4. 建立纵深与层级，使用 add_links 连接父子节点（source=父, target=子）。
+5. 不要重复创建：如果节点已存在，使用 update_nodes 追加详情到其 details。
+6. 坐标分布：父节点在上方/左侧，子节点在下方/右侧。避免与已有节点坐标重叠。
+
+【语言规则 - 必须严格遵守】
+7. 检测用户使用的语言（English, 中文, Deutsch, Français, Español, 日本語 等）。
+8. 所有 label 和 details 必须与用户输入语言完全一致。
+9. 绝对不要将节点内容切换为其他语言，包括中文。"""
 
     def generate_map_from_context(self, chat_history: str, current_map: dict) -> dict:
-        prompt = f"【当前导图状态】:\n{json.dumps(current_map, ensure_ascii=False)}\n\n【近期对话历史】:\n{chat_history}"
+        prompt = f"""【当前导图全量状态 - 请仔细阅读】
+节点列表: {json.dumps(current_map.get('nodes', []), ensure_ascii=False)}
+连线列表: {json.dumps(current_map.get('links', []), ensure_ascii=False)}
+
+【最新对话上下文】
+{chat_history}
+
+---
+请按照 ReAct 模式处理：
+1. 先阅读上方导图结构，理解现有节点和层级关系
+2. 再根据对话内容推理需要的增量修改
+3. 最后调用 modify_mind_map 工具提交增量 delta"""
         
         try:
             response = self.client.chat.completions.create(
@@ -50,7 +85,6 @@ class MindMapSpecialistAgent:
                     nodes_dict[nid]['details'].extend(u.get('append_details', []))
             
             # 建立新连线
-# 建立新连线
             for l in delta.get('add_links', []):
                 if not any(el['source'] == l['source'] and el['target'] == l['target'] for el in links_list):
                     links_list.append(l)

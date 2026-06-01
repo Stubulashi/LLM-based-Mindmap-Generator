@@ -6,6 +6,7 @@
     <title>AI MindMap Agent - Real Audio Analysis</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -63,6 +64,20 @@
         
         /* 增加能量条的平滑过渡 */
         .wave-bar { transition: height 0.05s ease; }
+
+        /* Markdown 渲染样式 */
+        .rendered-md p { margin: 0.25em 0; }
+        .rendered-md p:first-child { margin-top: 0; }
+        .rendered-md p:last-child { margin-bottom: 0; }
+        .rendered-md strong { font-weight: 700; }
+        .rendered-md em { font-style: italic; }
+        .rendered-md code { background: rgba(0,0,0,0.08); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; font-family: 'SF Mono', 'Fira Code', monospace; }
+        .rendered-md pre { background: #1e293b; color: #e2e8f0; padding: 0.75em 1em; border-radius: 8px; overflow-x: auto; margin: 0.5em 0; font-size: 0.85em; }
+        .rendered-md pre code { background: none; padding: 0; font-size: inherit; }
+        .rendered-md ul, .rendered-md ol { padding-left: 1.5em; margin: 0.25em 0; }
+        .rendered-md li { margin: 0.125em 0; }
+        .rendered-md blockquote { border-left: 3px solid #cbd5e1; padding-left: 0.75em; margin: 0.5em 0; color: #64748b; }
+        .rendered-md a { color: #0b57d0; text-decoration: underline; }
     </style>
 </head>
 <body class="h-screen p-4 flex">
@@ -80,7 +95,7 @@
                     <span v-if="isRecording" class="text-xs text-red-500 font-bold flex items-center gap-1 animate-pulse"><span class="w-2 h-2 rounded-full bg-red-500"></span> REC</span>
                 </div>
                 <button @click="showSettings = true" class="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors text-gray-500">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c-.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 </button>
             </div>
             
@@ -122,7 +137,7 @@
             
             <div class="flex-1 overflow-y-auto flex flex-col p-4 space-y-1" id="chat-box" ref="chatBox">
                 <div v-for="msg in chatHistory" :class="getBubbleClass(msg.role)" class="chat-bubble shadow-sm">
-                    <p class="leading-relaxed">{{ msg.text }}</p>
+                    <div class="leading-relaxed rendered-md" v-html="renderMarkdown(msg.text)"></div>
                 </div>
             </div>
             
@@ -345,6 +360,12 @@
 
             const t = (key) => locales[settings.language][key] || key
 
+            // Markdown 渲染：使用 marked.js 将用户和 AI 文本转为 HTML
+            const renderMarkdown = (text) => {
+                if (typeof marked === 'undefined') return text;
+                return marked.parse(text, { breaks: true, gfm: true });
+            };
+
             watch(() => settings.fontSize, (newSize) => {
                 document.documentElement.style.fontSize = newSize;
             }, { immediate: true })
@@ -360,7 +381,7 @@
 
             const userInput = ref('')
             const chatHistory = ref([{ role: 'system', text: locales['en'].sysReady }])
-            const nodes = ref([{ id: 1, label: 'MVP Features', x: 250, y: 150, color: 'var(--node-blue)', details: ['Start recording or upload audio'] }])
+            const nodes = ref([])
             const links = ref([])
 
             const transcripts = ref([
@@ -550,6 +571,30 @@
                 e.target.value = ''
             };
 
+            // 碰撞检测：防止节点视觉重叠
+            const resolveOverlaps = (nodeList, maxIterations = 5) => {
+                const MIN_DX = 180, MIN_DY = 100;
+                for (let iter = 0; iter < maxIterations; iter++) {
+                    let hasOverlap = false;
+                    for (let i = 0; i < nodeList.length; i++) {
+                        for (let j = i + 1; j < nodeList.length; j++) {
+                            const a = nodeList[i], b = nodeList[j];
+                            const dx = Math.abs((a.x || 0) - (b.x || 0));
+                            const dy = Math.abs((a.y || 0) - (b.y || 0));
+                            if (dx < MIN_DX && dy < MIN_DY) {
+                                hasOverlap = true;
+                                const shiftX = (MIN_DX - dx + 20) * (Math.random() > 0.5 ? 1 : -1);
+                                const shiftY = (MIN_DY - dy + 20) * (Math.random() > 0.5 ? 1 : -1);
+                                b.x = Math.max(50, Math.min(1200, (b.x || 0) + shiftX));
+                                b.y = Math.max(30, Math.min(800, (b.y || 0) + shiftY));
+                            }
+                        }
+                    }
+                    if (!hasOverlap) break;
+                }
+                return nodeList;
+            };
+
             const sendMessage = async () => {
                 if (!userInput.value.trim()) return;
                 const text = userInput.value;
@@ -569,7 +614,7 @@
                     const data = await response.json();
                     chatHistory.value.push({ role: 'ai', text: data.answer });
                     if (data.map) {
-                        nodes.value = data.map.nodes;
+                        nodes.value = resolveOverlaps(data.map.nodes);
                         links.value = data.map.links;
                     }
                     if (settings.autoScroll) scrollChat();
@@ -632,7 +677,8 @@
                 onTimeUpdate, onLoadedMetadata, onEnded, seekAudio, togglePlay, toggleRecording,
                 triggerFileUpload, handleFileChange, getBubbleClass, sendMessage, toggleTrans,
                 canvasX, canvasY, startDrag, onDrag, stopDrag, resetCanvas,
-                deleteActiveNode
+                deleteActiveNode,
+                renderMarkdown
             }
         }
     }).mount('#app')
