@@ -10,13 +10,13 @@ def get_mindmap_tools():
             "type": "function",
             "function": {
                 "name": "modify_mind_map",
-                "description": "增量更新思维导图。根据对话，提取需要【新增】的节点、需要【更新细节】的已有节点、建立层级关系的【连线】，以及需要【删除】的节点。",
+                "description": "C: 增量更新思维导图。根据对话，提取需要【新增】的节点、需要【更新细节】的已有节点、建立层级关系的【连线】，以及需要【删除】的节点。\nE: Incrementally update the mind map. Based on the conversation, extract nodes to [add], existing nodes to [update details], [links] to establish hierarchical relationships, and nodes to [delete].",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "add_nodes": {
                             "type": "array",
-                            "description": "需要全新添加的节点——label 必须精简为核心名词（≤2词），严禁完整句子",
+                            "description": "C: 需要全新添加的节点——label 必须精简为核心名词（≤2词），严禁完整句子\nE: Nodes to be newly added - labels must be concise core nouns (≤2 words), full sentences are strictly prohibited",
                             "items": {
                                 "type": "object",
                                 "properties": {
@@ -32,7 +32,7 @@ def get_mindmap_tools():
                         },
                         "update_nodes": {
                             "type": "array",
-                            "description": "需要追加 detail 内容的已有节点",
+                            "description": "C: 需要追加 detail 内容的已有节点\nE: Existing nodes that need additional detail content appended",
                             "items": {
                                 "type": "object",
                                 "properties": {
@@ -44,7 +44,7 @@ def get_mindmap_tools():
                         },
                         "add_links": {
                             "type": "array",
-                            "description": "表示节点之间层级和从属关系的连线",
+                            "description": "C: 表示节点之间层级和从属关系的连线\nE: Links representing hierarchical and affiliation relationships between nodes",
                             "items": {
                                 "type": "object",
                                 "properties": {
@@ -57,7 +57,7 @@ def get_mindmap_tools():
                         },
                         "delete_nodes": {
                             "type": "array",
-                            "description": "需要删除的节点ID列表。如果用户要求移除某个概念，将其ID放入此列表。",
+                            "description": "C: 需要删除的节点ID列表。如果用户要求移除某个概念，将其ID放入此列表。\nE: List of node IDs to be deleted. If the user requests removal of a concept, place its ID in this list.",
                             "items": {"type": "string"}
                         }
                     }
