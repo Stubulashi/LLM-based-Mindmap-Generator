@@ -1,10 +1,13 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 import os
 import json
+import tempfile
+import asyncio
+import whisper
 from openai import OpenAI
 
 from config import Config
@@ -24,6 +27,22 @@ app.add_middleware(
 chat_client = OpenAI(api_key=Config.DEEPSEEK_API_KEY, base_url=Config.DEEPSEEK_BASE_URL)
 map_specialist = MindMapSpecialistAgent()
 
+# C: 调试：将最新思维导图 JSON 复制到项目根目录
+# E: Debug: Copy the latest mind map JSON to project root
+async def _save_debug_map(data: dict) -> None:
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "last_generated_map.txt")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    print(f"[Debug] Map saved -> {path}")
+
+# C: 全局加载 Whisper 模型（只加载一次）
+# E: Globally load Whisper model (load only once)
+print("C: 正在加载 Whisper 模型 (small)...")
+print("E: Loading Whisper model (small)...")
+whisper_model = whisper.load_model("small")
+print(f"C: Whisper 就绪，运行设备: {next(whisper_model.parameters()).device}")
+print(f"E: Whisper ready on device: {next(whisper_model.parameters()).device}")
+
 # C: 在内存中维护一下近期的对话上下文（简单版 Memory）
 # E: Maintain recent conversation context in memory (simple version of Memory)
 session_memory = []
@@ -35,6 +54,7 @@ async def read_index():
 class ChatRequest(BaseModel):
     message: str
     current_map: Optional[Dict[str, Any]] = None
+    transcript_context: Optional[str] = None
 
 @app.post("/chat")
 async def handle_multimodal_chat(request: ChatRequest):
@@ -71,6 +91,14 @@ E: [Language Rules - Must Strictly Follow]
         # E: Truncate to the last 5 rounds of conversation to prevent context overflow
         recent_context = [{"role": "system", "content": chat_sys_prompt}] + session_memory[-5:]
         
+        # C: 如果前端传了转录上下文，以 system 角色注入到对话中（不影响用户原始输入）
+        # E: If transcript context is provided, inject it as system role (does not pollute user input)
+        if request.transcript_context:
+            recent_context.insert(1, {
+                "role": "system",
+                "content": f"C: 【转录上下文 - 供参考】以下是用户提供的语音转录内容，可从中提取关键信息用于回答：\n{request.transcript_context}\n---\nE: [Transcript Context - For Reference] Below is the speech transcription provided by the user. Extract key information from it to assist in your response:\n{request.transcript_context}\n---"
+            })
+        
         chat_response = chat_client.chat.completions.create(
             model=Config.DEEPSEEK_MODEL,
             messages=recent_context
@@ -106,6 +134,10 @@ E: [Language Rules - Must Strictly Follow]
         print("C: [Orchestrator] MindMap Agent 绘制完成！")
         print("E: [Orchestrator] MindMap Agent generation complete!")
 
+        # C: 将 map 副本保存到 last_generated_map.txt
+        # E: Save a copy of the map to last_generated_map.txt
+        asyncio.create_task(_save_debug_map(updated_map))
+
         # ---------------------------------------------------------
         # C: 阶段三：合并结果返回给前端
         # E: Phase 3: Combine results and return to frontend
@@ -119,6 +151,63 @@ E: [Language Rules - Must Strictly Follow]
         print(f"C: 系统运行错误: {e}")
         print(f"E: System runtime error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ---------------------------------------------------------
+# C: 音频上传 + Whisper STT + DeepSeek 润色 路由
+# E: Audio upload + Whisper STT + DeepSeek polishing route
+# ---------------------------------------------------------
+@app.post("/upload_audio")
+async def handle_audio_upload(file: UploadFile = File(...)):
+    # C: 1. 安全保存临时文件
+    # E: 1. Safely save temporary file
+    suffix = os.path.splitext(file.filename or "audio.wav")[1] or ".wav"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+    
+    try:
+        # C: 2. Whisper 转录（自动检测语言）
+        # E: 2. Whisper transcription (auto-detect language)
+        result = whisper_model.transcribe(tmp_path)
+        raw_text = result["text"].strip()
+        detected_lang = result.get("language", "en")
+        
+        if not raw_text:
+            return {"status": "success", "raw_text": "", "polished_text": "", "detected_language": detected_lang}
+        
+        # C: 3. 根据检测语言动态构建润色 prompt
+        # E: 3. Dynamically build polish prompt based on detected language
+        if detected_lang == "zh":
+            polish_prompt = "你是一个专业的语音识别文本校对助手。请将以下STT粗糙文本进行润色：修复错别字、添加标点符号、去除'嗯''啊'等语气词。只输出润色后的纯文本，不要输出任何解释。"
+        else:
+            polish_prompt = "You are a professional speech-to-text proofreading assistant. Polish the following rough transcript: fix typos, add punctuation, remove filler words (um, uh, like, you know). Output only the polished text, no explanations."
+        
+        # C: 4. DeepSeek 润色
+        # E: 4. DeepSeek polishing
+        polish_response = chat_client.chat.completions.create(
+            model=Config.DEEPSEEK_MODEL,
+            messages=[
+                {"role": "system", "content": polish_prompt},
+                {"role": "user", "content": raw_text}
+            ],
+            temperature=0.2
+        )
+        polished_text = polish_response.choices[0].message.content
+        
+        return {
+            "status": "success",
+            "raw_text": raw_text,
+            "polished_text": polished_text,
+            "detected_language": detected_lang
+        }
+    except Exception as e:
+        print(f"C: [Whisper] 处理出错: {e}")
+        print(f"E: [Whisper] Processing error: {e}")
+        raise HTTPException(status_code=500, detail=f"Audio processing failed: {str(e)}")
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 if __name__ == "__main__":
     import uvicorn
