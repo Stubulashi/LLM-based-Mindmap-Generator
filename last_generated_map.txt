@@ -1,0 +1,132 @@
+{
+  "nodes": [
+    {
+      "id": "node_sociophonetics",
+      "label": "Sociophonetics",
+      "color": "var(--node-blue)",
+      "x": 500,
+      "y": 50,
+      "details": [
+        "Study of social variation in phonetic/phonological patterns"
+      ]
+    },
+    {
+      "id": "node_push_pull",
+      "label": "Push & Pull",
+      "color": "var(--node-green)",
+      "x": 500,
+      "y": 150,
+      "details": [
+        "Mechanisms describing how chain shifts happen in vowel systems",
+        "Both Pull and Push mechanisms confirmed in transcription"
+      ]
+    },
+    {
+      "id": "node_pull",
+      "label": "Pull (Drag)",
+      "color": "var(--node-green)",
+      "x": 300,
+      "y": 280,
+      "details": [
+        "One vowel moves first, leaving a gap; another vowel is pulled into that empty space",
+        "Analogy: a train pulling the car behind it",
+        "Motivation: maintain system symmetry",
+        "Example: The Great Vowel Shift in English",
+        "Pull (Drag) Change: one phoneme changes and pulls another phoneme with it to maintain distance"
+      ]
+    },
+    {
+      "id": "node_push",
+      "label": "Push",
+      "color": "var(--node-green)",
+      "x": 700,
+      "y": 280,
+      "details": [
+        "A vowel moves into another vowel's acoustic space, creating crowding; the threatened vowel is pushed away",
+        "Analogy: too many people in a small room — someone gets pushed out",
+        "Motivation: avoid merger",
+        "Example: Northern Cities Vowel Shift (Chicago, Detroit)",
+        "Push Change: acoustic crowding forces a phoneme to move and make space"
+      ]
+    },
+    {
+      "id": "node_key_diff",
+      "label": "Key Difference",
+      "color": "var(--node-red)",
+      "x": 500,
+      "y": 420,
+      "details": [
+        "Pull: leaving vowel moves first, second vowel moves to fill a gap",
+        "Push: invading vowel moves first, second vowel moves to flee from crowding"
+      ]
+    },
+    {
+      "id": "node_transcription",
+      "label": "Transcription",
+      "color": "var(--node-blue)",
+      "x": 120,
+      "y": 420,
+      "details": [
+        "Transcription results from the lecture/discussion on push and pull chain shifts"
+      ]
+    },
+    {
+      "id": "node_pull_freq",
+      "label": "Pull More Frequent",
+      "color": "var(--node-green)",
+      "x": 120,
+      "y": 540,
+      "details": [
+        "Speaker mentioned Pull is more frequent than Push"
+      ]
+    },
+    {
+      "id": "node_terminology",
+      "label": "Terminology Notes",
+      "color": "var(--node-red)",
+      "x": 120,
+      "y": 660,
+      "details": [
+        "Speaker unsure if paper used exact terms 'pull change shift' or 'push change shift'",
+        "Paper mentioned 'drag change' but memory is fuzzy on specifics"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_sociophonetics",
+      "target": "node_push_pull",
+      "type": "solid"
+    },
+    {
+      "source": "node_push_pull",
+      "target": "node_pull",
+      "type": "solid"
+    },
+    {
+      "source": "node_push_pull",
+      "target": "node_push",
+      "type": "solid"
+    },
+    {
+      "source": "node_push_pull",
+      "target": "node_key_diff",
+      "type": "solid"
+    },
+    {
+      "source": "node_push_pull",
+      "target": "node_transcription",
+      "type": "dashed"
+    },
+    {
+      "source": "node_transcription",
+      "target": "node_pull_freq",
+      "type": "solid"
+    },
+    {
+      "source": "node_transcription",
+      "target": "node_terminology",
+      "type": "solid"
+    }
+  ]
+}
