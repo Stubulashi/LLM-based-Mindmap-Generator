@@ -1,131 +1,100 @@
 {
   "nodes": [
     {
-      "id": "node_sociophonetics",
-      "label": "Sociophonetics",
+      "id": "node_transcript",
+      "label": "Transcription Summary",
       "color": "var(--node-blue)",
-      "x": 500,
+      "x": 600,
       "y": 50,
       "details": [
-        "Study of social variation in phonetic/phonological patterns"
+        "Discussion about a vowel chart graph with F2-F1 x-axis and F1 y-axis"
       ]
     },
     {
-      "id": "node_push_pull",
-      "label": "Push & Pull",
+      "id": "node_yaxis",
+      "label": "Y-axis (F1)",
       "color": "var(--node-green)",
-      "x": 500,
-      "y": 150,
+      "x": 350,
+      "y": 200,
       "details": [
-        "Mechanisms describing how chain shifts happen in vowel systems",
-        "Both Pull and Push mechanisms confirmed in transcription"
+        "F1 relates to vowel height",
+        "Lower F1 = more closed (high vowel)",
+        "Higher F1 = more open (low vowel)"
       ]
     },
     {
-      "id": "node_pull",
-      "label": "Pull (Drag)",
+      "id": "node_xaxis",
+      "label": "X-axis (F2-F1)",
       "color": "var(--node-green)",
-      "x": 300,
-      "y": 280,
+      "x": 850,
+      "y": 200,
       "details": [
-        "One vowel moves first, leaving a gap; another vowel is pulled into that empty space",
-        "Analogy: a train pulling the car behind it",
-        "Motivation: maintain system symmetry",
-        "Example: The Great Vowel Shift in English",
-        "Pull (Drag) Change: one phoneme changes and pulls another phoneme with it to maintain distance"
+        "F2 minus F1 difference shown instead of just F2",
+        "Used as degree of fronting",
+        "A form of normalization, though unusual",
+        "Accounts for both horizontal and vertical movement"
       ]
     },
     {
-      "id": "node_push",
-      "label": "Push",
-      "color": "var(--node-green)",
-      "x": 700,
-      "y": 280,
-      "details": [
-        "A vowel moves into another vowel's acoustic space, creating crowding; the threatened vowel is pushed away",
-        "Analogy: too many people in a small room — someone gets pushed out",
-        "Motivation: avoid merger",
-        "Example: Northern Cities Vowel Shift (Chicago, Detroit)",
-        "Push Change: acoustic crowding forces a phoneme to move and make space"
-      ]
-    },
-    {
-      "id": "node_key_diff",
-      "label": "Key Difference",
+      "id": "node_labeling_error",
+      "label": "Labeling Error",
       "color": "var(--node-red)",
-      "x": 500,
-      "y": 420,
+      "x": 850,
+      "y": 400,
       "details": [
-        "Pull: leaving vowel moves first, second vowel moves to fill a gap",
-        "Push: invading vowel moves first, second vowel moves to flee from crowding"
+        "Paper may have mistakenly written 'F1 minus F2' at bottom left",
+        "If F1 minus F2, values would be negative",
+        "Described as just a labeling error"
       ]
     },
     {
-      "id": "node_transcription",
-      "label": "Transcription",
-      "color": "var(--node-blue)",
-      "x": 120,
-      "y": 420,
-      "details": [
-        "Transcription results from the lecture/discussion on push and pull chain shifts"
-      ]
-    },
-    {
-      "id": "node_pull_freq",
-      "label": "Pull More Frequent",
+      "id": "node_vowel_position",
+      "label": "Vowel Positions",
       "color": "var(--node-green)",
-      "x": 120,
-      "y": 540,
+      "x": 350,
+      "y": 400,
       "details": [
-        "Speaker mentioned Pull is more frequent than Push"
+        "Vowel positions still fit normal F2 and F1 pattern",
+        "Despite unusual axis labeling"
       ]
     },
     {
-      "id": "node_terminology",
-      "label": "Terminology Notes",
-      "color": "var(--node-red)",
-      "x": 120,
-      "y": 660,
+      "id": "node_normalization",
+      "label": "Normalization",
+      "color": "var(--node-green)",
+      "x": 850,
+      "y": 600,
       "details": [
-        "Speaker unsure if paper used exact terms 'pull change shift' or 'push change shift'",
-        "Paper mentioned 'drag change' but memory is fuzzy on specifics"
+        "Using F2-F1 is a form of normalization",
+        "Unusual normalization method",
+        "Accounts for both horizontal and vertical movement"
       ]
     }
   ],
   "links": [
     {
-      "source": "node_sociophonetics",
-      "target": "node_push_pull",
+      "source": "node_transcript",
+      "target": "node_yaxis",
       "type": "solid"
     },
     {
-      "source": "node_push_pull",
-      "target": "node_pull",
+      "source": "node_transcript",
+      "target": "node_xaxis",
       "type": "solid"
     },
     {
-      "source": "node_push_pull",
-      "target": "node_push",
+      "source": "node_xaxis",
+      "target": "node_labeling_error",
       "type": "solid"
     },
     {
-      "source": "node_push_pull",
-      "target": "node_key_diff",
+      "source": "node_transcript",
+      "target": "node_vowel_position",
       "type": "solid"
     },
     {
-      "source": "node_push_pull",
-      "target": "node_transcription",
-      "type": "dashed"
-    },
-    {
-      "source": "node_transcription",
-      "target": "node_pull_freq",
-      "type": "solid"
-    },
-    {
-      "source": "node_transcription",
-      "target": "node_terminology",
+      "source": "node_xaxis",
+      "target": "node_normalization",
       "type": "solid"
     }
   ]

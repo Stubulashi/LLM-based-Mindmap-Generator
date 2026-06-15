@@ -598,7 +598,7 @@
                             
                             // C: 保存录音到后端 (WSL 接入点)
                             // E: Save recording to backend (WSL entry point)
-                            saveAudioToServer(audioBlob, audioUrl);
+                            await saveAudioToServer(audioBlob, audioUrl);
                         };
 
                         mediaRecorder.start();
@@ -665,9 +665,12 @@
                     }
                 } catch (error) {
                     console.error("Audio processing failed:", error);
+                    console.error("Error type:", error.name, "| message:", error.message);
+                    console.error("Error stack:", error.stack);
                     chatHistory.value.push({
                         role: 'system',
-                        text: `[STT] Processing failed: ${error.message}`
+                        text: `[STT] Processing failed: ${error.message}. ` +
+                              `(请打开浏览器 F12 → Console 查看详细错误)`
                     });
                 } finally {
                     isProcessingAudio.value = false;
