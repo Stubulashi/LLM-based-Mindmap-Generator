@@ -6,10 +6,10 @@ from tools import get_mindmap_tools
 
 class MindMapSpecialistAgent:
     def __init__(self):
-        # C: 初始化 OpenAI 客户端与工具
-        # E: Initialize OpenAI client and tools
-        self.client = OpenAI(api_key=Config.DEEPSEEK_API_KEY, base_url=Config.DEEPSEEK_BASE_URL)
-        self.model = Config.DEEPSEEK_MODEL
+        # C: 初始化 LLM 客户端与工具（通过 Config 动态读取模型提供商配置）
+        # E: Initialize LLM client and tools (reads model provider config dynamically via Config)
+        self.client = OpenAI(api_key=Config.LLM_API_KEY, base_url=Config.LLM_BASE_URL)
+        self.model = Config.LLM_MODEL
         self.tools = get_mindmap_tools()
 
     def _get_system_prompt(self):
