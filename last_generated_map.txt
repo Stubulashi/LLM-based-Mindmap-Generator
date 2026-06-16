@@ -1,101 +1,70 @@
 {
   "nodes": [
     {
-      "id": "node_transcript",
-      "label": "Transcription Summary",
+      "id": "node_drag_change",
+      "label": "拖拽变化",
+      "details": [
+        "📋 上下文: 论文中提到的术语 \"drag change\"",
+        "💡 定义: 一个音位发生变化，并\"拖拽\"着另一个音位一同移动，以保持它们之间原有的距离",
+        "🔑 关键点: Pull 与 Drag 是同一概念",
+        "🔑 关键点: 发言者认为拖拽可能比推挤更常见"
+      ],
       "color": "var(--node-blue)",
-      "x": 600,
-      "y": 50,
-      "details": [
-        "Discussion about a vowel chart graph with F2-F1 x-axis and F1 y-axis"
-      ]
+      "x": 500,
+      "y": 80
     },
     {
-      "id": "node_yaxis",
-      "label": "Y-axis (F1)",
+      "id": "node_push_change",
+      "label": "推挤变化",
+      "details": [
+        "📋 上下文: 与\"拖拽\"相对的相反方向概念",
+        "💡 定义: 当出现\"声学拥挤\"（acoustic crowding）时，一个音位为了给自己腾出空间而\"推挤\"另一个音位",
+        "🔑 关键点: Push change shift 是 Drag change 的对等概念",
+        "🔑 关键点: 两种变化机制都存在"
+      ],
       "color": "var(--node-green)",
-      "x": 350,
-      "y": 200,
-      "details": [
-        "F1 relates to vowel height",
-        "Lower F1 = more closed (high vowel)",
-        "Higher F1 = more open (low vowel)"
-      ]
+      "x": 300,
+      "y": 300
     },
     {
-      "id": "node_xaxis",
-      "label": "X-axis (F2-F1)",
-      "color": "var(--node-green)",
-      "x": 850,
-      "y": 200,
+      "id": "node_pull_change",
+      "label": "Pull Change",
       "details": [
-        "F2 minus F1 difference shown instead of just F2",
-        "Used as degree of fronting",
-        "A form of normalization, though unusual",
-        "Accounts for both horizontal and vertical movement"
-      ]
+        "💡 定义: Pull 与 Drag change shifts 是同一概念",
+        "🔑 关键点: 一个音位变化后\"拉动\"另一个音位以保持距离",
+        "🔑 关键点: 发言者认为 Pull 比 Push 更频繁"
+      ],
+      "color": "var(--node-yellow)",
+      "x": 700,
+      "y": 300
     },
     {
-      "id": "node_labeling_error",
-      "label": "Labeling Error",
+      "id": "node_acoustic_crowding",
+      "label": "声学拥挤",
+      "details": [
+        "💡 定义: 音位在声学空间中过于拥挤，需要腾出空间",
+        "📋 上下文: 推挤变化发生的背景条件"
+      ],
       "color": "var(--node-red)",
-      "x": 850,
-      "y": 400,
-      "details": [
-        "Paper may have mistakenly written 'F1 minus F2' at bottom left",
-        "If F1 minus F2, values would be negative",
-        "Described as just a labeling error"
-      ]
-    },
-    {
-      "id": "node_vowel_position",
-      "label": "Vowel Positions",
-      "color": "var(--node-green)",
-      "x": 350,
-      "y": 400,
-      "details": [
-        "Vowel positions still fit normal F2 and F1 pattern",
-        "Despite unusual axis labeling"
-      ]
-    },
-    {
-      "id": "node_normalization",
-      "label": "Normalization",
-      "color": "var(--node-green)",
-      "x": 850,
-      "y": 600,
-      "details": [
-        "Using F2-F1 is a form of normalization",
-        "Unusual normalization method",
-        "Accounts for both horizontal and vertical movement"
-      ]
+      "x": 300,
+      "y": 500
     }
   ],
   "links": [
     {
-      "source": "node_transcript",
-      "target": "node_yaxis",
+      "source": "node_drag_change",
+      "target": "node_push_change",
       "type": "solid"
     },
     {
-      "source": "node_transcript",
-      "target": "node_xaxis",
+      "source": "node_drag_change",
+      "target": "node_pull_change",
       "type": "solid"
     },
     {
-      "source": "node_xaxis",
-      "target": "node_labeling_error",
-      "type": "solid"
-    },
-    {
-      "source": "node_transcript",
-      "target": "node_vowel_position",
-      "type": "solid"
-    },
-    {
-      "source": "node_xaxis",
-      "target": "node_normalization",
-      "type": "solid"
+      "source": "node_push_change",
+      "target": "node_acoustic_crowding",
+      "type": "dashed"
     }
   ]
 }
