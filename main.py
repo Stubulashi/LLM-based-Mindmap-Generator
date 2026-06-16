@@ -10,6 +10,7 @@ import json
 import logging
 import tempfile
 import asyncio
+from datetime import datetime
 
 from config import Config
 from mcp_client import MCPMindMapClient  # C: MCP Client 封装 / E: MCP Client wrapper
@@ -187,11 +188,17 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def handle_multimodal_chat(request: ChatRequest):
     """C: 纯编排器 — 不包含任何 LLM API 调用或业务逻辑。
-    流程: 构建上下文 → MCP chat_generate → 验证 → MCP modify_mind_map → 验证 → 组装返回。
+    流程: 构建上下文 → MCP chat_generate → 验证 → MCP modify_mind_map_v2 → 验证 → 组装返回。
+    modify_mind_map_v2 内部使用三阶段多模型管线（概念提取→层级规划→Delta生成）提升层级结构清晰度。
     E: Pure orchestrator — contains no LLM API calls or business logic.
-    Flow: Build context → MCP chat_generate → validate → MCP modify_mind_map → validate → assemble response."""
+    Flow: Build context → MCP chat_generate → validate → MCP modify_mind_map_v2 → validate → assemble response.
+    modify_mind_map_v2 internally uses 3-stage multi-model pipeline (concept extraction→hierarchy planning→delta generation) for better hierarchy clarity."""
     global session_memory
     try:
+        # C: 生成当前请求的会话时间戳（用于跨工具共享调试目录）
+        # E: Generate session timestamp for this request (for cross-tool debug dir sharing)
+        session_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
         user_msg = request.message
         current_map = request.current_map or {"nodes": [], "links": []}
 
@@ -264,23 +271,49 @@ E: [Language Rules - Must Strictly Follow]
                 f"---\n"
             )
 
+        # C: 根据 DETAILS_ENRICHMENT_ENABLED 决定 AI 回复的角色
+        # E: Determine AI reply role based on DETAILS_ENRICHMENT_ENABLED
+        if Config.DETAILS_ENRICHMENT_ENABLED:
+            ai_reply_marker_cn = (
+                "C: 【概念补充来源 - 请将AI回复中与各概念相关的定义、解释、关键点、"
+                "举例等，按条目化方式追加到对应节点的 details 数组中。"
+                "每条建议以简洁前缀标识来源（如 '💡 定义:'、'🔑 关键点:'、'📋 上下文:'）。"
+                "禁止将AI的分析逻辑创建为独立节点】AI回复说："
+            )
+            ai_reply_marker_en = (
+                "E: [Concept Enrichment Source - Extract definitions, explanations, key points, "
+                "and examples related to each concept from the AI reply, and append them as "
+                "structured entries to the corresponding node's details array. "
+                "Prefix each entry with a concise source tag (e.g., '💡 Definition:', "
+                "'🔑 Key Point:', '📋 Context:'). "
+                "Do NOT create standalone nodes from AI's analytical logic] AI replied: "
+            )
+        else:
+            ai_reply_marker_cn = (
+                "C: 【仅供参考的聊天记录，禁止将其中的逻辑分析画入导图】AI回复说："
+            )
+            ai_reply_marker_en = (
+                "E: [Chat log for reference only, do not draw its logical analysis into the mind map] AI replied: "
+            )
+
         formatted_history = (
             transcript_block +
             f"C: 【最高优先级指令】用户说：{user_msg}\n"
             f"E: [Highest Priority Instruction] User says: {user_msg}\n"
-            f"C: 【仅供参考的聊天记录，禁止将其中的逻辑分析画入导图】AI回复说：{ai_reply}\n"
-            f"E: [Chat log for reference only, do not draw its logical analysis into the mind map] AI replied: {ai_reply}"
+            f"{ai_reply_marker_cn}{ai_reply}\n"
+            f"{ai_reply_marker_en}{ai_reply}"
         )
 
-        logger.info("C: [Orchestrator] 调度 modify_mind_map 任务...")
-        logger.info("E: [Orchestrator] Dispatching modify_mind_map task...")
+        logger.info("C: [Orchestrator] 调度 modify_mind_map_v2 任务...")
+        logger.info("E: [Orchestrator] Dispatching modify_mind_map_v2 task...")
         updated_map = await _call_tool_with_retry(
-            "modify_mind_map",
-            {"chat_history": formatted_history, "current_map": current_map},
+            "modify_mind_map_v2",
+            {"chat_history": formatted_history, "current_map": current_map,
+             "session_ts": session_ts},
             _validate_map
         )
-        logger.info("C: [Orchestrator] modify_mind_map 完成")
-        logger.info("E: [Orchestrator] modify_mind_map complete")
+        logger.info("C: [Orchestrator] modify_mind_map_v2 完成")
+        logger.info("E: [Orchestrator] modify_mind_map_v2 complete")
 
         # C: Debug 日志
         # E: Debug log
@@ -319,6 +352,10 @@ async def handle_audio_upload(file: UploadFile = File(...)):
         tmp_path = tmp.name
 
     try:
+        # C: 生成当前请求的会话时间戳（用于跨工具共享调试目录）
+        # E: Generate session timestamp for this request (for cross-tool debug dir sharing)
+        session_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
         # C: 2. 通过 MCP 调用 Whisper 转录（带验证+重试）
         # E: 2. Call Whisper transcription via MCP (with validation+retry)
         logger.info("C: [Orchestrator] 调度 transcribe_audio 任务...")
@@ -342,7 +379,8 @@ async def handle_audio_upload(file: UploadFile = File(...)):
         logger.info("E: [Orchestrator] Dispatching polish_text task...")
         polish_result = await _call_tool_with_retry(
             "polish_text",
-            {"raw_text": raw_text, "detected_language": detected_lang},
+            {"raw_text": raw_text, "detected_language": detected_lang,
+             "session_ts": session_ts},
             _validate_polish
         )
         polished_text = polish_result.get("polished_text", "")

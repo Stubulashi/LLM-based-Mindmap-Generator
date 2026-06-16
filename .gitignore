@@ -17,3 +17,6 @@ env/
 .idea/
 *.swp
 api.env
+
+# Debug output
+debug_output/

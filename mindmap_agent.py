@@ -1,8 +1,86 @@
 # /home/akku/ai-mindmap-agent/mindmap_agent.py
 import json
+import os
+import sys
+import logging
+from datetime import datetime
 from openai import OpenAI
 from config import Config
-from tools import get_mindmap_tools
+from tools import get_mindmap_tools, get_concept_extraction_tools, get_hierarchy_planning_tools
+
+# C: 日志输出到 stderr，避免污染 stdio 协议通道
+# E: Log to stderr to avoid polluting the stdio protocol channel
+logger = logging.getLogger("mindmap-agent")
+
+
+# =========================================================
+# C: 状态合并 — 将 LLM 输出的 delta 应用到当前导图
+#    独立函数，供单模型和管线两种模式复用
+# E: State Merge — apply LLM delta to current map
+#    Standalone function, reusable by both single-model and pipeline modes
+# =========================================================
+def state_merge(delta: dict, current_map: dict) -> dict:
+    nodes_dict = {str(n['id']): n for n in current_map.get('nodes', [])}
+    links_list = list(current_map.get('links', []))
+
+    # C: 添加新节点 / E: Add new nodes
+    for n in delta.get('add_nodes', []):
+        nodes_dict[str(n['id'])] = n
+
+    # C: 更新旧节点 / E: Update existing nodes
+    for u in delta.get('update_nodes', []):
+        nid = str(u['id'])
+        if nid in nodes_dict:
+            if 'details' not in nodes_dict[nid]:
+                nodes_dict[nid]['details'] = []
+            nodes_dict[nid]['details'].extend(u.get('append_details', []))
+
+    # C: 建立新连线 / E: Create new links
+    for l in delta.get('add_links', []):
+        if not any(
+            el['source'] == l['source'] and el['target'] == l['target']
+            for el in links_list
+        ):
+            links_list.append(l)
+
+    # C: 处理删除 / E: Handle deletions
+    for del_id in delta.get('delete_nodes', []):
+        del_id_str = str(del_id)
+        if del_id_str in nodes_dict:
+            del nodes_dict[del_id_str]
+        links_list = [
+            l for l in links_list
+            if str(l['source']) != del_id_str and str(l['target']) != del_id_str
+        ]
+
+    return {"nodes": list(nodes_dict.values()), "links": links_list}
+
+
+# =========================================================
+# C: 基础 Agent — 封装 LLM 客户端初始化和 function calling 调用
+# E: Base Agent — encapsulates LLM client init and function calling
+# =========================================================
+class _BaseAgent:
+    def __init__(self, api_key: str, base_url: str, model: str):
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.model = model
+
+    def _call_llm_tool(self, system_prompt: str, user_prompt: str,
+                       tools: list, tool_choice_name: str) -> dict:
+        """C: 通用 LLM function calling 封装。
+        E: Generic LLM function calling wrapper."""
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            tools=tools,
+            tool_choice={"type": "function", "function": {"name": tool_choice_name}}
+        )
+        tool_call = response.choices[0].message.tool_calls[0]
+        return json.loads(tool_call.function.arguments)
+
 
 class MindMapSpecialistAgent:
     def __init__(self):
@@ -13,9 +91,37 @@ class MindMapSpecialistAgent:
         self.tools = get_mindmap_tools()
 
     def _get_system_prompt(self):
-        # C: 返回系统提示词（中英双语）
-        # E: Return system prompt (bilingual CN/EN)
-        return """C: 你是一个专业的 MCP 思维导图绘图引擎，遵循 ReAct（Reasoning + Acting）模式工作。
+        # C: 返回系统提示词（中英双语），根据 DETAILS_ENRICHMENT_ENABLED 动态调整规则3
+        # E: Return system prompt (bilingual CN/EN), dynamically adjusts rule 3 based on DETAILS_ENRICHMENT_ENABLED
+
+        # C: 规则3 — 根据配置决定 AI 回复内容的使用策略
+        # E: Rule 3 — determine AI reply content usage strategy based on config
+        if Config.DETAILS_ENRICHMENT_ENABLED:
+            rule3_cn = (
+                "3. Details 层次化补充：【AI回复说】中对概念的定义、解释、关键点、举例等，"
+                "可按条目化方式追加到对应节点的 details 数组中。"
+                "每条以简洁前缀标识来源和类型（如 '💡 定义:'、'🔑 关键点:'、'📋 上下文:'、'📝 用户原文:'）。"
+                "严禁将 AI 的分析逻辑创建为独立节点（元节点）——AI 内容只能作为已有节点的 details 补充。"
+            )
+            rule3_en = (
+                "3. Hierarchical Details Enrichment: Definitions, explanations, key points, and examples "
+                "from [AI Replies] may be appended as structured entries to the corresponding node's details array. "
+                "Prefix each entry with a concise source/type tag (e.g., '💡 Definition:', '🔑 Key Point:', "
+                "'📋 Context:', '📝 User Input:'). "
+                "Strictly prohibit creating standalone nodes (meta-nodes) from AI analytical logic — "
+                "AI content may only serve as details enrichment for existing nodes."
+            )
+        else:
+            rule3_cn = (
+                "3. 屏蔽 AI 发散：【AI回复说】的内容仅作为语境参考。"
+                "你的图谱实体提取必须 100% 以用户提供的词汇为准。"
+            )
+            rule3_en = (
+                "3. Block AI divergence: the content of [AI Replies] is for contextual reference only. "
+                "Your graph entity extraction must be 100% based on the vocabulary provided by the user."
+            )
+
+        return f"""C: 你是一个专业的 MCP 思维导图绘图引擎，遵循 ReAct（Reasoning + Acting）模式工作。
 你的任务是：根据对话历史，对当前导图进行【增量修改】，而非从头重建。
 E: You are a professional MCP mind map drawing engine following the ReAct (Reasoning + Acting) mode.
 Your task is to make incremental modifications to the current mind map based on conversation history, rather than rebuilding from scratch.
@@ -23,11 +129,11 @@ Your task is to make incremental modifications to the current mind map based on 
 C: 【核心铁律 - 必须严格遵守】
 1. 绝对服从用户：【用户说】的内容具有绝对的权威。即使用户的逻辑是荒诞的、无厘头的或违反常理的，你也必须严格按照用户的概念拓扑直接建图。
 2. 严禁生成"元节点（Meta-nodes）"：绝对不要将 AI 的逻辑分析、说教或总结画进导图。画布只用来呈现用户指定的客观概念。
-3. 屏蔽 AI 发散：【AI回复说】的内容仅作为语境参考。你的图谱实体提取必须 100% 以用户提供的词汇为准。
+{rule3_cn}
 E: [Core Iron Laws - Must Strictly Follow]
 1. Absolute obedience to the user: the content of [User Says] has absolute authority. Even if the user's logic is absurd, nonsensical, or violates common sense, you must strictly build the map according to the user's conceptual topology.
 2. Strictly prohibit generating meta-nodes: never draw AI's logical analysis, preaching, or summaries into the mind map. The canvas is only for presenting objective concepts specified by the user.
-3. Block AI divergence: the content of [AI Replies] is for contextual reference only. Your graph entity extraction must be 100% based on the vocabulary provided by the user.
+{rule3_en}
 
 C: 【ReAct 工作流程 - 每轮调用前必须在心中完成】
 步骤一（READ）：阅读当前导图全量结构。识别已有节点、它们的父子关系、以及各节点的 details 内容。
@@ -131,50 +237,861 @@ Please process in ReAct mode:
             
             tool_call = response.choices[0].message.tool_calls[0]
             delta = json.loads(tool_call.function.arguments)
-            
-            # ---------------------------------------------------------
-            # C: 核心：在后端进行状态合并 (State Merge)
-            # E: Core: Perform state merge on the backend
-            # ---------------------------------------------------------
-            nodes_dict = {str(n['id']): n for n in current_map.get('nodes', [])}
-            links_list = current_map.get('links', [])
-
-            # C: 添加新节点 / E: Add new nodes
-            for n in delta.get('add_nodes', []):
-                nodes_dict[str(n['id'])] = n
-            
-            # C: 更新旧节点 / E: Update existing nodes
-            for u in delta.get('update_nodes', []):
-                nid = str(u['id'])
-                if nid in nodes_dict:
-                    nodes_dict[nid]['details'].extend(u.get('append_details', []))
-            
-            # C: 建立新连线 / E: Create new links
-            for l in delta.get('add_links', []):
-                if not any(el['source'] == l['source'] and el['target'] == l['target'] for el in links_list):
-                    links_list.append(l)
-
-            # ---------------------------------------------------------
-            # C: 新增：处理删除节点逻辑
-            # E: New: Handle node deletion logic
-            # ---------------------------------------------------------
-            for del_id in delta.get('delete_nodes', []):
-                del_id_str = str(del_id)
-                # C: 1. 删除节点 / E: 1. Delete node
-                if del_id_str in nodes_dict:
-                    del nodes_dict[del_id_str]
-                # C: 2. 删除孤儿连线（只要 source 或 target 包含这个ID，统统干掉）
-                # E: 2. Delete orphaned links (if source or target contains this ID, remove it)
-                links_list = [
-                    l for l in links_list 
-                    if str(l['source']) != del_id_str and str(l['target']) != del_id_str
-                ]
-
-            return {
-                "nodes": list(nodes_dict.values()),
-                "links": links_list
-            }
+            return state_merge(delta, current_map)
         except Exception as e:
-            print(f"C: [MindMap Agent] 增量绘图失败: {e}")
-            print(f"E: [MindMap Agent] Incremental drawing failed: {e}")
+            logger.error(f"C: [MindMap Agent] 增量绘图失败: {e}")
+            logger.error(f"E: [MindMap Agent] Incremental drawing failed: {e}")
+            return current_map
+
+
+# =========================================================
+# C: 阶段1 — 概念提取 Agent（轻量模型）
+#    从对话中提取原子化概念，仅关注"用户说了什么"
+# E: Stage 1 — Concept Extraction Agent (lightweight model)
+#    Extracts atomic concepts from conversation, focusing only on user input
+# =========================================================
+class ConceptExtractionAgent(_BaseAgent):
+    def __init__(self, api_key: str, base_url: str, model: str):
+        super().__init__(api_key, base_url, model)
+        self.tools = get_concept_extraction_tools()
+
+    def _get_system_prompt(self) -> str:
+        # C: 根据 DETAILS_ENRICHMENT_ENABLED 动态调整概念提取策略
+        # E: Dynamically adjust concept extraction strategy based on DETAILS_ENRICHMENT_ENABLED
+        if Config.DETAILS_ENRICHMENT_ENABLED:
+            rule1_cn = (
+                "1. 绝对服从用户：节点的 label 必须基于【用户说】中的客观概念。"
+                "AI 回复中对该概念的定义、解释、关键点等可作为 details 的补充来源，"
+                "按条目化方式追加（每条以 '💡 定义:'、'🔑 关键点:' 等前缀标识）。"
+                "严禁将 AI 的分析总结创建为独立节点。"
+            )
+            rule1_en = (
+                "1. Absolute obedience to user: node labels must be based on objective concepts "
+                "from [User Says]. Definitions, explanations, and key points from AI replies "
+                "may serve as supplementary details, appended as structured entries "
+                "(prefixed with '💡 Definition:', '🔑 Key Point:', etc.). "
+                "Strictly prohibit creating standalone nodes from AI analysis."
+            )
+        else:
+            rule1_cn = (
+                "1. 绝对服从用户：只提取【用户说】中的客观概念，严禁提取 AI 回复中的分析、总结或说教。"
+            )
+            rule1_en = (
+                "1. Absolute obedience to user: only extract objective concepts from [User Says], "
+                "strictly prohibit extracting AI's analysis, summaries, or preaching."
+            )
+
+        return f"""C: 你是一个专业的概念提取器。你的任务是：从对话中提取用户提及的核心概念。
+E: You are a professional concept extractor. Your task: extract core concepts mentioned by the user.
+
+C: 【核心铁律 - 必须严格遵守】
+{rule1_cn}
+2. 原子化标签：每个概念的 label 必须是精简的核心名词或短语（≤2词）。
+   - 错误：'I think machine learning is important'
+   - 正确：label='Machine Learning', details=['User emphasized its importance']
+3. 所有解释性、描述性内容必须放入 details 数组。
+4. 不要重复：如果某个概念已经存在于当前导图中，不要再次提取。
+5. 语言一致性：所有 label 和 details 必须与用户输入语言完全一致。
+E: [Core Iron Laws - Must Strictly Follow]
+{rule1_en}
+2. Atomic labels: each concept label must be a concise core noun or phrase (≤2 words).
+   - Wrong: 'I think machine learning is important'
+   - Correct: label='Machine Learning', details=['User emphasized its importance']
+3. All explanatory and descriptive content must be placed in the details array.
+4. No duplicates: if a concept already exists in the current mind map, do not extract it again.
+5. Language consistency: all labels and details must match the user's input language exactly."""
+
+    def extract(self, chat_history: str, current_map: dict) -> list[dict]:
+        """C: 从对话中提取概念列表。
+        E: Extract concept list from conversation."""
+        existing_ids = {str(n['id']) for n in current_map.get('nodes', [])}
+        existing_labels = {str(n.get('label', '')).lower() for n in current_map.get('nodes', [])}
+
+        # C: 根据 DETAILS_ENRICHMENT_ENABLED 决定对话内容的处理方式
+        # E: Determine conversation processing based on DETAILS_ENRICHMENT_ENABLED
+        if Config.DETAILS_ENRICHMENT_ENABLED:
+            chat_instruction_cn = (
+                "C: 【对话内容 - 从用户消息提取概念 label，从 AI 回复提炼 details 条目】\n"
+            )
+            chat_instruction_en = (
+                "E: [Conversation - Extract concept labels from user messages, "
+                "refine details entries from AI reply]\n"
+            )
+            final_instruction_cn = (
+                "C: 请提取用户提及的新概念（排除已存在的节点），同时从 AI 回复中提炼"
+                "与各概念相关的定义、解释、关键点作为 details 条目。调用 extract_concepts 工具提交。\n"
+            )
+            final_instruction_en = (
+                "E: Please extract new concepts mentioned by the user (exclude existing nodes), "
+                "and refine definitions, explanations, and key points from AI replies "
+                "as details entries. Call the extract_concepts tool."
+            )
+        else:
+            chat_instruction_cn = (
+                "C: 【对话内容 - 仅从\"用户说\"部分提取概念】\n"
+            )
+            chat_instruction_en = (
+                "E: [Conversation - Extract concepts only from user messages]\n"
+            )
+            final_instruction_cn = (
+                "C: 请提取用户提及的新概念（排除已存在的节点），调用 extract_concepts 工具提交。\n"
+            )
+            final_instruction_en = (
+                "E: Please extract new concepts mentioned by the user (exclude existing nodes), "
+                "call the extract_concepts tool."
+            )
+
+        prompt = f"""C: 【当前导图已有节点 - 避免重复提取】
+节点: {json.dumps([{'id': n['id'], 'label': n['label']} for n in current_map.get('nodes', [])], ensure_ascii=False)}
+
+{chat_instruction_cn}
+{chat_history}
+
+---
+{final_instruction_cn}
+{chat_instruction_en}
+{chat_history}
+
+---
+{final_instruction_en}"""
+
+        logger.info(
+            f"C: [ConceptExtraction] 开始提取，当前节点数={len(existing_ids)}，模型={self.model}"
+        )
+        logger.info(
+            f"E: [ConceptExtraction] Starting extraction, existing nodes={len(existing_ids)}, model={self.model}"
+        )
+
+        result = self._call_llm_tool(
+            system_prompt=self._get_system_prompt(),
+            user_prompt=prompt,
+            tools=self.tools,
+            tool_choice_name="extract_concepts"
+        )
+        concepts = result.get('concepts', [])
+
+        logger.info(
+            f"C: [ConceptExtraction] 提取完成，新概念数={len(concepts)}"
+        )
+        logger.info(
+            f"E: [ConceptExtraction] Done, new concepts={len(concepts)}"
+        )
+        return concepts
+
+
+# =========================================================
+# C: 阶段2 — 层级规划 Agent（中等模型）
+#    将新概念与已有节点组织为有深度的层级树
+# E: Stage 2 — Hierarchy Planning Agent (medium model)
+#    Organizes new concepts with existing nodes into a deep hierarchy tree
+# =========================================================
+class HierarchyPlanningAgent(_BaseAgent):
+    def __init__(self, api_key: str, base_url: str, model: str):
+        super().__init__(api_key, base_url, model)
+        self.tools = get_hierarchy_planning_tools()
+
+    def _get_system_prompt(self) -> str:
+        return """C: 你是一个专业的层级结构规划器。你的任务是：将新概念与已有节点组织为有深度的树状层级。
+E: You are a professional hierarchy planner. Your task: organize new concepts with existing nodes into a deep tree hierarchy.
+
+C: 【层级规划铁律 - 必须严格遵守】
+1. 建立纵深：严禁将所有新节点平铺在同一层级。必须构建至少 2-3 层的树状结构。
+2. 语义挂载：优先将新概念挂载到语义最相关的已有节点下。根级概念可挂载为顶级节点（无 parent）。
+3. 父子关系清晰：每个新概念必须明确其父节点（parent_id）。如果找不到合适的已有父节点，选择最相关的同级概念作为兄弟节点。
+4. 连线类型：直接从属用 solid，间接相关或参考用 dashed。
+5. 只能引用存在的 ID：parent_id 和 child_id 必须来自「已有节点 + 新概念」的 ID 集合。
+E: [Hierarchy Planning Iron Laws - Must Strictly Follow]
+1. Build depth: strictly prohibit flattening all new nodes at the same level. Must build at least 2-3 layers of tree structure.
+2. Semantic attachment: prioritize attaching new concepts under the most semantically relevant existing nodes. Root-level concepts can be top-level nodes (no parent).
+3. Clear parent-child: each new concept must have an explicit parent (parent_id). If no suitable existing parent, choose the most relevant sibling concept.
+4. Link types: solid for direct subordination, dashed for indirect relation or reference.
+5. Only reference existing IDs: parent_id and child_id must come from the set of [existing nodes + new concepts] IDs."""
+
+    def plan(self, concepts: list[dict], current_map: dict) -> list[dict]:
+        """C: 为概念规划层级关系。
+        E: Plan hierarchy for concepts."""
+        existing_nodes = current_map.get('nodes', [])
+        existing_links = current_map.get('links', [])
+
+        concept_summary = json.dumps([
+            {'id': c['id'], 'label': c['label']} for c in concepts
+        ], ensure_ascii=False)
+        existing_summary = json.dumps([
+            {'id': n['id'], 'label': n['label']} for n in existing_nodes
+        ], ensure_ascii=False)
+
+        prompt = f"""C: 【新概念列表 - 需要规划层级】
+{concept_summary}
+
+【当前导图已有节点与连线 - 作为挂载参考】
+节点: {existing_summary}
+连线: {json.dumps(existing_links, ensure_ascii=False)}
+
+---
+请为所有新概念规划父子层级关系，调用 plan_hierarchy 工具提交。
+E: [New Concepts - Need Hierarchy Planning]
+{concept_summary}
+
+[Existing Nodes and Links - For Attachment Reference]
+Nodes: {existing_summary}
+Links: {json.dumps(existing_links, ensure_ascii=False)}
+
+---
+Please plan parent-child hierarchy for all new concepts, call the plan_hierarchy tool."""
+
+        logger.info(
+            f"C: [HierarchyPlanning] 开始规划，新概念={len(concepts)}，已有节点={len(existing_nodes)}，模型={self.model}"
+        )
+        logger.info(
+            f"E: [HierarchyPlanning] Starting, new concepts={len(concepts)}, existing nodes={len(existing_nodes)}, model={self.model}"
+        )
+
+        result = self._call_llm_tool(
+            system_prompt=self._get_system_prompt(),
+            user_prompt=prompt,
+            tools=self.tools,
+            tool_choice_name="plan_hierarchy"
+        )
+        relations = result.get('relations', [])
+
+        logger.info(
+            f"C: [HierarchyPlanning] 规划完成，关系数={len(relations)}"
+        )
+        logger.info(
+            f"E: [HierarchyPlanning] Done, relations={len(relations)}"
+        )
+        return relations
+
+
+# =========================================================
+# C: 阶段3 — Delta 生成 Agent（主力模型，扩展自 MindMapSpecialistAgent）
+#    接收前两阶段的概念和层级规划，生成最终增删改指令
+# E: Stage 3 — Delta Generation Agent (main model, extends MindMapSpecialistAgent)
+#    Receives concepts and hierarchy from stages 1 & 2, generates final CRUD instructions
+# =========================================================
+class DeltaGenerationAgent(MindMapSpecialistAgent):
+    def __init__(self, api_key: str, base_url: str, model: str):
+        # C: 覆盖父类初始化，使用指定的模型配置
+        # E: Override parent init, use specified model config
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.model = model
+        self.tools = get_mindmap_tools()
+
+    def generate(self, chat_history: str, concepts: list[dict],
+                 hierarchy: list[dict] | None, current_map: dict) -> dict:
+        """C: 基于预提取的概念和层级规划生成 delta。
+        返回 {"delta": raw_delta_dict, "merged_map": merged_map_dict}
+        如果 hierarchy 为 None（阶段2失败），则仅注入概念提示。
+        E: Generate delta based on pre-extracted concepts and hierarchy plan.
+        Returns {"delta": raw_delta_dict, "merged_map": merged_map_dict}
+        If hierarchy is None (stage 2 failed), only inject concept hints."""
+
+        # C: 构建概念提示块
+        # E: Build concept hint block
+        concept_block = ""
+        if concepts:
+            concept_summary = json.dumps([
+                {'id': c['id'], 'label': c['label'], 'details': c.get('details', [])}
+                for c in concepts
+            ], ensure_ascii=False)
+            concept_block = (
+                f"C: 【预提取的新概念 - 请使用这些概念创建节点，可微调 label 和 details】\n"
+                f"{concept_summary}\n"
+                f"---\n"
+                f"E: [Pre-extracted New Concepts - Use these to create nodes, may fine-tune labels and details]\n"
+                f"{concept_summary}\n"
+                f"---\n"
+            )
+
+        # C: 构建层级提示块
+        # E: Build hierarchy hint block
+        hierarchy_block = ""
+        if hierarchy:
+            hierarchy_summary = json.dumps(hierarchy, ensure_ascii=False)
+            hierarchy_block = (
+                f"C: 【预规划的层级关系 - 请按此结构建立 add_links，可微调连线类型】\n"
+                f"{hierarchy_summary}\n"
+                f"---\n"
+                f"E: [Pre-planned Hierarchy - Establish add_links following this structure, may fine-tune link types]\n"
+                f"{hierarchy_summary}\n"
+                f"---\n"
+            )
+
+        # C: 构建增强版 prompt — 在原有 ReAct prompt 前插入概念和层级提示
+        # E: Build enhanced prompt — insert concept and hierarchy hints before original ReAct prompt
+        prompt = (
+            concept_block +
+            hierarchy_block +
+            f"""C: 【当前导图全量状态 - 请仔细阅读】
+节点列表: {json.dumps(current_map.get('nodes', []), ensure_ascii=False)}
+连线列表: {json.dumps(current_map.get('links', []), ensure_ascii=False)}
+
+【最新对话上下文】
+{chat_history}
+
+---
+请按照 ReAct 模式处理：
+1. 先阅读上方导图结构和预提取的概念/层级规划
+2. 再根据对话内容推理需要的增量修改（以预规划为强参考，必要时可微调）
+3. 最后调用 modify_mind_map 工具提交增量 delta
+E: [Current Mind Map Full State - Please Read Carefully]
+Nodes: {json.dumps(current_map.get('nodes', []), ensure_ascii=False)}
+Links: {json.dumps(current_map.get('links', []), ensure_ascii=False)}
+
+[Latest Conversation Context]
+{chat_history}
+
+---
+Please process in ReAct mode:
+1. First read the mind map structure above and the pre-extracted concepts/hierarchy plan
+2. Then reason about the incremental modifications needed (use the pre-plan as strong reference, fine-tune if necessary)
+3. Finally call the modify_mind_map tool to submit the incremental delta"""
+        )
+
+        logger.info(
+            f"C: [DeltaGeneration] 开始生成，预提取概念={len(concepts)}，预规划关系={len(hierarchy) if hierarchy else 0}，模型={self.model}"
+        )
+        logger.info(
+            f"E: [DeltaGeneration] Starting, concepts={len(concepts)}, hierarchy={len(hierarchy) if hierarchy else 0}, model={self.model}"
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "user", "content": prompt}
+                ],
+                tools=self.tools,
+                tool_choice={"type": "function", "function": {"name": "modify_mind_map"}}
+            )
+
+            tool_call = response.choices[0].message.tool_calls[0]
+            delta = json.loads(tool_call.function.arguments)
+            merged = state_merge(delta, current_map)
+            return {"delta": delta, "merged_map": merged}
+        except Exception as e:
+            logger.error(f"C: [DeltaGeneration] 生成失败: {e}")
+            logger.error(f"E: [DeltaGeneration] Failed: {e}")
+            return {"delta": {}, "merged_map": current_map}
+
+
+# =========================================================
+# C: 通用调试文件写入函数 — 供 mindmap_agent 和 mcp_server 共用
+#    所有写文件操作均捕获异常，绝不中断主流程
+# E: Shared debug file writer — used by both mindmap_agent and mcp_server
+#    All file operations catch exceptions, never interrupt the main flow
+# =========================================================
+def write_debug_file(filename: str, content: str | dict | list,
+                     session_ts: str | None = None,
+                     is_json: bool = False) -> str | None:
+    """C: 安全写入调试文件到会话目录。
+    参数:
+      filename: 文件名（如 'polish_iteration_1.txt'）
+      content: 文件内容（字符串 或 JSON 可序列化对象）
+      session_ts: 会话时间戳（None = 使用当前时间）
+      is_json: 是否以 JSON 格式写入
+    返回: 会话目录路径（用于链式调用），失败返回 None
+    E: Safely write a debug file to the session directory.
+    Args:
+      filename: File name (e.g., 'polish_iteration_1.txt')
+      content: File content (string or JSON-serializable object)
+      session_ts: Session timestamp (None = use current time)
+      is_json: Whether to write as JSON
+    Returns: Session directory path (for chaining), None on failure
+    """
+    if not Config.DEBUG_OUTPUT_ENABLED:
+        return None
+    try:
+        if session_ts is None:
+            session_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        session_dir = os.path.join(Config.DEBUG_OUTPUT_DIR, session_ts)
+        os.makedirs(session_dir, exist_ok=True)
+        path = os.path.join(session_dir, filename)
+        with open(path, 'w', encoding='utf-8') as f:
+            if is_json and isinstance(content, (dict, list)):
+                json.dump(content, f, ensure_ascii=False, indent=2)
+            else:
+                f.write(str(content))
+        return session_dir
+    except Exception as e:
+        logger.error(f"C: [Debug] 写入 {filename} 失败: {e}")
+        logger.error(f"E: [Debug] Failed to write {filename}: {e}")
+        return None
+
+
+# =========================================================
+# C: 调试输出管理器 — 保存管线每阶段的中间结果到文件
+#    所有写文件操作均捕获异常，绝不中断主流程
+# E: Debug Output Manager — saves per-stage intermediate results to files
+#    All file operations catch exceptions, never interrupt the main flow
+# =========================================================
+class DebugOutputManager:
+    def __init__(self, enabled: bool, root_dir: str,
+                 session_ts: str | None = None):
+        self.enabled = enabled
+        self.root_dir = root_dir
+        self._external_session_ts = session_ts
+        self.session_dir: str | None = None
+        self._log_lines: list[str] = []
+
+    def _ensure_session(self) -> bool:
+        """C: 确保会话文件夹已创建。返回是否可用。
+        E: Ensure session directory exists. Returns whether usable."""
+        if not self.enabled:
+            return False
+        if self.session_dir is not None:
+            return True
+        try:
+            timestamp = self._external_session_ts or datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.session_dir = os.path.join(self.root_dir, timestamp)
+            os.makedirs(self.session_dir, exist_ok=True)
+            return True
+        except Exception as e:
+            logger.error(f"C: [Debug] 无法创建调试文件夹: {e}")
+            logger.error(f"E: [Debug] Cannot create debug directory: {e}")
+            self.enabled = False
+            return False
+
+    def _write_file(self, filename: str, content: str,
+                    is_json: bool = False) -> None:
+        """C: 安全写入文件。
+        E: Safely write a file."""
+        if not self._ensure_session():
+            return
+        try:
+            path = os.path.join(self.session_dir, filename)
+            with open(path, 'w', encoding='utf-8') as f:
+                if is_json and isinstance(content, (dict, list)):
+                    json.dump(content, f, ensure_ascii=False, indent=2)
+                else:
+                    f.write(str(content))
+        except Exception as e:
+            logger.error(f"C: [Debug] 写入 {filename} 失败: {e}")
+            logger.error(f"E: [Debug] Failed to write {filename}: {e}")
+
+    def add_log(self, line: str) -> None:
+        """C: 追加日志行。
+        E: Append a log line."""
+        self._log_lines.append(line)
+
+    # =========================================================
+    # C: 各阶段保存方法
+    # E: Per-stage save methods
+    # =========================================================
+
+    def save_environment(self) -> None:
+        """C: 保存 00_environment.txt — 模型配置元信息。
+        E: Save 00_environment.txt — model configuration metadata."""
+        if not self.enabled:
+            return
+        info_lines = [
+            f"Timestamp: {datetime.now().isoformat()}",
+            f"",
+            f"=== LLM Configuration ===",
+            f"LLM_MODEL:        {Config.LLM_MODEL}",
+            f"LLM_BASE_URL:     {Config.LLM_BASE_URL}",
+            f"LLM_API_KEY:      {'***' + Config.LLM_API_KEY[-4:] if Config.LLM_API_KEY else 'NOT SET'}",
+            f"",
+            f"CONCEPT_MODEL:    {Config.CONCEPT_MODEL or '(not set, using LLM_MODEL)'}",
+            f"CONCEPT_BASE_URL: {Config.CONCEPT_BASE_URL}",
+            f"",
+            f"HIERARCHY_MODEL:  {Config.HIERARCHY_MODEL or '(not set, using LLM_MODEL)'}",
+            f"HIERARCHY_BASE_URL: {Config.HIERARCHY_BASE_URL}",
+            f"",
+            f"DELTA_MODEL:      {Config.DELTA_MODEL}",
+            f"DELTA_BASE_URL:   {Config.DELTA_BASE_URL}",
+            f"",
+            f"POLISH_MODEL:     {Config.POLISH_MODEL or '(not set)'}",
+            f"POLISH_ITERATIONS: {Config.POLISH_ITERATIONS}",
+            f"",
+            f"API_TIMEOUT:      {Config.API_TIMEOUT}",
+            f"MCP_SERVER_SCRIPT: {Config.MCP_SERVER_SCRIPT}",
+        ]
+        self._write_file("00_environment.txt", "\n".join(info_lines))
+
+    def save_stage1_input(self, chat_history: str, current_map: dict) -> None:
+        """C: 保存 01_concept_extraction_input.txt — 阶段1的输入。
+        E: Save 01_concept_extraction_input.txt — stage 1 input."""
+        content = (
+            f"=== Chat History ===\n{chat_history}\n\n"
+            f"=== Current Map Nodes ({len(current_map.get('nodes', []))}) ===\n"
+            f"{json.dumps([{'id': n['id'], 'label': n.get('label', '')} for n in current_map.get('nodes', [])], ensure_ascii=False, indent=2)}\n\n"
+            f"=== Current Map Links ({len(current_map.get('links', []))}) ===\n"
+            f"{json.dumps(current_map.get('links', []), ensure_ascii=False, indent=2)}"
+        )
+        self._write_file("01_concept_extraction_input.txt", content)
+
+    def save_stage1_output(self, raw_concepts: list,
+                           validated_concepts: list) -> None:
+        """C: 保存 01_concept_extraction_output.json — 阶段1的输出。
+        E: Save 01_concept_extraction_output.json — stage 1 output."""
+        output = {
+            "raw_concepts": raw_concepts,
+            "validated_concepts": validated_concepts,
+            "raw_count": len(raw_concepts) if isinstance(raw_concepts, list) else 0,
+            "validated_count": len(validated_concepts),
+            "filtered_out": (
+                len(raw_concepts) - len(validated_concepts)
+                if isinstance(raw_concepts, list) else 0
+            ),
+        }
+        self._write_file("01_concept_extraction_output.json", output, is_json=True)
+
+    def save_stage2_input(self, concepts: list, current_map: dict) -> None:
+        """C: 保存 02_hierarchy_planning_input.txt — 阶段2的输入。
+        E: Save 02_hierarchy_planning_input.txt — stage 2 input."""
+        content = (
+            f"=== Concepts to Plan ({len(concepts)}) ===\n"
+            f"{json.dumps([{'id': c['id'], 'label': c.get('label', '')} for c in concepts], ensure_ascii=False, indent=2)}\n\n"
+            f"=== Existing Nodes ({len(current_map.get('nodes', []))}) ===\n"
+            f"{json.dumps([{'id': n['id'], 'label': n.get('label', '')} for n in current_map.get('nodes', [])], ensure_ascii=False, indent=2)}\n\n"
+            f"=== Existing Links ({len(current_map.get('links', []))}) ===\n"
+            f"{json.dumps(current_map.get('links', []), ensure_ascii=False, indent=2)}"
+        )
+        self._write_file("02_hierarchy_planning_input.txt", content)
+
+    def save_stage2_output(self, raw_relations: list,
+                           validated_relations: list) -> None:
+        """C: 保存 02_hierarchy_planning_output.json — 阶段2的输出。
+        E: Save 02_hierarchy_planning_output.json — stage 2 output."""
+        output = {
+            "raw_relations": raw_relations,
+            "validated_relations": validated_relations,
+            "raw_count": len(raw_relations) if isinstance(raw_relations, list) else 0,
+            "validated_count": len(validated_relations),
+            "filtered_out": (
+                len(raw_relations) - len(validated_relations)
+                if isinstance(raw_relations, list) else 0
+            ),
+        }
+        self._write_file("02_hierarchy_planning_output.json", output, is_json=True)
+
+    def save_stage3_input(self, concepts: list, hierarchy: list | None,
+                          chat_history: str, current_map: dict) -> None:
+        """C: 保存 03_delta_generation_input.txt — 阶段3的输入。
+        E: Save 03_delta_generation_input.txt — stage 3 input."""
+        content = (
+            f"=== Injected Concepts ({len(concepts)}) ===\n"
+            f"{json.dumps(concepts, ensure_ascii=False, indent=2)}\n\n"
+            f"=== Injected Hierarchy Plan ===\n"
+            f"{json.dumps(hierarchy, ensure_ascii=False, indent=2) if hierarchy else '(none - skipped)'}\n\n"
+            f"=== Chat History ===\n{chat_history}\n\n"
+            f"=== Current Map Nodes ({len(current_map.get('nodes', []))}) ===\n"
+            f"{json.dumps(current_map.get('nodes', []), ensure_ascii=False, indent=2)}\n\n"
+            f"=== Current Map Links ({len(current_map.get('links', []))}) ===\n"
+            f"{json.dumps(current_map.get('links', []), ensure_ascii=False, indent=2)}"
+        )
+        self._write_file("03_delta_generation_input.txt", content)
+
+    def save_stage3_output(self, raw_delta: dict,
+                           merged_map: dict) -> None:
+        """C: 保存 03_delta_generation_output.json — 阶段3的原始 delta。
+        E: Save 03_delta_generation_output.json — stage 3 raw delta."""
+        output = {
+            "raw_delta": raw_delta,
+            "add_nodes_count": len(raw_delta.get('add_nodes', [])),
+            "update_nodes_count": len(raw_delta.get('update_nodes', [])),
+            "add_links_count": len(raw_delta.get('add_links', [])),
+            "delete_nodes_count": len(raw_delta.get('delete_nodes', [])),
+            "merged_nodes_count": len(merged_map.get('nodes', [])),
+            "merged_links_count": len(merged_map.get('links', [])),
+        }
+        self._write_file("03_delta_generation_output.json", output, is_json=True)
+
+    def save_final_map(self, merged_map: dict) -> None:
+        """C: 保存 04_final_map.json — 最终导图。
+        E: Save 04_final_map.json — final mind map."""
+        self._write_file("04_final_map.json", merged_map, is_json=True)
+
+    def flush_logs(self) -> None:
+        """C: 保存 05_pipeline_log.txt — 管线执行日志。
+        E: Save 05_pipeline_log.txt — pipeline execution log."""
+        if not self.enabled or not self._log_lines:
+            return
+        self._write_file("05_pipeline_log.txt", "\n".join(self._log_lines))
+        self._log_lines.clear()
+
+
+# =========================================================
+# C: 多模型管线编排器 — 协调三阶段 Agent 协作
+#    提供统一的 generate() 接口，对外表现为单一能力
+# E: Multi-model Pipeline Orchestrator — coordinates 3-stage agent collaboration
+#    Provides unified generate() interface, appears as a single capability externally
+# =========================================================
+class MindMapPipelineOrchestrator:
+    def __init__(self, concept_agent: ConceptExtractionAgent | None,
+                 hierarchy_agent: HierarchyPlanningAgent | None,
+                 delta_agent: DeltaGenerationAgent,
+                 legacy_agent: MindMapSpecialistAgent):
+        """C: 初始化管线编排器。
+        参数:
+          concept_agent: 阶段1 概念提取 Agent（None = 跳过阶段1，直接用 legacy）
+          hierarchy_agent: 阶段2 层级规划 Agent（None = 跳过阶段2）
+          delta_agent: 阶段3 Delta 生成 Agent（必需）
+          legacy_agent: 降级兜底用的单模型 Agent
+        E: Initialize pipeline orchestrator.
+        Args:
+          concept_agent: Stage 1 concept extraction agent (None = skip stage 1, use legacy directly)
+          hierarchy_agent: Stage 2 hierarchy planning agent (None = skip stage 2)
+          delta_agent: Stage 3 delta generation agent (required)
+          legacy_agent: Fallback single-model agent for degradation
+        """
+        self.concept_agent = concept_agent
+        self.hierarchy_agent = hierarchy_agent
+        self.delta_agent = delta_agent
+        self.legacy_agent = legacy_agent
+
+    @staticmethod
+    def _validate_concepts(concepts: list, current_map: dict) -> list:
+        """C: 验证概念列表结构，过滤无效条目。
+        E: Validate concept list structure, filter invalid entries."""
+        if not isinstance(concepts, list):
+            return []
+        existing_ids = {str(n['id']) for n in current_map.get('nodes', [])}
+        valid = []
+        for c in concepts:
+            if not isinstance(c, dict):
+                continue
+            cid = str(c.get('id', ''))
+            if not cid or not c.get('label'):
+                continue
+            if cid in existing_ids:
+                logger.warning(
+                    f"C: [Validate] 概念 '{cid}' 已存在，跳过"
+                )
+                logger.warning(
+                    f"E: [Validate] Concept '{cid}' already exists, skipped"
+                )
+                continue
+            valid.append(c)
+        return valid
+
+    @staticmethod
+    def _validate_hierarchy(relations: list, concepts: list,
+                            current_map: dict) -> list:
+        """C: 验证层级关系，确保引用的 ID 都存在。
+        E: Validate hierarchy, ensure all referenced IDs exist."""
+        if not isinstance(relations, list):
+            return []
+        valid_ids = {str(c['id']) for c in concepts}
+        valid_ids |= {str(n['id']) for n in current_map.get('nodes', [])}
+        valid = []
+        for r in relations:
+            if not isinstance(r, dict):
+                continue
+            src = str(r.get('parent_id', ''))
+            tgt = str(r.get('child_id', ''))
+            if not src or not tgt:
+                continue
+            if src not in valid_ids:
+                logger.warning(
+                    f"C: [Validate] 层级规划引用了未知父节点 '{src}'，跳过"
+                )
+                logger.warning(
+                    f"E: [Validate] Hierarchy references unknown parent '{src}', skipped"
+                )
+                continue
+            if tgt not in valid_ids:
+                logger.warning(
+                    f"C: [Validate] 层级规划引用了未知子节点 '{tgt}'，跳过"
+                )
+                logger.warning(
+                    f"E: [Validate] Hierarchy references unknown child '{tgt}', skipped"
+                )
+                continue
+            valid.append(r)
+        return valid
+
+    def generate(self, chat_history: str, current_map: dict,
+                 session_ts: str | None = None) -> dict:
+        """C: 执行三阶段管线，每阶段失败时自动降级。
+        参数 session_ts: 外部指定的会话时间戳（用于跨请求共享调试目录）
+        降级链路:
+          阶段1 失败 → 跳过阶段1+2，直接用 legacy 单模型
+          阶段2 失败 → 跳过阶段2，阶段3 仅接收概念提示
+          阶段3 失败 → 返回原图
+        E: Execute 3-stage pipeline with automatic degradation.
+        Degradation chain:
+          Stage 1 fails → skip stages 1+2, use legacy single-model directly
+          Stage 2 fails → skip stage 2, stage 3 receives only concept hints
+          Stage 3 fails → return original map
+        """
+        # C: 初始化调试输出管理器
+        # E: Initialize debug output manager
+        debug = DebugOutputManager(
+            enabled=Config.DEBUG_OUTPUT_ENABLED,
+            root_dir=Config.DEBUG_OUTPUT_DIR,
+            session_ts=session_ts
+        )
+        t_start = datetime.now()
+        debug.add_log(f"[Pipeline Start] {t_start.isoformat()}")
+        debug.add_log(f"Chat history length: {len(chat_history)} chars")
+        debug.add_log(f"Current map nodes: {len(current_map.get('nodes', []))}, links: {len(current_map.get('links', []))}")
+        debug.save_environment()
+
+        # C: 如果没有配置概念提取 Agent，直接降级到 legacy
+        # E: If concept agent not configured, degrade to legacy directly
+        if self.concept_agent is None:
+            msg = "C: [Pipeline] 未配置概念提取模型 → 降级到单模型 ReAct"
+            msg_en = "E: [Pipeline] Concept model not configured → degrade to single-model ReAct"
+            logger.info(msg)
+            logger.info(msg_en)
+            debug.add_log(f"[Degrade] {msg}")
+            result = self.legacy_agent.generate_map_from_context(
+                chat_history, current_map
+            )
+            debug.save_final_map(result)
+            debug.add_log(f"[Pipeline End] Duration: {(datetime.now() - t_start).total_seconds():.2f}s (legacy fallback)")
+            debug.flush_logs()
+            return result
+
+        # ========================
+        # C: 阶段1 — 概念提取
+        # E: Stage 1 — Concept extraction
+        # ========================
+        logger.info("C: [Pipeline] === 阶段1: 概念提取 ===")
+        logger.info("E: [Pipeline] === Stage 1: Concept Extraction ===")
+        debug.add_log(f"[Stage 1 Start] {datetime.now().isoformat()}")
+        debug.save_stage1_input(chat_history, current_map)
+        t1_start = datetime.now()
+        try:
+            raw_concepts = self.concept_agent.extract(chat_history, current_map)
+            concepts = self._validate_concepts(raw_concepts, current_map)
+        except Exception as e:
+            msg = f"C: [Pipeline] 阶段1 异常: {e} → 降级到单模型 ReAct"
+            msg_en = f"E: [Pipeline] Stage 1 error: {e} → degrade to single-model ReAct"
+            logger.error(msg)
+            logger.error(msg_en)
+            debug.add_log(f"[Stage 1 ERROR] {msg}")
+            debug.flush_logs()
+            return self.legacy_agent.generate_map_from_context(
+                chat_history, current_map
+            )
+
+        t1_elapsed = (datetime.now() - t1_start).total_seconds()
+        debug.save_stage1_output(
+            raw_concepts if isinstance(raw_concepts, list) else [],
+            concepts
+        )
+        debug.add_log(
+            f"[Stage 1 Done] {t1_elapsed:.2f}s | "
+            f"raw={len(raw_concepts) if isinstance(raw_concepts, list) else 0}, "
+            f"valid={len(concepts)}"
+        )
+
+        if not concepts:
+            msg = "C: [Pipeline] 阶段1 未提取到新概念 → 降级到单模型 ReAct"
+            msg_en = "E: [Pipeline] Stage 1 found no new concepts → degrade to single-model ReAct"
+            logger.info(msg)
+            logger.info(msg_en)
+            debug.add_log(f"[Degrade] {msg}")
+            result = self.legacy_agent.generate_map_from_context(
+                chat_history, current_map
+            )
+            debug.save_final_map(result)
+            debug.add_log(f"[Pipeline End] Duration: {(datetime.now() - t_start).total_seconds():.2f}s (empty concepts → legacy)")
+            debug.flush_logs()
+            return result
+
+        # ========================
+        # C: 阶段2 — 层级规划
+        # E: Stage 2 — Hierarchy planning
+        # ========================
+        logger.info("C: [Pipeline] === 阶段2: 层级规划 ===")
+        logger.info("E: [Pipeline] === Stage 2: Hierarchy Planning ===")
+        debug.add_log(f"[Stage 2 Start] {datetime.now().isoformat()}")
+        hierarchy = None
+        raw_relations = []
+        if self.hierarchy_agent is not None:
+            debug.save_stage2_input(concepts, current_map)
+            t2_start = datetime.now()
+            try:
+                raw_relations = self.hierarchy_agent.plan(concepts, current_map)
+                hierarchy = self._validate_hierarchy(
+                    raw_relations, concepts, current_map
+                )
+            except Exception as e:
+                msg = f"C: [Pipeline] 阶段2 异常: {e} → 跳过层级规划，继续阶段3"
+                msg_en = f"E: [Pipeline] Stage 2 error: {e} → skip hierarchy, continue to stage 3"
+                logger.error(msg)
+                logger.error(msg_en)
+                debug.add_log(f"[Stage 2 ERROR] {msg}")
+                hierarchy = None
+
+            t2_elapsed = (datetime.now() - t2_start).total_seconds()
+            debug.save_stage2_output(
+                raw_relations if isinstance(raw_relations, list) else [],
+                hierarchy if hierarchy else []
+            )
+            debug.add_log(
+                f"[Stage 2 Done] {t2_elapsed:.2f}s | "
+                f"raw={len(raw_relations) if isinstance(raw_relations, list) else 0}, "
+                f"valid={len(hierarchy) if hierarchy else 0}"
+            )
+        else:
+            logger.info(
+                "C: [Pipeline] 未配置层级规划模型 → 跳过阶段2"
+            )
+            logger.info(
+                "E: [Pipeline] Hierarchy model not configured → skip stage 2"
+            )
+            debug.add_log("[Stage 2 Skipped] Hierarchy agent not configured")
+
+        # ========================
+        # C: 阶段3 — Delta 生成
+        # E: Stage 3 — Delta generation
+        # ========================
+        logger.info(
+            f"C: [Pipeline] === 阶段3: Delta 生成 ===（概念={len(concepts)}，层级关系={len(hierarchy) if hierarchy else 0}）"
+        )
+        logger.info(
+            f"E: [Pipeline] === Stage 3: Delta Generation === (concepts={len(concepts)}, relations={len(hierarchy) if hierarchy else 0})"
+        )
+        debug.add_log(f"[Stage 3 Start] {datetime.now().isoformat()}")
+        debug.save_stage3_input(concepts, hierarchy, chat_history, current_map)
+        t3_start = datetime.now()
+        try:
+            gen_result = self.delta_agent.generate(
+                chat_history, concepts, hierarchy, current_map
+            )
+            # C: gen_result 现在是 {"delta": ..., "merged_map": ...}
+            # E: gen_result is now {"delta": ..., "merged_map": ...}
+            raw_delta = gen_result.get("delta", {})
+            final_map = gen_result.get("merged_map", current_map)
+
+            t3_elapsed = (datetime.now() - t3_start).total_seconds()
+            debug.save_stage3_output(raw_delta, final_map)
+            debug.save_final_map(final_map)
+            debug.add_log(
+                f"[Stage 3 Done] {t3_elapsed:.2f}s | "
+                f"add_nodes={len(raw_delta.get('add_nodes', []))}, "
+                f"update_nodes={len(raw_delta.get('update_nodes', []))}, "
+                f"add_links={len(raw_delta.get('add_links', []))}, "
+                f"delete_nodes={len(raw_delta.get('delete_nodes', []))} | "
+                f"final nodes={len(final_map.get('nodes', []))}"
+            )
+
+            total_elapsed = (datetime.now() - t_start).total_seconds()
+            debug.add_log(
+                f"[Pipeline Success] Total duration: {total_elapsed:.2f}s"
+            )
+            debug.flush_logs()
+
+            logger.info(
+                f"C: [Pipeline] 三阶段管线完成，最终节点数={len(final_map.get('nodes', []))}"
+            )
+            logger.info(
+                f"E: [Pipeline] 3-stage pipeline complete, final nodes={len(final_map.get('nodes', []))}"
+            )
+            return final_map
+        except Exception as e:
+            t3_elapsed = (datetime.now() - t3_start).total_seconds()
+            msg = f"C: [Pipeline] 阶段3 异常: {e} → 返回原图"
+            msg_en = f"E: [Pipeline] Stage 3 error: {e} → return original map"
+            logger.error(msg)
+            logger.error(msg_en)
+            debug.add_log(f"[Stage 3 ERROR after {t3_elapsed:.2f}s] {msg}")
+            debug.add_log(f"[Pipeline Failed] Returning original map unchanged")
+            debug.flush_logs()
             return current_map

@@ -3,6 +3,7 @@
 # E: MCP Server — encapsulates LLM chat/polish/drawing and Whisper transcription as MCP Tools
 import sys
 import logging
+from datetime import datetime
 
 import whisper
 from openai import OpenAI
@@ -10,7 +11,14 @@ from openai import OpenAI
 from mcp.server.fastmcp import FastMCP
 
 from config import Config
-from mindmap_agent import MindMapSpecialistAgent
+from mindmap_agent import (
+    MindMapSpecialistAgent,
+    ConceptExtractionAgent,
+    HierarchyPlanningAgent,
+    DeltaGenerationAgent,
+    MindMapPipelineOrchestrator,
+    write_debug_file,
+)
 
 # C: 日志输出到 stderr，避免污染 stdio 协议通道
 # E: Log to stderr to avoid polluting the stdio protocol channel
@@ -36,10 +44,11 @@ whisper_model = None
 llm_client = None
 polish_client = None  # C: 润色专用轻量客户端（None = 未配置，使用主力模型） / E: Polish lightweight client (None=not configured, use main model)
 map_agent = None
+map_pipeline = None  # C: 多模型管线编排器（None = 未初始化） / E: Multi-model pipeline orchestrator (None=not initialized)
 
 
 def _init_models():
-    global whisper_model, llm_client, polish_client, map_agent
+    global whisper_model, llm_client, polish_client, map_agent, map_pipeline
     logger.info("C: 正在加载 Whisper 模型 (small)...")
     logger.info("E: Loading Whisper model (small)...")
     whisper_model = whisper.load_model("small")
@@ -78,6 +87,91 @@ def _init_models():
     # C: 初始化绘图 Agent（复用现有 State Merge 逻辑）
     # E: Initialize drawing Agent (reuse existing State Merge logic)
     map_agent = MindMapSpecialistAgent()
+
+    # ---------------------------------------------------------
+    # C: 初始化多模型管线（三阶段协作导图生成）
+    #    所有模型均可独立配置，未配置时自动降级为单模型 ReAct。
+    #    - 阶段1 概念提取: CONCEPT_MODEL（轻量）
+    #    - 阶段2 层级规划: HIERARCHY_MODEL（中等）
+    #    - 阶段3 Delta生成: DELTA_MODEL（主力）
+    # E: Initialize multi-model pipeline (3-stage collaborative map generation)
+    #    All models independently configurable, auto-degrade to single-model ReAct when not set.
+    #    - Stage 1 concept extraction: CONCEPT_MODEL (lightweight)
+    #    - Stage 2 hierarchy planning: HIERARCHY_MODEL (medium)
+    #    - Stage 3 delta generation: DELTA_MODEL (main)
+    # ---------------------------------------------------------
+
+    # C: 阶段1 — 概念提取 Agent（None = 未配置，管线会降级到 legacy）
+    # E: Stage 1 — Concept extraction agent (None = not configured, pipeline degrades to legacy)
+    concept_agent = None
+    if Config.CONCEPT_MODEL:
+        concept_agent = ConceptExtractionAgent(
+            api_key=Config.CONCEPT_API_KEY,
+            base_url=Config.CONCEPT_BASE_URL,
+            model=Config.CONCEPT_MODEL
+        )
+        logger.info(f"C: 概念提取 Agent 就绪，模型={Config.CONCEPT_MODEL}")
+        logger.info(f"E: Concept extraction agent ready, model={Config.CONCEPT_MODEL}")
+    else:
+        concept_model_name = Config.LLM_MODEL
+        concept_agent = ConceptExtractionAgent(
+            api_key=Config.LLM_API_KEY,
+            base_url=Config.LLM_BASE_URL,
+            model=concept_model_name
+        )
+        logger.info(
+            f"C: 未配置 CONCEPT_MODEL，概念提取使用主力模型={concept_model_name}"
+        )
+        logger.info(
+            f"E: CONCEPT_MODEL not set, concept extraction uses main model={concept_model_name}"
+        )
+
+    # C: 阶段2 — 层级规划 Agent（None = 跳过阶段2）
+    # E: Stage 2 — Hierarchy planning agent (None = skip stage 2)
+    hierarchy_agent = None
+    if Config.HIERARCHY_MODEL:
+        hierarchy_agent = HierarchyPlanningAgent(
+            api_key=Config.HIERARCHY_API_KEY,
+            base_url=Config.HIERARCHY_BASE_URL,
+            model=Config.HIERARCHY_MODEL
+        )
+        logger.info(f"C: 层级规划 Agent 就绪，模型={Config.HIERARCHY_MODEL}")
+        logger.info(f"E: Hierarchy planning agent ready, model={Config.HIERARCHY_MODEL}")
+    else:
+        hierarchy_model_name = Config.LLM_MODEL
+        hierarchy_agent = HierarchyPlanningAgent(
+            api_key=Config.LLM_API_KEY,
+            base_url=Config.LLM_BASE_URL,
+            model=hierarchy_model_name
+        )
+        logger.info(
+            f"C: 未配置 HIERARCHY_MODEL，层级规划使用主力模型={hierarchy_model_name}"
+        )
+        logger.info(
+            f"E: HIERARCHY_MODEL not set, hierarchy planning uses main model={hierarchy_model_name}"
+        )
+
+    # C: 阶段3 — Delta 生成 Agent（始终配置，默认复用主力模型）
+    # E: Stage 3 — Delta generation agent (always configured, defaults to main model)
+    delta_agent = DeltaGenerationAgent(
+        api_key=Config.DELTA_API_KEY,
+        base_url=Config.DELTA_BASE_URL,
+        model=Config.DELTA_MODEL
+    )
+    logger.info(f"C: Delta 生成 Agent 就绪，模型={Config.DELTA_MODEL}")
+    logger.info(f"E: Delta generation agent ready, model={Config.DELTA_MODEL}")
+
+    # C: 组装管线编排器
+    # E: Assemble pipeline orchestrator
+    map_pipeline = MindMapPipelineOrchestrator(
+        concept_agent=concept_agent,
+        hierarchy_agent=hierarchy_agent,
+        delta_agent=delta_agent,
+        legacy_agent=map_agent
+    )
+    logger.info("C: 多模型导图管线编排器就绪")
+    logger.info("E: Multi-model map pipeline orchestrator ready")
+
     logger.info("C: MCP Server 模型全部就绪")
     logger.info("E: MCP Server all models ready")
 
@@ -157,14 +251,17 @@ def transcribe_audio(file_path: str) -> dict:
 #    POLISH_MODEL not set: main model direct polish (zero overhead)
 # ---------------------------------------------------------
 @mcp.tool()
-def polish_text(raw_text: str, detected_language: str) -> dict:
+def polish_text(raw_text: str, detected_language: str,
+               session_ts: str | None = None) -> dict:
     """C: 对 STT 转录文本进行润色。支持混合审查模式。
     参数 raw_text: Whisper 原始转录文本。
     参数 detected_language: 检测到的语言代码（如 "zh", "en"）。
+    参数 session_ts: 可选的会话时间戳（用于跨请求共享调试目录）。
     返回: {"polished_text": "润色后的文本"}
     E: Polish STT transcript. Supports hybrid review mode.
     Args raw_text: Raw Whisper transcript.
     Args detected_language: Detected language code (e.g., "zh", "en").
+    Args session_ts: Optional session timestamp (for cross-request debug dir sharing).
     Returns: {"polished_text": "polished text"}
     """
     logger.info(
@@ -217,6 +314,15 @@ def polish_text(raw_text: str, detected_language: str) -> dict:
         )
         candidate = result["polished_text"]
 
+        # C: 调试输出 — 保存每次迭代的候选文本
+        # E: Debug output — save candidate text of each iteration
+        _debug_save_polish_iteration(
+            iteration=i + 1,
+            previous=prev,
+            candidate=candidate,
+            session_ts=session_ts
+        )
+
         # 自审查：计算编辑距离比率
         edit_ratio = _edit_distance_ratio(prev, candidate)
         if edit_ratio < 0.05:  # 变化 < 5%，认为收敛
@@ -248,10 +354,12 @@ def polish_text(raw_text: str, detected_language: str) -> dict:
         detected_language=detected_language
     )
 
+    # C: 根据裁决构建返回结果
+    # E: Build result based on verdict
     if verdict["action"] == "ACCEPT":
         logger.info("C: [polish_text] 终审 ACCEPT → 返回候选文本")
         logger.info("E: [polish_text] Final review ACCEPT → returning candidate")
-        return {
+        result = {
             "polished_text": candidate,
             "confidence": "high",
             "iterations": accepted_iterations
@@ -259,7 +367,7 @@ def polish_text(raw_text: str, detected_language: str) -> dict:
     elif verdict["action"] == "FIX":
         logger.info("C: [polish_text] 终审 FIX → 返回主模型修正文本")
         logger.info("E: [polish_text] Final review FIX → returning corrected text")
-        return {
+        result = {
             "polished_text": verdict.get("fixed_text", candidate),
             "confidence": "medium",
             "iterations": accepted_iterations
@@ -271,11 +379,23 @@ def polish_text(raw_text: str, detected_language: str) -> dict:
         logger.warning(
             f"E: [polish_text] Final review REJECT: {verdict.get('reason', 'unknown')} → degraded to raw"
         )
-        return {
+        result = {
             "polished_text": raw_text,
             "confidence": "low",
             "warning": verdict.get("reason", "主模型审核未通过")
         }
+
+    # C: 调试输出 — 保存终审摘要
+    # E: Debug output — save final review summary
+    _debug_save_polish_summary(
+        verdict=verdict,
+        iterations=accepted_iterations,
+        final_candidate=candidate,
+        raw_text=raw_text,
+        session_ts=session_ts
+    )
+
+    return result
 
 
 # =========================================================
@@ -407,6 +527,76 @@ def _judge_by_main_model(client, model: str, raw_text: str,
         return {"action": "ACCEPT"}
 
 
+# =========================================================
+# C: polish_text 调试输出辅助函数
+# E: polish_text debug output helper functions
+# =========================================================
+
+def _debug_save_polish_iteration(iteration: int, previous: str,
+                                  candidate: str,
+                                  session_ts: str | None = None) -> None:
+    """C: 保存润色迭代的候选文本到调试文件。
+    E: Save polish iteration candidate text to debug file."""
+    try:
+        edit_ratio = _edit_distance_ratio(previous, candidate)
+        content = (
+            f"=== Polish Iteration {iteration} ===\n"
+            f"Edit distance ratio: {edit_ratio:.4f}\n\n"
+            f"--- Previous ---\n{previous}\n\n"
+            f"--- Candidate ---\n{candidate}\n"
+        )
+        write_debug_file(
+            filename=f"polish_iteration_{iteration}.txt",
+            content=content,
+            session_ts=session_ts,
+            is_json=False
+        )
+        logger.info(
+            f"C: [polish_text] 调试: 迭代{iteration}已保存 (edit_ratio={edit_ratio:.4f})"
+        )
+        logger.info(
+            f"E: [polish_text] Debug: iteration {iteration} saved (edit_ratio={edit_ratio:.4f})"
+        )
+    except Exception as e:
+        logger.error(f"C: [polish_text] 调试保存迭代{iteration}失败: {e}")
+        logger.error(f"E: [polish_text] Debug save iteration {iteration} failed: {e}")
+
+
+def _debug_save_polish_summary(verdict: dict, iterations: int,
+                                final_candidate: str, raw_text: str,
+                                session_ts: str | None = None) -> None:
+    """C: 保存润色终审摘要到调试文件。
+    E: Save polish final review summary to debug file."""
+    try:
+        summary = {
+            "verdict": verdict.get("action", "UNKNOWN"),
+            "reason": verdict.get("reason", ""),
+            "fixed_text": verdict.get("fixed_text", ""),
+            "iterations": iterations,
+            "final_candidate_length": len(final_candidate),
+            "raw_text_length": len(raw_text),
+            "edit_from_raw": round(_edit_distance_ratio(raw_text, final_candidate), 4),
+            "polish_model": Config.POLISH_MODEL,
+            "review_model": Config.LLM_MODEL,
+            "timestamp": datetime.now().isoformat(),
+        }
+        write_debug_file(
+            filename="polish_final_summary.json",
+            content=summary,
+            session_ts=session_ts,
+            is_json=True
+        )
+        logger.info(
+            f"C: [polish_text] 调试: 终审摘要已保存 (裁决={verdict.get('action')})"
+        )
+        logger.info(
+            f"E: [polish_text] Debug: final summary saved (verdict={verdict.get('action')})"
+        )
+    except Exception as e:
+        logger.error(f"C: [polish_text] 调试保存终审摘要失败: {e}")
+        logger.error(f"E: [polish_text] Debug save final summary failed: {e}")
+
+
 # ---------------------------------------------------------
 # C: MCP Tool 3: 增量修改思维导图 (LLM + State Merge)
 # E: MCP Tool 3: Incremental mind map modification (LLM + State Merge)
@@ -447,6 +637,55 @@ def modify_mind_map(chat_history: str, current_map: dict) -> dict:
         logger.error(f"E: [modify_mind_map] Failed: {e}")
         # C: 返回原图作为降级方案
         # E: Return original map as fallback
+        return current_map
+
+
+# ---------------------------------------------------------
+# C: MCP Tool 4: 多模型协作增量绘图 (v2 管线)
+#    内部三阶段管线：概念提取 → 层级规划 → Delta 生成
+#    每阶段失败时自动降级，兜底到单模型 ReAct
+# E: MCP Tool 4: Multi-model collaborative incremental drawing (v2 pipeline)
+#    Internal 3-stage pipeline: concept extraction → hierarchy planning → delta generation
+#    Auto-degrades on each stage failure, fallback to single-model ReAct
+# ---------------------------------------------------------
+@mcp.tool()
+def modify_mind_map_v2(chat_history: str, current_map: dict,
+                       session_ts: str | None = None) -> dict:
+    """C: 多模型协作版增量导图修改。内部通过三阶段管线（概念提取→层级规划→Delta生成）提升层级结构清晰度。
+    未配置专用模型时自动降级为单模型 ReAct 模式，行为与 modify_mind_map 完全一致。
+    参数 chat_history: 包含用户消息和 AI 回复的格式化文本。
+    参数 current_map: 当前导图状态 {"nodes": [...], "links": [...]}。
+    参数 session_ts: 可选的会话时间戳（用于跨请求共享调试目录）。
+    返回: {"nodes": [...], "links": [...]} 更新后的导图。
+    E: Multi-model collaborative incremental map modification. Uses internal 3-stage pipeline (concept extraction→hierarchy planning→delta generation) to improve hierarchy clarity.
+    Auto-degrades to single-model ReAct when specialized models not configured, identical behavior to modify_mind_map.
+    Args chat_history: Formatted text containing user message and AI reply.
+    Args current_map: Current map state {"nodes": [...], "links": [...]}.
+    Args session_ts: Optional session timestamp (for cross-request debug dir sharing).
+    Returns: {"nodes": [...], "links": [...]} Updated map.
+    """
+    logger.info(
+        f"C: [modify_mind_map_v2] 开始多模型管线绘图，当前节点数={len(current_map.get('nodes', []))}"
+    )
+    logger.info(
+        f"E: [modify_mind_map_v2] Starting multi-model pipeline, current nodes={len(current_map.get('nodes', []))}"
+    )
+
+    try:
+        updated_map = map_pipeline.generate(
+            chat_history=chat_history, current_map=current_map,
+            session_ts=session_ts
+        )
+        logger.info(
+            f"C: [modify_mind_map_v2] 绘图完成，节点数={len(updated_map.get('nodes', []))}"
+        )
+        logger.info(
+            f"E: [modify_mind_map_v2] Done, nodes={len(updated_map.get('nodes', []))}"
+        )
+        return updated_map
+    except Exception as e:
+        logger.error(f"C: [modify_mind_map_v2] 失败: {e}")
+        logger.error(f"E: [modify_mind_map_v2] Failed: {e}")
         return current_map
 
 

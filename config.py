@@ -82,9 +82,98 @@ class Config:
     # E: Max lightweight self-iteration count (1~5, default 3)
     POLISH_ITERATIONS = int(os.getenv('POLISH_ITERATIONS', '3'))
     
+    # ---------------------------------------------------------
+    # C: 多模型协作导图生成管线配置（三阶段内部管线）
+    #    设置 CONCEPT_MODEL / HIERARCHY_MODEL / DELTA_MODEL 可启用专用模型。
+    #    未配置时自动回退为 LLM_MODEL（零额外开销，行为与单模型 ReAct 完全一致）。
+    #    推荐：阶段1/2 用轻量模型（deepseek-lite / qwen2.5:1.5b），阶段3 用主力模型。
+    # E: Multi-model collaborative map generation pipeline config (3-stage internal pipeline)
+    #    Set CONCEPT_MODEL / HIERARCHY_MODEL / DELTA_MODEL to enable specialized models.
+    #    Falls back to LLM_MODEL when not configured (zero overhead, identical to single-model ReAct).
+    #    Recommended: lightweight models for stages 1/2, main model for stage 3.
+    # ---------------------------------------------------------
+    # C: 阶段1 — 概念提取模型（轻量，从对话中提取原子化概念）
+    # E: Stage 1 — Concept extraction model (lightweight, extract atomic concepts)
+    CONCEPT_MODEL = (
+        os.getenv('CONCEPT_MODEL')
+        or None  # None = 使用 LLM_MODEL
+    )
+    CONCEPT_BASE_URL = (
+        os.getenv('CONCEPT_BASE_URL')
+        or LLM_BASE_URL
+    )
+    CONCEPT_API_KEY = (
+        os.getenv('CONCEPT_API_KEY')
+        or LLM_API_KEY
+    )
+
+    # C: 阶段2 — 层级规划模型（中等，规划父子节点关系）
+    # E: Stage 2 — Hierarchy planning model (medium, plan parent-child relationships)
+    HIERARCHY_MODEL = (
+        os.getenv('HIERARCHY_MODEL')
+        or None  # None = 使用 LLM_MODEL
+    )
+    HIERARCHY_BASE_URL = (
+        os.getenv('HIERARCHY_BASE_URL')
+        or LLM_BASE_URL
+    )
+    HIERARCHY_API_KEY = (
+        os.getenv('HIERARCHY_API_KEY')
+        or LLM_API_KEY
+    )
+
+    # C: 阶段3 — Delta 生成模型（主力，输出增删改指令 + 坐标）
+    # E: Stage 3 — Delta generation model (main, output CRUD instructions + coordinates)
+    DELTA_MODEL = (
+        os.getenv('DELTA_MODEL')
+        or LLM_MODEL  # 默认复用主力模型
+    )
+    DELTA_BASE_URL = (
+        os.getenv('DELTA_BASE_URL')
+        or LLM_BASE_URL
+    )
+    DELTA_API_KEY = (
+        os.getenv('DELTA_API_KEY')
+        or LLM_API_KEY
+    )
+
     # C: MCP Server 脚本绝对路径（供 Client spawn 子进程使用）
     # E: MCP Server script absolute path (for Client to spawn subprocess)
     MCP_SERVER_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mcp_server.py")
+
+    # ---------------------------------------------------------
+    # C: 调试输出配置
+    #    DEBUG_OUTPUT_ENABLED: 是否启用调试输出（保存每阶段中间结果到文件）
+    #    DEBUG_OUTPUT_DIR: 调试文件的根目录
+    # E: Debug output configuration
+    #    DEBUG_OUTPUT_ENABLED: Whether to enable debug output (save per-stage intermediate results)
+    #    DEBUG_OUTPUT_DIR: Root directory for debug files
+    # ---------------------------------------------------------
+    DEBUG_OUTPUT_ENABLED = (
+        os.getenv('DEBUG_OUTPUT_ENABLED', 'true').lower()
+        in ('true', '1', 'yes')
+    )
+    DEBUG_OUTPUT_DIR = (
+        os.getenv('DEBUG_OUTPUT_DIR')
+        or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debug_output')
+    )
+
+    # ---------------------------------------------------------
+    # C: Details 增强配置
+    #    DETAILS_ENRICHMENT_ENABLED: 是否启用节点 details 的层次化增强
+    #    开启后，AI 回复中的定义、解释、关键点会被条目化地融入节点 details，
+    #    与用户原文、转录上下文一起构成层次化信息。
+    #    关闭后恢复原有行为（details 仅含用户直接提及的内容）。
+    # E: Details enrichment configuration
+    #    DETAILS_ENRICHMENT_ENABLED: Whether to enable hierarchical details enrichment
+    #    When enabled, AI reply content (definitions, explanations, key points) is
+    #    incorporated into node details alongside user input and transcript context.
+    #    When disabled, reverts to original behavior (details only from user input).
+    # ---------------------------------------------------------
+    DETAILS_ENRICHMENT_ENABLED = (
+        os.getenv('DETAILS_ENRICHMENT_ENABLED', 'true').lower()
+        in ('true', '1', 'yes')
+    )
 
 # C: 为了兼容 agent.py，我们在类外部定义这个变量
 # E: For compatibility with agent.py, we define this variable outside the class

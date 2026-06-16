@@ -23,7 +23,7 @@ def get_mindmap_tools():
                                     "id": {"type": "string", "description": "唯一英文标识，如 'node_cat'"},
                                     "label": {"type": "string", "description": "核心名词/短语，最多2词。反例：'chicken has rabbies'；正例：'Rabies'"},
                                     "color": {"type": "string", "description": "背景色变量，如 var(--node-blue), var(--node-green), var(--node-red)"},
-                                    "details": {"type": "array", "items": {"type": "string"}, "description": "详细解释和说明。所有非标签的描述性、解释性内容必须存入此数组"},
+                                    "details": {"type": "array", "items": {"type": "string"}, "description": "层次化详细条目。每条以简洁前缀标识来源和类型（如 '💡 定义:'、'🔑 关键点:'、'📝 用户原文:'、'📋 上下文:'）。融合用户输入、AI解释、转录上下文等多元信息。所有非标签的描述性、解释性内容必须存入此数组"},
                                     "x": {"type": "integer", "description": "横坐标 200-1200"},
                                     "y": {"type": "integer", "description": "纵坐标 50-800"}
                                 },
@@ -61,6 +61,73 @@ def get_mindmap_tools():
                             "items": {"type": "string"}
                         }
                     }
+                }
+            }
+        }
+    ]
+
+
+def get_concept_extraction_tools():
+    # C: 阶段1 概念提取工具 — 从对话中提取原子化概念
+    # E: Stage 1 Concept extraction tool — extract atomic concepts from conversation
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "extract_concepts",
+                "description": "C: 从对话中提取需要添加到导图的核心概念。仅提取用户提及的客观概念，严禁提取AI的分析或说教。\nE: Extract core concepts from the conversation to add to the mind map. Only extract objective concepts mentioned by the user, strictly prohibit extracting AI analysis or preaching.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "concepts": {
+                            "type": "array",
+                            "description": "C: 从对话中提取的核心概念列表\nE: List of core concepts extracted from the conversation",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {"type": "string", "description": "唯一英文标识，如 'node_deep_learning'"},
+                                    "label": {"type": "string", "description": "核心名词/短语，最多2词。严禁完整句子"},
+                                    "details": {"type": "array", "items": {"type": "string"}, "description": "层次化详细条目。可从AI回复中提炼定义、解释、关键点作为补充。每条以简洁前缀标识来源（如 '💡 定义:'、'🔑 关键点:'、'📝 用户原文:'）"},
+                                    "color": {"type": "string", "description": "背景色变量，如 var(--node-blue), var(--node-green), var(--node-red)"}
+                                },
+                                "required": ["id", "label", "color"]
+                            }
+                        }
+                    },
+                    "required": ["concepts"]
+                }
+            }
+        }
+    ]
+
+
+def get_hierarchy_planning_tools():
+    # C: 阶段2 层级规划工具 — 为概念构建父子层级关系
+    # E: Stage 2 Hierarchy planning tool — build parent-child hierarchy for concepts
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "plan_hierarchy",
+                "description": "C: 为提取的概念规划父子层级关系。建立纵深结构，避免所有节点平铺在同一层。优先将新概念挂载到语义最相关的已有节点下。\nE: Plan parent-child hierarchy for extracted concepts. Establish depth structure, avoid flattening all nodes at the same level. Prioritize attaching new concepts under the most semantically relevant existing nodes.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "relations": {
+                            "type": "array",
+                            "description": "C: 层级关系列表。每个关系表示一对父子连线。\nE: List of hierarchy relations. Each relation represents a parent-child link.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "parent_id": {"type": "string", "description": "父节点ID（可以是已有节点或新概念）"},
+                                    "child_id": {"type": "string", "description": "子节点ID（必须是新概念或已有节点）"},
+                                    "type": {"type": "string", "enum": ["solid", "dashed"], "description": "实线表示直接从属，虚线表示相关或参考"}
+                                },
+                                "required": ["parent_id", "child_id", "type"]
+                            }
+                        }
+                    },
+                    "required": ["relations"]
                 }
             }
         }
