@@ -1,70 +1,91 @@
 {
   "nodes": [
     {
-      "id": "node_drag_change",
-      "label": "拖拽变化",
-      "details": [
-        "📋 上下文: 论文中提到的术语 \"drag change\"",
-        "💡 定义: 一个音位发生变化，并\"拖拽\"着另一个音位一同移动，以保持它们之间原有的距离",
-        "🔑 关键点: Pull 与 Drag 是同一概念",
-        "🔑 关键点: 发言者认为拖拽可能比推挤更常见"
-      ],
+      "id": "node_mcp_agent",
+      "label": "MCP Agent",
       "color": "var(--node-blue)",
       "x": 500,
-      "y": 80
+      "y": 50,
+      "details": [
+        "📝 用户原文: Even if it's not part of the MCP agent proper, just UI.",
+        "📝 用户原文: Edges are still available to the agent because the agent is very, very good.",
+        "📋 上下文: Edges fix is considered a UI concern, not part of the core MCP agent."
+      ]
     },
     {
-      "id": "node_push_change",
-      "label": "推挤变化",
-      "details": [
-        "📋 上下文: 与\"拖拽\"相对的相反方向概念",
-        "💡 定义: 当出现\"声学拥挤\"（acoustic crowding）时，一个音位为了给自己腾出空间而\"推挤\"另一个音位",
-        "🔑 关键点: Push change shift 是 Drag change 的对等概念",
-        "🔑 关键点: 两种变化机制都存在"
-      ],
+      "id": "node_edges",
+      "label": "Edges",
       "color": "var(--node-green)",
-      "x": 300,
-      "y": 300
+      "x": 250,
+      "y": 200,
+      "details": [
+        "📝 用户原文: The method without lines quickly becomes very hard to read.",
+        "📝 用户原文: One of the ideas behind the alignment is to have the edges indicate the relation.",
+        "📝 用户原文: It's not just hard to read without the edges, it's basically, let's say useless.",
+        "🔑 关键点: Without edges, the diagram becomes almost useless for users as edges show relationships between nodes.",
+        "💡 定义: Lines connecting nodes to show relationships in the mind map."
+      ]
     },
     {
-      "id": "node_pull_change",
-      "label": "Pull Change",
-      "details": [
-        "💡 定义: Pull 与 Drag change shifts 是同一概念",
-        "🔑 关键点: 一个音位变化后\"拉动\"另一个音位以保持距离",
-        "🔑 关键点: 发言者认为 Pull 比 Push 更频繁"
-      ],
-      "color": "var(--node-yellow)",
-      "x": 700,
-      "y": 300
-    },
-    {
-      "id": "node_acoustic_crowding",
-      "label": "声学拥挤",
-      "details": [
-        "💡 定义: 音位在声学空间中过于拥挤，需要腾出空间",
-        "📋 上下文: 推挤变化发生的背景条件"
-      ],
+      "id": "node_ui_frontend",
+      "label": "UI Front-end",
       "color": "var(--node-red)",
-      "x": 300,
-      "y": 500
+      "x": 500,
+      "y": 200,
+      "details": [
+        "📝 用户原文: We are currently unhappy with the current UI front-end, I'm not happy about it.",
+        "📝 用户原文: It is implemented by the HTML, I think it is already beyond the limits of the HTML.",
+        "📝 用户原文: Hard to maintain if you want to fix something.",
+        "🔑 关键点: Team considers rewriting using JavaScript or similar technology."
+      ]
+    },
+    {
+      "id": "node_javascript_rewrite",
+      "label": "JavaScript Rewrite",
+      "color": "var(--node-green)",
+      "x": 750,
+      "y": 200,
+      "details": [
+        "📝 用户原文: We are trying to think about JavaScript or something.",
+        "📝 用户原文: I don't think it will take a lot of time. The rewrite will be quick and easy.",
+        "📝 用户原文: Connecting nodes is just another function.",
+        "🔑 关键点: UI rewrite should not be the main focus of the project."
+      ]
+    },
+    {
+      "id": "node_evaluation",
+      "label": "Evaluation",
+      "color": "var(--node-green)",
+      "x": 1000,
+      "y": 200,
+      "details": [
+        "📝 用户原文: Her part is about more like on the evaluation.",
+        "📝 用户原文: Last week, we only have the question one. So this week, she developed something more.",
+        "📝 用户原文: I do some private audio. To make the single samples.",
+        "🔑 关键点: Team member has been working on evaluation and progressed beyond 'question one'."
+      ]
     }
   ],
   "links": [
     {
-      "source": "node_drag_change",
-      "target": "node_push_change",
+      "source": "node_mcp_agent",
+      "target": "node_edges",
       "type": "solid"
     },
     {
-      "source": "node_drag_change",
-      "target": "node_pull_change",
+      "source": "node_mcp_agent",
+      "target": "node_ui_frontend",
       "type": "solid"
     },
     {
-      "source": "node_push_change",
-      "target": "node_acoustic_crowding",
-      "type": "dashed"
+      "source": "node_mcp_agent",
+      "target": "node_javascript_rewrite",
+      "type": "solid"
+    },
+    {
+      "source": "node_mcp_agent",
+      "target": "node_evaluation",
+      "type": "solid"
     }
   ]
 }

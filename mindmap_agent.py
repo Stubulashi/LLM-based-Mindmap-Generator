@@ -100,14 +100,14 @@ class MindMapSpecialistAgent:
             rule3_cn = (
                 "3. Details 层次化补充：【AI回复说】中对概念的定义、解释、关键点、举例等，"
                 "可按条目化方式追加到对应节点的 details 数组中。"
-                "每条以简洁前缀标识来源和类型（如 '💡 定义:'、'🔑 关键点:'、'📋 上下文:'、'📝 用户原文:'）。"
+                "每条以简洁前缀标识来源和类型（如 '定义:'、'关键点:'、'上下文:'、'用户原文:'），前缀文本语言必须与用户输入语言一致。"
                 "严禁将 AI 的分析逻辑创建为独立节点（元节点）——AI 内容只能作为已有节点的 details 补充。"
             )
             rule3_en = (
                 "3. Hierarchical Details Enrichment: Definitions, explanations, key points, and examples "
                 "from [AI Replies] may be appended as structured entries to the corresponding node's details array. "
-                "Prefix each entry with a concise source/type tag (e.g., '💡 Definition:', '🔑 Key Point:', "
-                "'📋 Context:', '📝 User Input:'). "
+                "Prefix each entry with a concise source/type tag (e.g., 'Definition:', 'Key Point:', "
+                "'Context:', 'User Input:'), and the tag language must match the user's input language. "
                 "Strictly prohibit creating standalone nodes (meta-nodes) from AI analytical logic — "
                 "AI content may only serve as details enrichment for existing nodes."
             )
@@ -262,14 +262,14 @@ class ConceptExtractionAgent(_BaseAgent):
             rule1_cn = (
                 "1. 绝对服从用户：节点的 label 必须基于【用户说】中的客观概念。"
                 "AI 回复中对该概念的定义、解释、关键点等可作为 details 的补充来源，"
-                "按条目化方式追加（每条以 '💡 定义:'、'🔑 关键点:' 等前缀标识）。"
+                "按条目化方式追加（每条以 '定义:'、'关键点:' 等前缀标识），前缀文本语言必须与用户输入语言一致。"
                 "严禁将 AI 的分析总结创建为独立节点。"
             )
             rule1_en = (
                 "1. Absolute obedience to user: node labels must be based on objective concepts "
                 "from [User Says]. Definitions, explanations, and key points from AI replies "
                 "may serve as supplementary details, appended as structured entries "
-                "(prefixed with '💡 Definition:', '🔑 Key Point:', etc.). "
+                "(prefixed with 'Definition:', 'Key Point:', etc.), and the tag language must match the user's input language. "
                 "Strictly prohibit creating standalone nodes from AI analysis."
             )
         else:
