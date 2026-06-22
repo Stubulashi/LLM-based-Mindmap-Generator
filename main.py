@@ -277,15 +277,15 @@ E: [Language Rules - Must Strictly Follow]
             ai_reply_marker_cn = (
                 "C: 【概念补充来源 - 请将AI回复中与各概念相关的定义、解释、关键点、"
                 "举例等，按条目化方式追加到对应节点的 details 数组中。"
-                "每条建议以简洁前缀标识来源（如 '💡 定义:'、'🔑 关键点:'、'📋 上下文:'）。"
+                "每条建议以简洁前缀标识来源（如 '定义:'、'关键点:'、'上下文:'），前缀文本语言与用户输入语言一致。"
                 "禁止将AI的分析逻辑创建为独立节点】AI回复说："
             )
             ai_reply_marker_en = (
                 "E: [Concept Enrichment Source - Extract definitions, explanations, key points, "
                 "and examples related to each concept from the AI reply, and append them as "
                 "structured entries to the corresponding node's details array. "
-                "Prefix each entry with a concise source tag (e.g., '💡 Definition:', "
-                "'🔑 Key Point:', '📋 Context:'). "
+                "Prefix each entry with a concise source tag (e.g., 'Definition:', "
+                "'Key Point:', 'Context:'), and the tag language must match the user's input language. "
                 "Do NOT create standalone nodes from AI's analytical logic] AI replied: "
             )
         else:
