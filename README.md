@@ -360,8 +360,45 @@ ai-mindmap-agent/
 ├── requirements.txt        # Python dependencies
 ├── .env.example            # (create your own .env from this template)
 ├── Evaluation_Schema.md    # Quality evaluation criteria (bilingual)
+├── scripts/
+│   └── inspect.sh          # MCP Inspector one-click launcher
 └── debug_output/           # Per-request debug files (auto-generated)
 ```
+
+---
+
+### 🔍 Debugging with MCP Inspector
+
+For real-time JSON-RPC message monitoring and isolated tool testing, you can use the official **MCP Inspector** — a web-based debugging tool that wraps your MCP server and provides a graphical interface for inspecting protocol-level communication.
+
+**What MCP Inspector offers:**
+- 📡 **Real-time JSON-RPC monitoring** — view every request/response exchanged between client and server
+- 🧪 **Isolated tool testing** — call `chat_generate`, `polish_text`, `modify_mind_map_v2` individually without going through the full pipeline
+- 📋 **Tool schema browser** — visually inspect all 5 tools and their parameter schemas
+- 🔔 **Notification panel** — monitor server logs and push notifications in real time
+
+**Quick launch:**
+
+```bash
+# From the project root
+bash scripts/inspect.sh
+```
+
+Or via VS Code: `Terminal → Run Task → "C: 启动 MCP Inspector 调试"`
+
+After launch, open your browser at **http://localhost:6274**. The UI will automatically connect to your MCP server via stdio.
+
+> **Note:** The server initialization loads the Whisper model (~500 MB). Please wait for the connection indicator to turn green before testing tools.
+
+**How it coexists with existing debug infrastructure:**
+
+| Debug Layer | Tool | What You See |
+|---|---|---|
+| **Protocol level** | MCP Inspector | Raw JSON-RPC messages, tool schemas, call/response timing |
+| **Business level** | `debug_output/` | Per-stage LLM prompts, extracted concepts, hierarchy plans, delta diffs |
+| **Application level** | stderr logs | Bilingual (CN/EN) server logs, retry/degradation events |
+
+These three layers are complementary — use Inspector for protocol & isolation testing, `debug_output/` for pipeline quality analysis, and stderr logs for runtime monitoring.
 
 ---
 
@@ -641,8 +678,45 @@ ai-mindmap-agent/
 ├── index.html              # Vue.js 3 + Tailwind CSS 前端
 ├── requirements.txt        # Python 依赖
 ├── Evaluation_Schema.md    # 质量评估标准（中英双语）
+├── scripts/
+│   └── inspect.sh          # MCP Inspector 一键启动脚本
 └── debug_output/           # 调试输出文件（自动生成）
 ```
+
+---
+
+### 🔍 使用 MCP Inspector 调试
+
+如需实时监控 JSON-RPC 消息、独立测试单个工具，可使用官方 **MCP Inspector** — 一款基于 Web 的调试工具，通过包装 MCP Server 进程提供图形化界面来检查协议级通信。
+
+**MCP Inspector 提供以下能力：**
+- 📡 **实时 JSON-RPC 监控** — 查看客户端与服务器之间的每条请求/响应
+- 🧪 **独立工具测试** — 无需经过完整管线，即可单独调用 `chat_generate`、`polish_text`、`modify_mind_map_v2` 等工具
+- 📋 **工具 Schema 浏览器** — 可视化查看全部 5 个工具及其参数定义
+- 🔔 **通知面板** — 实时监控服务器日志和推送通知
+
+**快速启动：**
+
+```bash
+# 在项目根目录执行
+bash scripts/inspect.sh
+```
+
+或通过 VS Code：`终端 → 运行任务 → "C: 启动 MCP Inspector 调试"`
+
+启动后，浏览器打开 **http://localhost:6274**，UI 将通过 stdio 自动连接 MCP Server。
+
+> **注意：** 服务器初始化需要加载 Whisper 模型（约 500 MB），请等待连接指示灯变绿后再测试工具。
+
+**与现有调试体系的关系：**
+
+| 调试层级 | 工具 | 可观测内容 |
+|---|---|---|
+| **协议层** | MCP Inspector | 原始 JSON-RPC 消息、工具 Schema、调用/响应时序 |
+| **业务层** | `debug_output/` | 逐阶段 LLM 提示词、提取的概念、层级规划、Delta 差异 |
+| **应用层** | stderr 日志 | 中英双语服务器日志、重试/降级事件 |
+
+三层互补 — Inspector 用于协议与隔离测试，`debug_output/` 用于管线质量分析，stderr 日志用于运行时监控。
 
 ---
 

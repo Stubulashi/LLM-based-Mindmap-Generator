@@ -13,7 +13,9 @@ venv/
 env/
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
 .idea/
 *.swp
 api.env

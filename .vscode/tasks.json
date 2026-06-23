@@ -1,0 +1,46 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "C: 启动 MCP Inspector 调试",
+            "detail": "E: Launch MCP Inspector Debug",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "${workspaceFolder}/scripts/inspect.sh"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": false
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "isBackground": true
+        },
+        {
+            "label": "C: 启动 FastAPI 服务 (uvicorn)",
+            "detail": "E: Start FastAPI Server (uvicorn)",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "${workspaceFolder}/main.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        }
+    ]
+}

@@ -244,8 +244,18 @@
     <div class="flex-1 md-card relative overflow-hidden bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiNlN2U1ZTQiLz48L3N2Zz4=')]" 
          id="canvas-container" @mousedown="startDrag" @mousemove="onDrag" @mouseup="stopDrag" @mouseleave="stopDrag">
         <div :style="{ transform: `translate(${canvasX}px, ${canvasY}px)` }" class="absolute transition-transform duration-75 origin-top-left">
-            <svg class="absolute w-[3000px] h-[3000px] top-[-1500px] left-[-1500px] pointer-events-none">
-                <path v-for="link in computedLinks" :key="link.source + '-' + link.target" :d="link.path" stroke="#cbd5e1" stroke-width="3" fill="none" class="transition-all duration-75" />
+            <!-- C: SVG 连线层 — 与节点共享同一 CSS 坐标系，无偏移 -->
+            <!-- E: SVG link layer — shares CSS coordinate space with nodes, no offset -->
+            <svg class="absolute top-0 left-0 pointer-events-none overflow-visible" 
+                 :style="{ width: svgSize.w + 'px', height: svgSize.h + 'px' }">
+                <!-- C: 连线：solid=实线 #3b82f6, dashed=虚线 #94a3b8 → 方便调试时肉眼区分 -->
+                <!-- E: Links: solid=#3b82f6, dashed=#94a3b8 → visually distinct for debugging -->
+                <path v-for="(link, idx) in computedLinks" :key="link.source + '-' + link.target" 
+                      :d="link.path" 
+                      :stroke="link.type === 'dashed' ? '#94a3b8' : '#3b82f6'"
+                      :stroke-width="link.type === 'dashed' ? 3 : 4" 
+                      :stroke-dasharray="link.type === 'dashed' ? '8,4' : 'none'"
+                      fill="none" />
             </svg>
             <div v-for="node in nodes" :key="node.id"
                  @mousedown.stop="onNodePointerDown($event, node)"
@@ -837,25 +847,278 @@
             
             const resetCanvas = () => { canvasX.value = 200; canvasY.value = 150; activeNode.value = null }
 
-            // C: --- 动态连线计算 ---
-            // E: --- Dynamic link computation ---
+            // C: --- 动态连线计算（全覆盖诊断版） ---
+            // E: --- Dynamic link computation (full diagnostic version) ---
+            // C: SVG 与节点共享同一 CSS 坐标系（top:0 left:0），无需偏移
+            // E: SVG shares CSS coordinate space with nodes (top:0 left:0), no offset needed
+            // C: 节点近似半宽/半高（用于计算节点中心点，含 px-6 padding = 24px）
+            //    min-w-[140px] / 2 = 70px, 但实际含 px-6 padding = 24px → 70+24 = 94
+            // E: Approximate half-width (70+24=94 accounting for px-6 padding)
+            const NODE_HALF_W = 94;
+            const NODE_HALF_H = 40;
+
+            // C: SVG 画布动态尺寸 — 根据所有节点坐标自动计算
+            // E: SVG canvas dynamic size — computed from all node positions
+            const svgSize = computed(() => {
+                if (nodes.value.length === 0) return { w: 1400, h: 900 };
+                let maxX = 0, maxY = 0;
+                nodes.value.forEach(n => {
+                    if ((n.x || 0) + 200 > maxX) maxX = (n.x || 0) + 200;
+                    if ((n.y || 0) + 120 > maxY) maxY = (n.y || 0) + 120;
+                });
+                return { w: Math.max(1400, maxX), h: Math.max(900, maxY) };
+            });
+
+            // C: 诊断状态标记（可在控制台通过 __diag 访问）
+            // E: Diagnostic state flags (accessible via __diag in console)
+            const __diag = { lastRun: 0, totalRuns: 0, lastReport: null };
+            window.__diag = __diag;
+
             const computedLinks = computed(() => {
-                return links.value.map(link => {
+                __diag.totalRuns++;
+                const now = Date.now();
+                const isFirstRun = __diag.totalRuns === 1;
+                const throttlePassed = (now - __diag.lastRun) > 5000;
+
+                // === 诊断 1: links 数组状态 ===
+                if (isFirstRun || throttlePassed) {
+                    console.group(
+                        `%c🔗 连线诊断 #${__diag.totalRuns} %c| nodes=${nodes.value.length} links=${links.value.length}`,
+                        'color:#8b5cf6;font-weight:bold;font-size:14px', 'color:inherit'
+                    );
+                    
+                    if (links.value.length === 0) {
+                        console.log('%c⚠️  links 数组为空 — 后端未返回连线数据，非前端渲染问题', 'color:#f59e0b;font-weight:bold');
+                    } else {
+                        console.log(`   links 数据类型: ${typeof links.value[0]}, 第一条:`, JSON.stringify(links.value[0]));
+                    }
+                    
+                    // === 诊断 2: nodes ID 格式 ===
+                    if (nodes.value.length > 0) {
+                        const sampleIds = nodes.value.slice(0, 3).map(n => `${typeof n.id}:${n.id}`);
+                        console.log(`   nodes ID 格式 (前3):`, sampleIds);
+                    }
+                }
+
+                const result = links.value.map((link, idx) => {
+                    // === 诊断 3: link 中 source/target 存在性 ===
+                    if (link.source === undefined || link.target === undefined) {
+                        if (isFirstRun || throttlePassed) {
+                            console.error(
+                                `%c❌ link#${idx} 缺少 source 或 target 字段!%c link=`, 
+                                'color:#ef4444;font-weight:bold', 'color:inherit', link
+                            );
+                        }
+                        return link;
+                    }
+
                     const sourceNode = nodes.value.find(n => n.id === link.source);
                     const targetNode = nodes.value.find(n => n.id === link.target);
                     
-                    if (sourceNode && targetNode) {
-                        const sx = sourceNode.x + 70;
-                        const sy = sourceNode.y + 40;
-                        const tx = targetNode.x + 70;
-                        const ty = targetNode.y + 40;
-                        
-                        const path = `M ${sx} ${sy} C ${sx} ${(sy + ty) / 2}, ${tx} ${(sy + ty) / 2}, ${tx} ${ty}`;
-                        return { ...link, path };
+                    // === 诊断 4: ID 匹配详情 ===
+                    if (!sourceNode || !targetNode) {
+                        if (isFirstRun || throttlePassed) {
+                            const allIds = nodes.value.map(n => `${typeof n.id}:${n.id}`);
+                            console.warn(
+                                `%c⚠️  link#${idx} ID不匹配 %c${link.source}→${link.target}
+                                   %c源节点=${sourceNode ? '✓' : '✗'} 目标节点=${targetNode ? '✓' : '✗'}
+                                   nodes所有ID: [${allIds.join(', ')}]
+                                   link.source类型=${typeof link.source} 值="${link.source}"
+                                   link.target类型=${typeof link.target} 值="${link.target}"`,
+                                'color:#f59e0b;font-weight:bold', 'color:#ef4444', 'color:inherit'
+                            );
+                        }
+                        return link;
                     }
-                    return link; 
+                    
+                    // === 诊断 5: 路径坐标计算（无偏移，与节点共用CSS坐标系）===
+                    const sx = (sourceNode.x || 0) + NODE_HALF_W;
+                    const sy = (sourceNode.y || 0) + NODE_HALF_H;
+                    const tx = (targetNode.x || 0) + NODE_HALF_W;
+                    const ty = (targetNode.y || 0) + NODE_HALF_H;
+                    
+                    // C: 检查坐标是否为 NaN
+                    // E: Check if coordinates are NaN
+                    if (isNaN(sx) || isNaN(sy) || isNaN(tx) || isNaN(ty)) {
+                        console.error(
+                            `%c❌ link#${idx} 坐标NaN! %c源(${sourceNode.x},${sourceNode.y})→(${sx},${sy}) 目标(${targetNode.x},${targetNode.y})→(${tx},${ty})`,
+                            'color:#ef4444;font-weight:bold', 'color:inherit'
+                        );
+                        return link;
+                    }
+                    
+                    // C: 检查坐标是否在 SVG 范围内
+                    // E: Check if coordinates are within SVG range
+                    const svgw = svgSize.value.w, svgh = svgSize.value.h;
+                    const inRange = (v, max) => v >= -10 && v <= max + 10;
+                    const srcInRange = inRange(sx, svgw) && inRange(sy, svgh);
+                    const tgtInRange = inRange(tx, svgw) && inRange(ty, svgh);
+                    if (!srcInRange || !tgtInRange) {
+                        if (isFirstRun || throttlePassed) {
+                            console.warn(
+                                `%c⚠️  link#${idx} 坐标超出SVG范围(${svgw}x${svgh})! %c源SVG(${sx},${sy}) 目标SVG(${tx},${ty})`,
+                                'color:#f59e0b', 'color:inherit'
+                            );
+                        }
+                    }
+                    
+                    const path = `M ${sx} ${sy} C ${sx} ${(sy + ty) / 2}, ${tx} ${(sy + ty) / 2}, ${tx} ${ty}`;
+                    
+                    // === 诊断 6: 最终路径字符串 ===
+                    if (isFirstRun || throttlePassed) {
+                        console.log(
+                            `%c✅ link#${idx} %c${link.source}→${link.target}%c | ` +
+                            `源CSS(${sourceNode.x},${sourceNode.y})→SVG(${Math.round(sx)},${Math.round(sy)}) | ` +
+                            `目标CSS(${targetNode.x},${targetNode.y})→SVG(${Math.round(tx)},${Math.round(ty)}) | ` +
+                            `d="${path.substring(0,60)}..."`,
+                            'color:#10b981;font-weight:bold', 'color:#0ea5e9;font-weight:bold', 'color:inherit'
+                        );
+                    }
+                    
+                    return { ...link, path };
                 });
+
+                if (isFirstRun || throttlePassed) {
+                    const withPath = result.filter(l => l.path).length;
+                    const withoutPath = result.length - withPath;
+                    __diag.lastReport = { 
+                        time: new Date().toISOString(), 
+                        totalLinks: result.length, 
+                        withPath, 
+                        withoutPath,
+                        totalNodes: nodes.value.length 
+                    };
+                    console.log(
+                        `%c📊 汇总: ${withPath}/${result.length} 条连线有有效路径, ${withoutPath} 条缺失`,
+                        'color:#6366f1;font-weight:bold'
+                    );
+                    console.groupEnd();
+                    __diag.lastRun = now;
+                }
+
+                return result;
             });
+
+            // ============================================================
+            // C: 浏览器控制台诊断工具 — 在 F12 Console 中运行以排查连线问题
+            // E: Browser console diagnostic tool — run in F12 Console to debug links
+            // ============================================================
+            window.__testLines = function(scenario) {
+                // C: 预定义测试场景
+                // E: Predefined test scenarios
+                const scenarios = {
+                    // C: 场景A — 两个节点，坐标在常见范围内
+                    // E: Scenario A — two nodes, typical coordinates
+                    simple: {
+                        nodes: [
+                            { id: '__test_root', label: 'Root', color: 'var(--node-blue)', x: 400, y: 100, details: [] },
+                            { id: '__test_child', label: 'Child', color: 'var(--node-green)', x: 400, y: 300, details: [] },
+                        ],
+                        links: [
+                            { source: '__test_root', target: '__test_child', type: 'solid' }
+                        ]
+                    },
+                    // C: 场景B — 三个节点三角形，测试多条连线
+                    // E: Scenario B — three nodes triangle, test multiple lines
+                    triangle: {
+                        nodes: [
+                            { id: '__test_a', label: 'A', color: 'var(--node-blue)', x: 300, y: 100, details: [] },
+                            { id: '__test_b', label: 'B', color: 'var(--node-green)', x: 150, y: 350, details: [] },
+                            { id: '__test_c', label: 'C', color: 'var(--node-red)', x: 450, y: 350, details: [] },
+                        ],
+                        links: [
+                            { source: '__test_a', target: '__test_b', type: 'solid' },
+                            { source: '__test_a', target: '__test_c', type: 'solid' },
+                            { source: '__test_b', target: '__test_c', type: 'dashed' },
+                        ]
+                    },
+                    // C: 场景C — 坐标在极端位置（接近0和接近1500）
+                    // E: Scenario C — extreme coordinates (near 0 and near 1500)
+                    extreme: {
+                        nodes: [
+                            { id: '__test_top', label: 'TopLeft', color: 'var(--node-blue)', x: 0, y: 0, details: [] },
+                            { id: '__test_bot', label: 'BotRight', color: 'var(--node-red)', x: 800, y: 600, details: [] },
+                        ],
+                        links: [
+                            { source: '__test_top', target: '__test_bot', type: 'solid' }
+                        ]
+                    }
+                };
+                
+                const s = scenarios[scenario] || scenarios.simple;
+                const name = scenario || 'simple';
+                
+                console.group(`%c🧪 注入测试场景: ${name} %c(nodes=${s.nodes.length} links=${s.links.length})`,
+                    'color:#8b5cf6;font-weight:bold;font-size:14px', 'color:inherit');
+                
+                // C: 保留已有数据，追加测试节点
+                // E: Preserve existing data, append test nodes
+                nodes.value = [...nodes.value, ...s.nodes];
+                links.value = [...links.value, ...s.links];
+                
+                console.log('注入后 nodes:', nodes.value.length, 'links:', links.value.length);
+                
+                // C: 等待 Vue 响应式更新后检查 SVG DOM
+                // E: Check SVG DOM after Vue reactive update
+                nextTick(() => {
+                    const svgPaths = document.querySelectorAll('#canvas-container svg path');
+                    console.log(`SVG <path> 元素数量: ${svgPaths.length}`);
+                    
+                    svgPaths.forEach((p, i) => {
+                        const d = p.getAttribute('d');
+                        const cs = getComputedStyle(p);
+                        console.log(
+                            `  path#${i}: d="${d ? d.substring(0, 50) + '...' : '(空)'}" ` +
+                            `stroke="${cs.stroke}" strokeWidth="${cs.strokeWidth}" ` +
+                            `display="${cs.display}" visibility="${cs.visibility}" opacity="${cs.opacity}"`
+                        );
+                    });
+                    
+                    if (svgPaths.length === 0) {
+                        console.warn('%c⚠️ SVG 中无 <path> 元素 — 检查 v-for 是否生成了元素', 'color:#f59e0b;font-weight:bold');
+                        console.log('检查 computedLinks 返回值:', computedLinks.value);
+                    }
+                    
+                    console.groupEnd();
+                });
+            };
+
+            // C: 一键移除测试节点
+            // E: One-click remove test nodes
+            window.__clearTest = function() {
+                nodes.value = nodes.value.filter(n => !String(n.id).startsWith('__test_'));
+                links.value = links.value.filter(l => 
+                    !String(l.source).startsWith('__test_') && 
+                    !String(l.target).startsWith('__test_')
+                );
+                console.log('%c🧹 测试节点已清除', 'color:#10b981;font-weight:bold');
+            };
+
+            // C: 诊断：打印当前完整状态
+            // E: Diagnostic: print current full state
+            window.__diagFull = function() {
+                console.group('%c📋 完整连线状态诊断', 'color:#8b5cf6;font-weight:bold;font-size:14px');
+                console.log('nodes:', nodes.value.length, nodes.value.map(n => ({id:n.id, label:n.label, x:n.x, y:n.y})));
+                console.log('links:', links.value.length, links.value);
+                console.log('computedLinks:', computedLinks.value.length, computedLinks.value.map(l => ({source:l.source, target:l.target, hasPath:!!l.path, pathPreview: (l.path||'').substring(0,40)})));
+                console.log('lastReport:', __diag.lastReport);
+                
+                // C: 检查 SVG DOM
+                // E: Check SVG DOM
+                const svgEl = document.querySelector('#canvas-container svg');
+                if (svgEl) {
+                    const rect = svgEl.getBoundingClientRect();
+                    console.log('SVG元素:', { 
+                        width: svgEl.getAttribute('width'), 
+                        height: svgEl.getAttribute('height'),
+                        boundingRect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+                        pathCount: svgEl.querySelectorAll('path').length 
+                    });
+                } else {
+                    console.warn('⚠️ 未找到 SVG 元素!');
+                }
+                console.groupEnd();
+            };
 
             // C: --- 节点拖拽状态变量 ---
             // E: --- Node drag state variables ---
@@ -931,6 +1194,7 @@
                 onTimeUpdate, onLoadedMetadata, onEnded, seekAudio, togglePlay, toggleRecording,
                 triggerFileUpload, handleFileChange, getBubbleClass, sendMessage, toggleTrans,
                 canvasX, canvasY, startDrag, onDrag, stopDrag, resetCanvas,
+                svgSize,
                 deleteActiveNode,
                 renderMarkdown,
                 computedLinks, onNodePointerDown, clearAllNodes,

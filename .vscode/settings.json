@@ -1,0 +1,4 @@
+{
+    "python.analysis.autoImportCompletions": true,
+    "flake8.enabled": false
+}

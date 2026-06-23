@@ -9,7 +9,6 @@ import os
 import json
 import logging
 import tempfile
-import asyncio
 from datetime import datetime
 
 from config import Config
@@ -25,15 +24,6 @@ logging.basicConfig(level=logging.INFO, format="[Orchestrator] %(levelname)s %(m
 logger = logging.getLogger("orchestrator")
 
 MAX_RETRIES = 1  # C: 工具调用失败时的最大重试次数 / E: Max retries on tool call failure
-
-# C: 调试：将最新思维导图 JSON 复制到项目根目录
-# E: Debug: Copy the latest mind map JSON to project root
-async def _save_debug_map(data: dict) -> None:
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "last_generated_map.txt")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    logger.info(f"[Debug] Map saved -> {path}")
-
 
 # =========================================================
 # C: 结果验证层 — 纯编排器逻辑
@@ -314,10 +304,6 @@ E: [Language Rules - Must Strictly Follow]
         )
         logger.info("C: [Orchestrator] modify_mind_map_v2 完成")
         logger.info("E: [Orchestrator] modify_mind_map_v2 complete")
-
-        # C: Debug 日志
-        # E: Debug log
-        asyncio.create_task(_save_debug_map(updated_map))
 
         # ---------------------------------------------------------
         # C: 阶段三：质量验收通过，组装结果返回
