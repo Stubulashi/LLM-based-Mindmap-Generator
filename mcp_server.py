@@ -228,6 +228,15 @@ def transcribe_audio(file_path: str) -> dict:
     logger.info(f"C: [transcribe_audio] 开始转录: {file_path}")
     logger.info(f"E: [transcribe_audio] Starting transcription: {file_path}")
 
+    # C: Whisper 未加载时优雅报错（Inspector 调试模式）
+    # E: Graceful error when Whisper not loaded (Inspector debug mode)
+    if whisper_model is None:
+        msg_cn = "Whisper 模型未加载（SKIP_HEAVY_INIT 调试模式）。请通过完整服务（python main.py）使用转录功能。"
+        msg_en = "Whisper model not loaded (SKIP_HEAVY_INIT debug mode). Use full service (python main.py) for transcription."
+        logger.warning(f"C: [transcribe_audio] {msg_cn}")
+        logger.warning(f"E: [transcribe_audio] {msg_en}")
+        return {"raw_text": "", "detected_language": "en", "warning": f"{msg_cn} | {msg_en}"}
+
     result = whisper_model.transcribe(file_path)
     raw_text = result["text"].strip()
     detected_language = result.get("language", "en")
@@ -694,7 +703,82 @@ def modify_mind_map_v2(chat_history: str, current_map: dict,
 # E: Entry point — stdio transport mode
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    _init_models()
+    # C: SKIP_HEAVY_INIT 环境变量 — 用于 MCP Inspector 等外部调试工具
+    #    跳过 Whisper 模型加载（30s+），使 stdio 握手立即完成。
+    #    transcribe_audio 工具在无 Whisper 时会正常报错。
+    # E: SKIP_HEAVY_INIT env var — for MCP Inspector and other external debug tools
+    #    Skips Whisper model loading (30s+) so stdio handshake completes immediately.
+    #    transcribe_audio tool will gracefully error without Whisper.
+    skip_heavy = os.environ.get("SKIP_HEAVY_INIT", "").lower() in ("1", "true", "yes")
+    if skip_heavy:
+        logger.info("C: SKIP_HEAVY_INIT=1 → 跳过 Whisper 模型加载（Inspector 调试模式）")
+        logger.info("E: SKIP_HEAVY_INIT=1 → skipping Whisper model load (Inspector debug mode)")
+        # C: 仅初始化 LLM 客户端，跳过 Whisper
+        # E: Only init LLM clients, skip Whisper
+        global whisper_model, llm_client, polish_client, map_agent, map_pipeline
+        llm_client = OpenAI(
+            api_key=Config.LLM_API_KEY, base_url=Config.LLM_BASE_URL
+        )
+        logger.info(f"C: LLM 客户端就绪（Inspector 模式），模型={Config.LLM_MODEL}")
+        logger.info(f"E: LLM client ready (Inspector mode), model={Config.LLM_MODEL}")
+        if Config.POLISH_MODEL:
+            polish_client = OpenAI(
+                api_key=Config.POLISH_API_KEY,
+                base_url=Config.POLISH_BASE_URL
+            )
+            logger.info(f"C: 润色客户端就绪（Inspector 模式），模型={Config.POLISH_MODEL}")
+            logger.info(f"E: Polish client ready (Inspector mode), model={Config.POLISH_MODEL}")
+        map_agent = MindMapSpecialistAgent()
+        # C: 组装管线编排器（与 _init_models 逻辑相同）
+        # E: Assemble pipeline orchestrator (same logic as _init_models)
+        from mindmap_agent import (
+            MindMapPipelineOrchestrator,
+            ConceptExtractionAgent,
+            HierarchyPlanningAgent,
+            DeltaGenerationAgent,
+        )
+        concept_agent = None
+        if Config.CONCEPT_MODEL:
+            concept_agent = ConceptExtractionAgent(
+                api_key=Config.CONCEPT_API_KEY,
+                base_url=Config.CONCEPT_BASE_URL,
+                model=Config.CONCEPT_MODEL
+            )
+        else:
+            concept_agent = ConceptExtractionAgent(
+                api_key=Config.LLM_API_KEY,
+                base_url=Config.LLM_BASE_URL,
+                model=Config.LLM_MODEL
+            )
+        hierarchy_agent = None
+        if Config.HIERARCHY_MODEL:
+            hierarchy_agent = HierarchyPlanningAgent(
+                api_key=Config.HIERARCHY_API_KEY,
+                base_url=Config.HIERARCHY_BASE_URL,
+                model=Config.HIERARCHY_MODEL
+            )
+        else:
+            hierarchy_agent = HierarchyPlanningAgent(
+                api_key=Config.LLM_API_KEY,
+                base_url=Config.LLM_BASE_URL,
+                model=Config.LLM_MODEL
+            )
+        delta_agent = DeltaGenerationAgent(
+            api_key=Config.DELTA_API_KEY,
+            base_url=Config.DELTA_BASE_URL,
+            model=Config.DELTA_MODEL
+        )
+        map_pipeline = MindMapPipelineOrchestrator(
+            concept_agent=concept_agent,
+            hierarchy_agent=hierarchy_agent,
+            delta_agent=delta_agent,
+            legacy_agent=map_agent
+        )
+        whisper_model = None  # C: 标记为未加载 / E: Mark as not loaded
+        logger.info("C: MCP Server Inspector 调试模式就绪（无 Whisper）")
+        logger.info("E: MCP Server Inspector debug mode ready (no Whisper)")
+    else:
+        _init_models()
     logger.info("C: MCP Server 启动 (stdio 模式)")
     logger.info("E: MCP Server starting (stdio mode)")
     mcp.run(transport="stdio")

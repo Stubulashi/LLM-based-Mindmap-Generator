@@ -3,12 +3,14 @@
 > **文档约定 / Document Conventions**：
 >
 > - 所有章节采用统一结构模板：**目标 → 方法 → 公式/计算过程 → 参考阈值 → 示例输出**
-> - 中文为正文，英文为对照注释；公式符号优先采用国际通用记号
+> - 中文与英文具有同等地位，公式符号优先采用国际通用记号
 > - 标注 `[可选]` 的维度为建议性指标，可在资源受限时酌情省略
 >
-> *All sections follow a unified template: Goal → Method → Formula/Computation → Reference Threshold → Example Output.*
-> *Chinese is the main text, English serves as parallel annotation; formulas use internationally standard notation.*
-> *Dimensions marked [Optional] are advisory and may be omitted under resource constraints.*
+> **All sections follow a unified template**: Goal → Method → Formula/Computation → Reference Threshold → Example Output.
+>
+> **Chinese and English have equal status**; formula symbols use internationally standard notation.
+>
+> **Dimensions marked [Optional] are advisory** and may be omitted under resource constraints.
 
 ---
 
@@ -47,9 +49,11 @@
 
 ## 1. 节点标签质量评估（Node Label Quality Assessment）
 
-> **目标 / Goal**：独立衡量生成节点标签（label）的语义正确性、完整性以及冗余程度。该维度与层级结构完全解耦，仅关注"节点本身说了什么"。
+> **目标 / Goal**：
 >
-> *Independently measure the semantic correctness, completeness, and redundancy of generated node labels. This dimension is entirely decoupled from hierarchy structure and focuses solely on "what the node itself says".*
+> **中文**：独立衡量生成节点标签（label）的语义正确性、完整性以及冗余程度。该维度与层级结构完全解耦，仅关注"节点本身说了什么"。
+>
+> **English**: Independently measure the semantic correctness, completeness, and redundancy of generated node labels. This dimension is entirely decoupled from hierarchy structure and focuses solely on "what the node itself says".
 
 ---
 
@@ -59,13 +63,17 @@
 
 使用通用 multilingual embedding 模型（推荐 `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` 或 `text2vec-large-chinese`），将生成节点的 label 与标准标注节点的 label 分别编码为稠密向量，计算余弦相似度（Cosine Similarity），并取宏观平均作为最终得分。
 
-*Use a general multilingual embedding model to encode generated and gold-standard labels into dense vectors, compute pairwise cosine similarity, and take the macro-average as the final score.*
+**使用通用 multilingual embedding 模型，将生成节点标签与标准标注标签编码为稠密向量，计算余弦相似度并取宏观平均作为最终得分。**
+
+Use a general multilingual embedding model to encode generated and gold-standard labels into dense vectors, compute pairwise cosine similarity, and take the macro-average as the final score.
 
 **公式 / Formula**：
 
 设生成节点标签集合 $L_g = \{l_{g1}, l_{g2}, ..., l_{gm}\}$，标准标注标签集合 $L_s = \{l_{s1}, l_{s2}, ..., l_{sn}\}$。
 
-*Let generated labels be $L_g$ and gold-standard labels be $L_s$.*
+**设生成标签集合为 $L_g$，标准标注标签集合为 $L_s$。**
+
+Let generated labels be $L_g$ and gold-standard labels be $L_s$.
 
 计算步骤如下：
 
@@ -79,9 +87,11 @@ $$
 
 其中 $\mathbf{v}_{gi} = \text{embed}(l_{gi})$，$\mathbf{v}_{sj} = \text{embed}(l_{sj})$。
 
-> **注意**：若 $m < n$（生成节点少于标准），未匹配的标准标签贡献为 0，降低宏观平均。
+> **注意 / Note**：
 >
-> *Note: Unmatched gold labels contribute 0 to the average, penalizing under-generation.*
+> - 若 $m < n$（生成节点少于标准），未匹配的标准标签贡献为 0，降低宏观平均。
+>
+> - If $m < n$ (generated nodes fewer than gold-standard), unmatched gold labels contribute 0 to the average, penalizing under-generation.
 
 **参考阈值 / Reference Threshold**：
 
@@ -93,7 +103,7 @@ $$
 
 **示例输出 / Example Output**：
 
-```
+```text
 Gold labels:    ["Large Language Model", "Attention Mechanism", "Transformer Architecture"]
 Generated:      ["LLM", "Attention", "Transformer"]
 Cosine Matrix:  [[0.92, 0.35, 0.48],
@@ -111,7 +121,9 @@ LabelSim = (0.92 + 0.96 + 0.94) / 3 = 0.940  -> Excellent
 
 预先从该节 Lecture 中确定 10–20 个必须掌握的核心概念集合 $E_s$（如本课程中的 LLM、Agent、MCP、ReAct、Sub-graph Retrieval 等），逐项检查其是否在生成导图的任意节点 label 或 details 中出现（通过 embedding 相似度 $\geq$ 阈值 $\tau$ 判定为"命中"）。
 
-*Pre-define a set of 10–20 essential concepts $E_s$ from the lecture. A concept is counted as "hit" if any generated node's label or details contains it with embedding similarity $\geq$ threshold $\tau$.*
+**预先从课程中确定核心概念集合，逐项检查其是否在生成导图中出现（通过 embedding 相似度判定为"命中"）。**
+
+Pre-define a set of 10–20 essential concepts $E_s$ from the lecture. A concept is counted as "hit" if any generated node's label or details contains it with embedding similarity $\geq$ threshold $\tau$.
 
 **公式 / Formula**：
 
@@ -124,19 +136,20 @@ $$
 > - $D_g$：生成节点 details 中所有条目的并集
 > - $\tau = 0.70$（推荐值）
 >
-> *$D_g$: union of all detail entries across generated nodes; $\tau = 0.70$ (recommended).*
+> - $D_g$: union of all detail entries across generated nodes.
+> - $\tau = 0.70$ (recommended).
 
 **参考阈值 / Reference Threshold**：
 
-| 等级 | Recall | 说明 |
+| 等级 / Grade | Recall | 说明 / Description |
 |---|---|---|
-| 优秀 | $\geq$ 0.90 | 几乎无关键概念遗漏 |
-| 良好 | 0.75 – 0.89 | 少量次要概念遗漏 |
-| 需改进 | $<$ 0.75 | 存在关键知识缺口 |
+| 优秀 / Excellent | $\geq$ 0.90 | 几乎无关键概念遗漏 / nearly no key concepts missed |
+| 良好 / Good | 0.75 – 0.89 | 少量次要概念遗漏 / minor secondary concepts missed |
+| 需改进 / Needs Improvement | $<$ 0.75 | 存在关键知识缺口 / significant knowledge gaps exist |
 
 **示例输出 / Example Output**：
 
-```
+```text
 Essential concepts (|Es|=15): [LLM, Agent, MCP, ReAct, RAG, Embedding, Transformer, ...]
 Hits in generated map:      [LLM(details), Agent(label), MCP(label), ReAct(label), RAG(label),
                               Embedding(details), Transformer(label), ...]  -> 13 hits
@@ -152,7 +165,9 @@ Missed: ["Tool Calling", "Hallucination"]
 
 Entity Recall 的互补指标，直接衡量遗漏程度。从标准标注树中识别未被生成导图覆盖的节点。
 
-*Complementary to Entity Recall; measures omission directly. Identify gold-standard nodes not covered by the generated map.*
+**Entity Recall 的互补指标，直接衡量遗漏程度。**
+
+Complementary to Entity Recall; measures omission directly. Identify gold-standard nodes not covered by the generated map.
 
 **公式 / Formula**：
 
@@ -165,7 +180,8 @@ $$
 > - $\text{covered\_labels}$：标准 label $l_s$ 在生成节点集合中能找到相似度 $\geq 0.70$ 的匹配
 > - 推荐使用匈牙利匹配结果判定覆盖关系，比简单阈值匹配更精确
 >
-> *covered_labels: gold labels with a match in generated nodes (cosine $\geq 0.70$). Using Hungarian matching is recommended for more accurate coverage determination.*
+> - $\text{covered\_labels}$: gold labels with a match in generated nodes (cosine $\geq 0.70$).
+> - Using Hungarian matching is recommended for more accurate coverage determination.
 
 **参考阈值 / Reference Threshold**：`MissRate` $\leq 0.20$（即至少覆盖 80% 的标准节点）。
 
@@ -177,7 +193,9 @@ $$
 
 衡量生成导图中"画蛇添足"的程度。对每个生成节点 label，检查其是否能在标准标注集中找到语义相似度 $\geq 0.70$ 的对应项；若不能，则标记为"无关引入"。
 
-*For each generated label, check if a semantically similar match (cosine $\geq 0.70$) exists in the gold-standard set. If not, mark it as an extraneous introduction.*
+**衡量生成导图中"画蛇添足"的程度。对每个生成标签检查是否能在标准集中找到语义相似度匹配。**
+
+For each generated label, check if a semantically similar match (cosine $\geq 0.70$) exists in the gold-standard set. If not, mark it as an extraneous introduction.
 
 **公式 / Formula**：
 
@@ -193,7 +211,7 @@ $$
 
 **示例输出 / Example Output**：
 
-```
+```text
 Generated labels (|Lg|=12): [LLM, Agent, MCP, ReAct, RAG, "AI is cool", Transformer, ...]
 Matched to gold:            [LLM, Agent, MCP, ReAct, RAG, ..., Transformer]  -> 10 matched
 Extraneous:                 ["AI is cool", "Future of AI"]  -> 2 extraneous
@@ -205,9 +223,11 @@ FDR = 2 / 12 = 0.167
 
 ## 2. 层级结构正确率评估（Hierarchy Structure Accuracy）
 
-> **目标 / Goal**：独立衡量父子关系、从属关系的准确性，不与节点标签质量混淆。关注"节点之间的从属关系是否正确"，而非"节点本身是什么"。
+> **目标 / Goal**：
 >
-> *Independently measure parent-child and subordination accuracy, without conflating with label quality. Focus on "whether the subordinate relationships between nodes are correct", not "what the node itself is".*
+> **中文**：独立衡量父子关系、从属关系的准确性，不与节点标签质量混淆。关注"节点之间的从属关系是否正确"，而非"节点本身是什么"。
+>
+> **English**: Independently measure parent-child and subordination accuracy, without conflating with label quality. Focus on "whether the subordinate relationships between nodes are correct", not "what the node itself is".
 
 ---
 
@@ -217,7 +237,9 @@ FDR = 2 / 12 = 0.167
 
 计算将生成导图树结构 $T_g$ 转换为标准标注树 $T_s$ 所需的最少编辑操作次数（插入节点、删除节点、替换节点标签、变更父子关系）。距离越小，层级结构越接近标准。
 
-*Compute the minimum number of tree edit operations (insert node, delete node, relabel, change parent) required to transform $T_g$ into $T_s$. Smaller distance = closer hierarchy.*
+**计算将生成导图树转换为标准标注树所需的最少编辑操作次数。**
+
+Compute the minimum number of tree edit operations (insert node, delete node, relabel, change parent) required to transform $T_g$ into $T_s$. Smaller distance = closer hierarchy.
 
 **公式 / Formula**：
 
@@ -225,9 +247,11 @@ $$
 \text{nTED} = \frac{\text{TED}(T_g, T_s)}{\max(|T_g|, |T_s|)}
 $$
 
-> **符号说明 / Notation**：$|T|$ 为树的节点数。归一化后使不同规模的树可比。
+> **符号说明 / Notation**：
 >
-> *$|T|$ is the number of nodes in tree T. Normalization makes trees of different sizes comparable.*
+> - $|T|$ 为树的节点数。归一化后使不同规模的树可比。
+>
+> - $|T|$ is the number of nodes in tree T. Normalization makes trees of different sizes comparable.
 
 **参考阈值 / Reference Threshold**：`nTED` $\leq 0.25$
 
@@ -241,7 +265,9 @@ $$
 
 将标准标注中的父子节点对 $(p_s, c_s)$ 与生成导图中的父子节点对 $(p_g, c_g)$ 进行匹配。一对父子关系被判定为"正确"，当且仅当父节点和子节点的 label 均能在对方集合中找到语义匹配。
 
-*A parent-child pair is judged "correct" iff both the parent and child labels can be semantically matched across the gold and generated maps.*
+**将标准标注中的父子节点对与生成导图中的父子节点对进行匹配。**
+
+A parent-child pair is judged "correct" iff both the parent and child labels can be semantically matched across the gold and generated maps.
 
 **公式 / Formula**：
 
@@ -267,7 +293,9 @@ $$
 
 统计生成节点与标准节点层级深度一致的比例。节点的层级深度定义为其到根节点的最短路径长度。通过匈牙利匹配先对齐节点，再比较匹配对的层级深度。
 
-*Count the proportion of generated nodes whose depth (shortest path to root) matches their aligned gold-standard counterpart.*
+**统计生成节点与标准节点层级深度一致的比例。**
+
+Count the proportion of generated nodes whose depth (shortest path to root) matches their aligned gold-standard counterpart.
 
 **公式 / Formula**：
 
@@ -300,9 +328,11 @@ $$
 
 ## 3. 下游任务测试：开卷问答效能（Downstream Task: QA Utility）
 
-> **目标 / Goal**：不在直接层面上评价导图，而是考察"基于该导图回答问题的能力"——这是衡量数据结构信息密度的黄金标准。
+> **目标 / Goal**：
 >
-> *Rather than directly judging the mind map, assess the ability to answer questions based on it — the gold standard for measuring a data structure's information density.*
+> **中文**：不在直接层面上评价导图，而是考察"基于该导图回答问题的能力"——这是衡量数据结构信息密度的黄金标准。
+>
+> **English**: Rather than directly judging the mind map, assess the ability to answer questions based on it — the gold standard for measuring a data structure's information density.
 
 ---
 
@@ -316,10 +346,10 @@ $$
 
 **统一控制变量 / Controlled Variables**：
 
-- 同一 LLM（推荐 GPT-4o 或同等能力模型）
-- 同一 Prompt 模板（仅输入内容不同）
-- `temperature = 0`（确保可复现）
-- 同一评分标准
+- [ ] 同一 LLM（推荐 GPT-4o 或同等能力模型）
+- [ ] 同一 Prompt 模板（仅输入内容不同）
+- [ ] `temperature = 0`（确保可复现）
+- [ ] 同一评分标准
 
 ---
 
@@ -351,11 +381,11 @@ $$
 \text{QA-Score} = 0.3 \times \text{BLEU-4} + 0.4 \times \text{ROUGE-L} + 0.3 \times \text{BERTScore}
 $$
 
-| 指标 | 说明 | 权重 |
+| 指标 / Metric | 说明 / Description | 权重 / Weight |
 |---|---|---|
-| BLEU-4 | 4-gram 精度，衡量生成答案与标准答案的 n-gram 重合度 | 0.3 |
-| ROUGE-L | 最长公共子序列召回率，对长答案更友好 | 0.4 |
-| BERTScore | 基于 contextual embedding 的语义相似度，弥补 BLEU/ROUGE 对近义词的盲区 | 0.3 |
+| BLEU-4 | 4-gram 精度，衡量生成答案与标准答案的 n-gram 重合度 / 4-gram precision measuring n-gram overlap | 0.3 |
+| ROUGE-L | 最长公共子序列召回率，对长答案更友好 / longest common subsequence recall, friendly to long answers | 0.4 |
+| BERTScore | 基于 contextual embedding 的语义相似度，弥补 BLEU/ROUGE 对近义词的盲区 / semantic similarity based on contextual embedding | 0.3 |
 
 **人工评判（辅助验证） / Human Judgment (Auxiliary Validation)**：
 
@@ -374,7 +404,7 @@ $$
 
 为确保实验公平，需使用统一 Prompt 模板：
 
-```
+```text
 System: You are a student who has just attended a lecture.
 Your only source of information is the [provided material].
 Answer each question based solely on that material.
@@ -394,10 +424,10 @@ Please answer each question concisely and accurately.
 
 **关键约束 / Critical Constraints**：
 
-- System Prompt 需明确禁止 LLM 使用先验知识（prior knowledge）
-- 所有组使用相同的 System Prompt 和 Question 文本
-- 答案顺序随机化（避免位置偏差）
-- 每组至少重复 3 次实验取平均值（减少 LLM 随机性影响）
+- [ ] System Prompt 需明确禁止 LLM 使用先验知识（prior knowledge）
+- [ ] 所有组使用相同的 System Prompt 和 Question 文本
+- [ ] 答案顺序随机化（避免位置偏差）
+- [ ] 每组至少重复 3 次实验取平均值（减少 LLM 随机性影响）
 
 > **预期结论方向 / Expected Outcome Direction**：
 > 若实验组准确率 $\geq$ 对照组的 90%，且 Token 消耗降低 $\geq 70\%$，则证明导图结构具有高效的信息压缩能力，显著优于原始逐字稿。
@@ -406,9 +436,11 @@ Please answer each question concisely and accurately.
 
 ## 4. 生成效率与语音转录保真度（Generation Efficiency & Transcription Fidelity）
 
-> **目标 / Goal**：量化系统从音频输入到导图输出的全流程效率，以及上游 STT 质量对下游导图质量的影响程度。
+> **目标 / Goal**：
 >
-> *Quantify the end-to-end efficiency from audio input to mind-map output, and the impact of upstream STT quality on downstream mind-map quality.*
+> **中文**：量化系统从音频输入到导图输出的全流程效率，以及上游 STT 质量对下游导图质量的影响程度。
+>
+> **English**: Quantify the end-to-end efficiency from audio input to mind-map output, and the impact of upstream STT quality on downstream mind-map quality.
 
 ---
 
@@ -418,31 +450,33 @@ Please answer each question concisely and accurately.
 
 使用高精度计时器（`time.perf_counter()`）在管线各阶段关键节点打点。每个测试样本重复 5 次，取 P50 和 P95。
 
-*Use high-precision timers at each pipeline stage. Repeat 5$\times$ per sample, report P50 and P95.*
+**使用高精度计时器在管线各阶段关键节点打点。**
+
+Use high-precision timers at each pipeline stage. Repeat 5$\times$ per sample, report P50 and P95.
 
 **分阶段计时 / Staged Timing**：
 
-| 阶段 | 计时起止 | 符号 |
+| 阶段 / Stage | 计时起止 / Timing | 符号 / Symbol |
 |---|---|---|
-| T1: STT 语音转文字 | 音频文件加载 → STT 文本输出 | $t_{stt}$ |
-| T2: 概念提取 | LLM 请求发送 → 概念列表返回 | $t_{concept}$ |
-| T3: 层级规划 | LLM 请求发送 → 层级关系返回 | $t_{hierarchy}$ |
-| T4: Delta 生成 | LLM 请求发送 → Delta 返回 | $t_{delta}$ |
-| T5: 后处理 + 润色 | Delta 合并 + 润色迭代完成 | $t_{polish}$ |
+| T1: STT 语音转文字 / Speech-to-Text | 音频文件加载 → STT 文本输出 / Audio load → STT output | $t_{stt}$ |
+| T2: 概念提取 / Concept Extraction | LLM 请求发送 → 概念列表返回 / LLM request → concept list | $t_{concept}$ |
+| T3: 层级规划 / Hierarchy Planning | LLM 请求发送 → 层级关系返回 / LLM request → hierarchy | $t_{hierarchy}$ |
+| T4: Delta 生成 / Delta Generation | LLM 请求发送 → Delta 返回 / LLM request → delta | $t_{delta}$ |
+| T5: 后处理 + 润色 / Post-processing + Polish | Delta 合并 + 润色迭代完成 / Merge + polish iteration | $t_{polish}$ |
 
 总延迟：$T_{total} = t_{stt} + t_{concept} + t_{hierarchy} + t_{delta} + t_{polish}$
 
 **参考阈值 / Reference Threshold**：
 
-| 指标 | 实时交互目标 | 批量处理目标 |
+| 指标 / Metric | 实时交互目标 / Real-time Target | 批量处理目标 / Batch Target |
 |---|---|---|
 | $T_{total}$ P50 | $\leq$ 30s | $\leq$ 60s |
 | $T_{total}$ P95 | $\leq$ 60s | $\leq$ 120s |
-| STT 占比 | $\leq$ 40% | $\leq$ 50% |
+| STT 占比 / STT Ratio | $\leq$ 40% | $\leq$ 50% |
 
 **示例输出 / Example Output**：
 
-```
+```text
 Sample: lecture_03_LLM_agents.wav (45 min lecture)
 Run 1: T_stt=12.3s, T_concept=4.2s, T_hierarchy=3.1s, T_delta=5.8s, T_polish=2.1s -> Total=27.5s
 Run 2: T_stt=11.8s, T_concept=3.9s, T_hierarchy=3.5s, T_delta=6.1s, T_polish=2.3s -> Total=27.6s
@@ -455,9 +489,11 @@ STT ratio (P50): 12.1/27.5 = 44.0%
 
 ### 4.2 语音转录质量评估（STT Quality Assessment）
 
-> **概述**：使用人工转写的标准文本（Ground-Truth Transcript）与 STT 输出进行比对，计算词错率（WER）和关键术语保留率（KTRR），并分析其对下游导图质量（第1节 Entity Recall）的衰减效应。
+> **概述 / Overview**：
 >
-> *Compare STT output against a manually transcribed ground-truth text. Compute WER and Key Term Retention Rate (KTRR), and analyze their attenuation effect on downstream map quality (Section 1 Entity Recall).*
+> **中文**：使用人工转写的标准文本（Ground-Truth Transcript）与 STT 输出进行比对，计算词错率（WER）和关键术语保留率（KTRR），并分析其对下游导图质量（第1节 Entity Recall）的衰减效应。
+>
+> **English**: Compare STT output against a manually transcribed ground-truth text. Compute WER and Key Term Retention Rate (KTRR), and analyze their attenuation effect on downstream map quality (Section 1 Entity Recall).
 
 ---
 
@@ -470,7 +506,7 @@ $$
 $$
 
 - 使用 `jiwer` 库计算
-- 对中文需先分词（推荐 jieba）
+- 对中文需先分词（推荐 `jieba`）
 
 **参考阈值 / Reference Threshold**：`WER` $\leq 0.15$（即 $\geq 85\%$ 的转写准确率）
 
@@ -486,7 +522,11 @@ $$
 \text{KTRR} = \frac{|\{k \in K_s \mid k \in \text{STT\_output}\}|}{|K_s|}
 $$
 
-> **匹配策略**：采用模糊匹配（允许 1 字符编辑距离的中文容错）。
+> **匹配策略 / Matching Strategy**：
+>
+> **中文**：采用模糊匹配（允许 1 字符编辑距离的中文容错）。
+>
+> **English**: Use fuzzy matching with a tolerance of 1 Chinese character edit distance.
 
 **参考阈值 / Reference Threshold**：`KTRR` $\geq 0.90$（关键术语几乎不能丢失）
 
@@ -503,9 +543,11 @@ $$
 
 ## 5. 多语言适应性与鲁棒性（Multilingual Adaptability & Robustness）
 
-> **目标 / Goal**：评估系统对不同语言（尤其中英混合）输入的支持度，以及在噪声环境下的稳定性。
+> **目标 / Goal**：
 >
-> *Evaluate the system's support for different languages (especially Chinese-English mixed input) and stability under noisy conditions.*
+> **中文**：评估系统对不同语言（尤其中英混合）输入的支持度，以及在噪声环境下的稳定性。
+>
+> **English**: Evaluate the system's support for different languages (especially Chinese-English mixed input) and stability under noisy conditions.
 
 ---
 
@@ -515,11 +557,11 @@ $$
 
 构建三组测试集，每组 5 个 Lecture 片段：
 
-| 测试集 | 语言组成 | 示例 |
+| 测试集 / Test Set | 语言组成 / Language Composition | 示例 / Example |
 |---|---|---|
-| CN-Only | 100% 中文 | 中文授课的《机器学习》课程 |
-| EN-Only | 100% 英文 | 英文授课的 CS229 课程 |
-| CN-EN-Mixed | 中英混合（术语保留英文，讲解用中文） | "今天我们讲 Transformer Architecture，它的核心是 Self-Attention 机制..." |
+| CN-Only | 100% 中文 / 100% Chinese | 中文授课的《机器学习》课程 / Chinese-taught Machine Learning course |
+| EN-Only | 100% 英文 / 100% English | 英文授课的 CS229 课程 / English-taught CS229 course |
+| CN-EN-Mixed | 中英混合 / Chinese-English Mixed | "今天我们讲 Transformer Architecture..." / "Today we discuss Transformer Architecture..." |
 
 每组分别计算：
 
@@ -527,7 +569,11 @@ $$
 - Label Semantic Similarity（1.1 节）
 - PC-F1（2.2 节）
 
-> **参考阈值 / Reference Threshold**：三组指标差异应 $\leq 15\%$，即系统在不同语言间性能不应出现显著分化。
+> **参考阈值 / Reference Threshold**：
+>
+> **中文**：三组指标差异应 $\leq 15\%$，即系统在不同语言间性能不应出现显著分化。
+>
+> **English**: The difference across the three groups should be $\leq 15\%$, indicating no significant performance degradation across languages.
 
 **报告要求 / Reporting Requirement**：
 分别报告每组指标，并附语言分布饼图和差异热力图。
@@ -542,10 +588,10 @@ $$
 
 噪声注入策略（二选一或组合使用）：
 
-| 策略 | 操作 | 参数范围 |
+| 策略 / Strategy | 操作 / Operation | 参数范围 / Parameter Range |
 |---|---|---|
-| 字符级扰动 | 以概率 $p$ 对随机位置的字符进行替换、删除或插入 | $p \in \{0.00, 0.05, 0.10, 0.15, 0.20\}$ |
-| WER 模拟 | 使用开源 TTS + STT 回路生成真实噪声 | — |
+| 字符级扰动 / Character-level Perturbation | 以概率 $p$ 对随机位置的字符进行替换、删除或插入 / Replace, delete, or insert characters at random positions with probability $p$ | $p \in \{0.00, 0.05, 0.10, 0.15, 0.20\}$ |
+| WER 模拟 / WER Simulation | 使用开源 TTS + STT 回路生成真实噪声 / Use open-source TTS + STT loop to generate real noise | — |
 
 在每个噪声水平下，测量：
 
@@ -554,7 +600,7 @@ $$
 
 **预期输出 / Expected Output**：
 
-```
+```text
 Noise Level (p)  | WER    | Entity Recall | PC-F1  | Recall Drop |
 -----------------|--------|---------------|--------|-------------|
 0.00 (baseline)  | 0.000  | 0.92          | 0.85   | baseline    |
@@ -574,9 +620,11 @@ Noise Level (p)  | WER    | Entity Recall | PC-F1  | Recall Drop |
 
 ## 6. 人工评估维度 [可选]（Human Evaluation [Optional]）
 
-> **目标 / Goal**：补充自动化指标无法覆盖的主观体验维度，包括可读性、布局合理性和教学实用性。
+> **目标 / Goal**：
 >
-> *Supplement automated metrics with subjective experience dimensions including readability, layout reasonableness, and pedagogical utility.*
+> **中文**：补充自动化指标无法覆盖的主观体验维度，包括可读性、布局合理性和教学实用性。
+>
+> **English**: Supplement automated metrics with subjective experience dimensions including readability, layout reasonableness, and pedagogical utility.
 
 ---
 
@@ -584,19 +632,19 @@ Noise Level (p)  | WER    | Entity Recall | PC-F1  | Recall Drop |
 
 采用 5 点 Likert 量表（1=非常差, 5=非常好），评估者 $\geq 5$ 人，需包含至少 2 名目标用户（学生）。
 
-| 维度 | 评估问题 | 1 分锚定 | 5 分锚定 |
+| 维度 / Dimension | 评估问题 / Evaluation Question | 1 分锚定 / Score 1 Anchor | 5 分锚定 / Score 5 Anchor |
 |---|---|---|---|
-| **可读性** (Readability) | 文字标签是否清晰易懂？ | 晦涩难懂，需反复阅读 | 一目了然，信息完整 |
-| **布局合理性** (Layout) | 空间位置是否合理？有无重叠？ | 大量重叠、连线交叉混乱 | 层次分明、视觉流畅 |
-| **信息密度** (Info. Density) | 是否高效传达了核心内容？ | 信息稀疏，缺少关键内容 | 密度适中，概念与细节平衡 |
-| **教学实用性** (Pedagogical) | 作为复习资料的使用意愿？ | 不会使用——缺乏组织 | 非常愿意——结构清晰 |
-| **层级直觉性** (Hierarchy Intuit.) | 父子从属关系是否符合直觉？ | 大量反直觉或不合理 | 完全符合认知 |
+| **可读性** / Readability | 文字标签是否清晰易懂？ / Are labels clear and understandable? | 晦涩难懂，需反复阅读 / Obscure, requires repeated reading | 一目了然，信息完整 / Clear at a glance, complete information |
+| **布局合理性** / Layout | 空间位置是否合理？有无重叠？ / Are spatial positions reasonable? Any overlaps? | 大量重叠、连线交叉混乱 / Heavy overlaps, chaotic crossing lines | 层次分明、视觉流畅 / Clear hierarchy, smooth visuals |
+| **信息密度** / Information Density | 是否高效传达了核心内容？ / Does it efficiently convey core content? | 信息稀疏，缺少关键内容 / Sparse information, missing key content | 密度适中，概念与细节平衡 / Balanced density, concepts and details |
+| **教学实用性** / Pedagogical Utility | 作为复习资料的使用意愿？ / Willingness to use as review material? | 不会使用——缺乏组织 / Won't use—lack of organization | 非常愿意——结构清晰 / Very willing—clear structure |
+| **层级直觉性** / Hierarchy Intuitiveness | 父子从属关系是否符合直觉？ / Do parent-child relationships follow intuition? | 大量反直觉或不合理 / Mostly counter-intuitive or unreasonable | 完全符合认知 / Fully aligned with cognition |
 
 ---
 
 ### 6.2 评分表样例（Sample Scoring Sheet）
 
-```
+```text
 Evaluator ID: E03
 Map ID: lecture_07_MCP_deep_dive
 Date: 2026-06-22
@@ -620,28 +668,32 @@ Overall (mean): 4.0 / 5.0
 
 ### 7.1 指标速查表（Quick Reference）
 
-| # | 维度 | 指标 | 公式（简写） | 优秀阈值 | 必须/可选 |
+| # | 维度 / Dimension | 指标 / Metric | 公式（简写）/ Formula | 优秀阈值 / Threshold | 必须/可选 / Required/Optional |
 |---|---|---|---|---|---|
-| 1.1 | 标签质量 | LabelSim | cosine macro-avg | $\geq 0.80$ | **必须** |
-| 1.2 | 标签质量 | Entity Recall | hits / $\|E_s\|$ | $\geq 0.90$ | **必须** |
-| 1.3 | 标签质量 | Miss Rate | $1 -$ Recall | $\leq 0.20$ | 建议 |
-| 1.4 | 标签质量 | Precision | matched / $\|L_g\|$ | $\geq 0.75$ | **必须** |
-| 2.1 | 层级结构 | nTED | TED / $\max(\|T_g\|,\|T_s\|)$ | $\leq 0.25$ | **必须** |
-| 2.2 | 层级结构 | PC-F1 | $2\times$PCA$\times$PCP/(PCA+PCP) | $\geq 0.75$ | **必须** |
-| 2.3 | 层级结构 | LAR | depth-match / $\|\mathcal{M}\|$ | $\geq 0.70$ | 建议 |
-| 3 | 下游QA | QA-Score | $0.3$BLEU$+0.4$ROUGE$+0.3$BERTScore | $\geq$ 对照组90% | 建议 |
-| 4.1 | 效率 | $T_{total}$ P50 | $\Sigma\ t_{stage}$ | $\leq 30s$（实时） | **必须** |
-| 4.2 | STT质量 | WER | $(S+D+I)/N$ | $\leq 0.15$ | **必须** |
-| 4.2 | STT质量 | KTRR | matched / $\|K_s\|$ | $\geq 0.90$ | 建议 |
-| 5.1 | 多语言 | $\Delta$Recall | $\max_{recall} - \min_{recall}$ | $\leq 0.15$ | 建议 |
-| 5.2 | 鲁棒性 | Recall Drop | baseline $-$ recall$_{noisy}$ | $\leq 10\%$ | 建议 |
-| 6 | 人工 | Overall Mean | mean(all dims) | $\geq 4.0/5.0$ | 可选 |
+| 1.1 | 标签质量 / Label Quality | LabelSim | cosine macro-avg | $\geq 0.80$ | **必须 / Required** |
+| 1.2 | 标签质量 / Label Quality | Entity Recall | hits / $|E_s|$ | $\geq 0.90$ | **必须 / Required** |
+| 1.3 | 标签质量 / Label Quality | Miss Rate | $1 -$ Recall | $\leq 0.20$ | 建议 / Suggested |
+| 1.4 | 标签质量 / Label Quality | Precision | matched / $|L_g|$ | $\geq 0.75$ | **必须 / Required** |
+| 2.1 | 层级结构 / Hierarchy | nTED | TED / $\max(|T_g|,|T_s|)$ | $\leq 0.25$ | **必须 / Required** |
+| 2.2 | 层级结构 / Hierarchy | PC-F1 | $2\times$PCA$\times$PCP/(PCA+PCP) | $\geq 0.75$ | **必须 / Required** |
+| 2.3 | 层级结构 / Hierarchy | LAR | depth-match / $|\mathcal{M}|$ | $\geq 0.70$ | 建议 / Suggested |
+| 3 | 下游QA / Downstream QA | QA-Score | $0.3$BLEU$+0.4$ROUGE$+0.3$BERTScore | $\geq$ 90% of control | 建议 / Suggested |
+| 4.1 | 效率 / Efficiency | $T_{total}$ P50 | $\Sigma\ t_{stage}$ | $\leq$ 30s (real-time) | **必须 / Required** |
+| 4.2 | STT质量 / STT Quality | WER | $(S+D+I)/N$ | $\leq 0.15$ | **必须 / Required** |
+| 4.2 | STT质量 / STT Quality | KTRR | matched / $|K_s|$ | $\geq 0.90$ | 建议 / Suggested |
+| 5.1 | 多语言 / Multilingual | $\Delta$Recall | $\max_{recall} - \min_{recall}$ | $\leq 0.15$ | 建议 / Suggested |
+| 5.2 | 鲁棒性 / Robustness | Recall Drop | baseline $-$ recall$_{noisy}$ | $\leq 10\%$ | 建议 / Suggested |
+| 6 | 人工 / Human | Overall Mean | mean(all dims) | $\geq 4.0/5.0$ | 可选 / Optional |
 
 > **表注 / Table Notes**：
 >
-> - "必须"指标为论文核心评估项，建议在所有实验中报告
-> - "建议"指标可提升评估完整性，资源受限时可省略
-> - "可选"指标适用于有用户调研条件的场景
+> - "必须 / Required"指标为论文核心评估项，建议在所有实验中报告
+> - "建议 / Suggested"指标可提升评估完整性，资源受限时可省略
+> - "可选 / Optional"指标适用于有用户调研条件的场景
+>
+> - "Required" metrics are core evaluation items for papers and should be reported in all experiments.
+> - "Suggested" metrics enhance evaluation completeness and may be omitted under resource constraints.
+> - "Optional" metrics apply to scenarios with user research conditions.
 
 ---
 
@@ -655,69 +707,80 @@ $$
 
 其中 $\text{QA-Relative} = \text{QA-Score}_{\text{实验组}} / \text{QA-Score}_{\text{对照组}}$，衡量相对于基线的下游任务保留率。
 
-*Where QA-Relative = QA-Score(experimental) / QA-Score(control), measuring downstream task retention relative to baseline.*
+**其中 $\text{QA-Relative}$ 为实验组与对照组的 QA-Score 比值，衡量相对于基线的下游任务保留率。**
+
+Where $\text{QA-Relative} = \text{QA-Score}_{\text{experimental}} / \text{QA-Score}_{\text{control}}$, measuring downstream task retention relative to baseline.
 
 > **权重调整建议 / Weight Tuning Advice**：
 >
 > - **教学场景**：提高 Entity Recall 权重（完整性优先）
 > - **实时交互场景**：降低 STT 质量权重（速度优先）
+>
+> - **Teaching scenarios**: Increase Entity Recall weight (prioritize completeness).
+> - **Real-time interaction scenarios**: Decrease STT quality weight (prioritize speed).
 
 ---
 
 ### 7.3 评估报告模板（Evaluation Report Template）
 
-```markdown
+```text
 # Mind Map Generation Quality Report
-**Lecture**: [Lecture Title & ID]
-**Date**: [YYYY-MM-DD]
-**Pipeline Config**: [CONCEPT_MODEL / HIERARCHY_MODEL / DELTA_MODEL]
+# 思维导图生成质量报告
 
-## 1. Node Label Quality
-| Metric          | Value | Threshold | Status |
+**Lecture / 讲座**: [Lecture Title & ID]
+**Date / 日期**: [YYYY-MM-DD]
+**Pipeline Config / 管线配置**: [CONCEPT_MODEL / HIERARCHY_MODEL / DELTA_MODEL]
+
+## 1. Node Label Quality / 节点标签质量
+| Metric / 指标          | Value / 值 | Threshold / 阈值 | Status / 状态 |
 |-----------------|-------|-----------|--------|
 | LabelSim        | 0.XX  | ≥ 0.80    | PASS/FAIL |
 | Entity Recall   | 0.XX  | ≥ 0.90    | PASS/FAIL |
 | Precision       | 0.XX  | ≥ 0.75    | PASS/FAIL |
 | Miss Rate       | 0.XX  | ≤ 0.20    | PASS/FAIL |
 
-## 2. Hierarchy Accuracy
-| Metric          | Value | Threshold | Status |
+## 2. Hierarchy Accuracy / 层级结构正确率
+| Metric / 指标          | Value / 值 | Threshold / 阈값 | Status / 状态 |
 |-----------------|-------|-----------|--------|
 | nTED            | 0.XX  | ≤ 0.25    | PASS/FAIL |
 | PC-F1           | 0.XX  | ≥ 0.75    | PASS/FAIL |
 
-## 3. Downstream QA
-| Group           | Accuracy | Token Cost | Relative |
+## 3. Downstream QA / 下游问答测试
+| Group / 组别           | Accuracy / 准确率 | Token Cost / Token消耗 | Relative / 相对值 |
 |-----------------|----------|------------|----------|
-| Control (Full)  | 0.XX     | XX,XXX     | baseline |
-| Experiment (Map)| 0.XX     | X,XXX      | 0.XX     |
+| Control (Full) / 对照组 | 0.XX     | XX,XXX     | baseline / 基线 |
+| Experiment (Map) / 实验组 | 0.XX     | X,XXX      | 0.XX     |
 
-## 4. Efficiency & STT
-| Metric          | Value | Threshold | Status |
+## 4. Efficiency & STT / 效率与语音转录
+| Metric / 指标          | Value / 值 | Threshold / 阈값 | Status / 状态 |
 |-----------------|-------|-----------|--------|
 | T_total P50     | XX.Xs | ≤ 30s     | PASS/FAIL |
 | WER             | 0.XX  | ≤ 0.15    | PASS/FAIL |
 | KTRR            | 0.XX  | ≥ 0.90    | PASS/FAIL |
 
-## 5. Multilingual & Robustness (if applicable)
-| Metric          | CN   | EN   | Mixed | Max Δ |
+## 5. Multilingual & Robustness / 多语言与鲁棒性 (if applicable / 如适用)
+| Metric / 指标          | CN   | EN   | Mixed / 混合 | Max Δ |
 |-----------------|------|------|-------|-------|
 | Entity Recall   | 0.XX | 0.XX | 0.XX  | 0.XX  |
 
-## 6. Overall
-Composite Score: 0.XX / 1.00
+## 6. Overall / 综合评分
+Composite Score / 综合评分: 0.XX / 1.00
 ```
 
 ---
 
 > **版本记录 / Revision History**
 >
-> | 版本 | 日期 | 变更 |
+> | 版本 / Version | 日期 / Date | 变更 / Changes |
 > |---|---|---|
 > | v1.0 | 2026-06-22 | 初始版本：解耦树比较为标签质量与层级结构两个独立维度；扩展下游QA/效率/STT/多语言/人工评估六个维度；统一文档结构 |
 > | v1.1 | 2026-06-22 | 结构优化：全文公式统一为 `$...$` / `$$...$$` 语法；新增目录(TOC)；添加 `---` 分隔线；提升 4.2.x 为 `####` 标题 |
 > | v1.2 | 2026-06-22 | 视觉优化：目录改为中英双语条目；目标/参数说明使用引用块强调；并列步骤重构为有序/无序列表；表格内容精简对齐；3.1 实验设计改用表格呈现 |
+> | v1.3 | 2026-06-22 | 语言级别对等修正：中文与英文具有同等地位；移除"中文为正文，英文为对照注释"等不当表述；将所有英文斜体注释改为独立完整的中英文并列表述 |
 >
-> *v1.0 | 2026-06-22 | Initial version: decoupled tree comparison into label quality and hierarchy accuracy; extended six dimensions.*
-> *v1.1 | 2026-06-22 | Structure optimization: unified formulas to `$...$` / `$$...$$` syntax; added TOC; added `---` separators; promoted 4.2.x to `####` headings.*
-> *v1.2 | 2026-06-22 | Visual optimization: bilingual TOC entries; blockquotes for goals and notes; ordered/unordered lists for steps; streamlined tables; 3.1 experimental design converted to table format.*
+> | Version | Date | Changes |
+> |---|---|---|
+> | v1.0 | 2026-06-22 | Initial version: decoupled tree comparison into label quality and hierarchy accuracy; extended six dimensions. |
+> | v1.1 | 2026-06-22 | Structure optimization: unified formulas; added TOC; added separators; promoted subsections. |
+> | v1.2 | 2026-06-22 | Visual optimization: bilingual TOC entries; blockquotes; streamlined tables. |
+> | v1.3 | 2026-06-22 | Language parity correction: Chinese and English have equal status; removed "Chinese is main text, English serves as annotation"; converted all English italic notes to standalone parallel bilingual content. |
