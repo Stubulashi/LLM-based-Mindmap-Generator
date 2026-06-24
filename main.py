@@ -138,22 +138,49 @@ session_memory = []
 
 # ---------------------------------------------------------
 # C: FastAPI Lifespan — 管理 MCP Client 生命周期
+#    使用 `async with` 模式：start / close 严格在同一个 asyncio task 中，
+#    避免 anyio cancel scope 跨 task 报错。
 # E: FastAPI Lifespan — manage MCP Client lifecycle
+#    Use `async with` so start/close strictly run in the same asyncio task,
+#    preventing anyio cancel-scope cross-task errors.
 # ---------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global mcp_client
     logger.info("C: 正在启动 MCP Client（连接 MCP Server 子进程）...")
     logger.info("E: Starting MCP Client (connecting to MCP Server subprocess)...")
-    mcp_client = MCPMindMapClient(Config.MCP_SERVER_SCRIPT)
-    await mcp_client.start()
-    logger.info("C: MCP Client 就绪，服务启动完成")
-    logger.info("E: MCP Client ready, server startup complete")
-    yield
-    if mcp_client:
-        await mcp_client.close()
-        logger.info("C: MCP Client 已关闭")
-        logger.info("E: MCP Client closed")
+
+    # C: 必须在 `async with` 中启动，保证 enter / exit 在同一 task
+    # E: Must start inside `async with` so enter/exit run in the same task
+    client = MCPMindMapClient(Config.MCP_SERVER_SCRIPT)
+    try:
+        await client.start()
+    except Exception as e:
+        # C: 启动失败时保证全局变量是 None，避免后续请求误用
+        # E: On startup failure, ensure global is None to prevent misuse
+        logger.error(f"C: MCP Client 启动失败: {e}")
+        logger.error(f"E: MCP Client startup failed: {e}")
+        mcp_client = None
+        raise
+    else:
+        mcp_client = client
+        logger.info("C: MCP Client 就绪，服务启动完成")
+        logger.info("E: MCP Client ready, server startup complete")
+        try:
+            yield
+        finally:
+            # C: close() 与 start() 在同一个 lifespan task 中执行
+            # E: close() runs in the same lifespan task as start()
+            try:
+                if mcp_client is not None:
+                    await mcp_client.close()
+            except Exception as e:
+                logger.error(f"C: 关闭 MCP Client 异常: {e}")
+                logger.error(f"E: Error closing MCP Client: {e}")
+            finally:
+                mcp_client = None
+                logger.info("C: MCP Client 已关闭")
+                logger.info("E: MCP Client closed")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -329,15 +356,18 @@ async def handle_audio_upload(file: UploadFile = File(...)):
     流程: 保存临时文件 → MCP transcribe_audio → 验证 → MCP polish_text → 验证 → 组装返回。
     E: Pure orchestrator — after file save, everything via MCP toolchain with validation.
     Flow: Save temp file → MCP transcribe_audio → validate → MCP polish_text → validate → assemble response."""
-    # C: 1. 安全保存临时文件
-    # E: 1. Safely save temporary file
-    suffix = os.path.splitext(file.filename or "audio.wav")[1] or ".wav"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        content = await file.read()
-        tmp.write(content)
-        tmp_path = tmp.name
-
+    # C: 先初始化 tmp_path = None，避免 file.read() 失败时 finally 触发 NameError
+    # E: Initialize tmp_path = None first, to avoid NameError in finally if file.read() raises
+    tmp_path = None
     try:
+        # C: 1. 安全保存临时文件
+        # E: 1. Safely save temporary file
+        suffix = os.path.splitext(file.filename or "audio.wav")[1] or ".wav"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            content = await file.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+
         # C: 生成当前请求的会话时间戳（用于跨工具共享调试目录）
         # E: Generate session timestamp for this request (for cross-tool debug dir sharing)
         session_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -384,8 +414,14 @@ async def handle_audio_upload(file: UploadFile = File(...)):
         logger.error(f"E: [Whisper] Processing error: {e}")
         raise HTTPException(status_code=500, detail=f"Audio processing failed: {str(e)}")
     finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        # C: 安全清理临时文件 — 容忍文件被占用或已删除的情况
+        # E: Safely clean up temp file — tolerate file-locked or already-deleted cases
+        if tmp_path is not None and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError as e:
+                logger.warning(f"C: 清理临时文件失败 {tmp_path}: {e}")
+                logger.warning(f"E: Failed to remove temp file {tmp_path}: {e}")
 
 if __name__ == "__main__":
     import uvicorn

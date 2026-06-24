@@ -65,29 +65,320 @@ class _BaseAgent:
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model = model
 
-    def _call_llm_tool(self, system_prompt: str, user_prompt: str,
-                       tools: list, tool_choice_name: str) -> dict:
-        """C: 通用 LLM function calling 封装。
-        E: Generic LLM function calling wrapper."""
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            tools=tools,
-            tool_choice={"type": "function", "function": {"name": tool_choice_name}}
+    @staticmethod
+    def _safe_json_parse(text: str) -> dict:
+        """C: 安全 JSON 解析 — 自动修复 LLM 返回的截断或格式错误的 JSON。
+        修复策略（按优先级）:
+          1. 直接解析（正常情况）
+          2. 提取 markdown 代码块（```json ... ``` 或 ``` ... ```）
+          3. 补全截断 JSON（缺失闭合括号/大括号）
+          4. 正则提取完整 JSON 对象
+          5. 暴力尝试各种闭合序列
+        E: Safe JSON parsing — auto-repair truncated or malformed JSON from LLM.
+        Repair strategies (by priority):
+          1. Direct parse (normal case)
+          2. Extract from markdown code blocks
+          3. Complete truncated JSON (missing brackets/braces)
+          4. Regex extract complete JSON objects
+          5. Brute-force various closing sequences
+        """
+        import re
+
+        text_stripped = text.strip()
+
+        # Strategy 1: Direct parse
+        try:
+            return json.loads(text_stripped)
+        except json.JSONDecodeError:
+            pass
+
+        # Strategy 2: Extract from markdown code block
+        code_block_pattern = r'```(?:json)?\s*\n?(.*?)\n?```'
+        matches = re.findall(code_block_pattern, text_stripped, re.DOTALL)
+        for match in matches:
+            try:
+                return json.loads(match.strip())
+            except json.JSONDecodeError:
+                continue
+
+        # Strategy 3: Complete missing closing brackets/braces using LIFO stack
+        # C: 模拟 JSON 解析器维护 LIFO 栈，确保闭合顺序正确
+        #    关键修复：旧版将所有 } 排在所有 ] 前面（"}}]]"），
+        #    但 JSON 要求后进先出（如 {"...[..."Mo → 应闭合为 "}]}]）
+        # E: Simulate JSON parser maintaining LIFO stack for correct closing order
+        #    Key fix: old version put all } before all ] ("}}]]"),
+        #    but JSON requires LIFO (e.g. {"...[..."Mo → must close as "}]}])
+        stack = []   # C: 未闭合定界符栈（{, [, "） / E: Unclosed delimiter stack
+        in_str = False
+        escaped = False
+
+        for ch in text_stripped:
+            if escaped:
+                escaped = False
+                continue
+            if ch == '\\':
+                escaped = True
+                continue
+            if ch == '"':
+                if in_str:
+                    # C: 闭合字符串 → 弹出栈顶 "
+                    # E: Close string → pop stack
+                    if stack and stack[-1] == '"':
+                        stack.pop()
+                else:
+                    # C: 开启字符串 → 压栈
+                    # E: Open string → push stack
+                    stack.append('"')
+                in_str = not in_str
+                continue
+            if in_str:
+                continue
+            if ch in '{[':
+                stack.append(ch)
+            elif ch == '}':
+                if stack and stack[-1] == '{':
+                    stack.pop()
+            elif ch == ']':
+                if stack and stack[-1] == '[':
+                    stack.pop()
+
+        # C: 处理截断在字符串中间的情况（如 "Key Point: Mo）
+        # E: Handle truncated mid-string case (e.g. "Key Point: Mo)
+        if in_str:
+            # C: 未闭合的字符串不在栈中则补入
+            # E: Push unclosed string to stack if not already there
+            if not stack or stack[-1] != '"':
+                stack.append('"')
+
+        if stack:
+            # C: LIFO 逆序闭合：{→}  [→]  "→"
+            # E: LIFO reverse close: {→}  [→]  "→"
+            closer_map = {'{': '}', '[': ']', '"': '"'}
+            closers = [closer_map[item] for item in reversed(stack)]
+            repaired = text_stripped + ''.join(closers)
+            try:
+                return json.loads(repaired)
+            except json.JSONDecodeError:
+                pass
+
+            # C: 备选：尝试在末尾额外追加一层闭合（某些模型输出缺少最外层）
+            # E: Fallback: try appending an extra closing layer
+            for extra in ['}', ']', '"']:
+                try:
+                    return json.loads(text_stripped + ''.join(closers) + extra)
+                except json.JSONDecodeError:
+                    continue
+
+        # Strategy 4: Extract complete JSON objects from garbled text
+        # C: 尝试匹配最外层 {...} 对象（含嵌套）
+        # E: Try to match outermost {...} objects (including nested)
+        depth = 0
+        start = -1
+        for i, ch in enumerate(text_stripped):
+            if ch == '{':
+                if depth == 0:
+                    start = i
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0 and start >= 0:
+                    try:
+                        return json.loads(text_stripped[start:i + 1])
+                    except json.JSONDecodeError:
+                        start = -1
+                        continue
+
+        # Strategy 5: Brute-force various closing sequences
+        brute_closers = [
+            ']', '}]', '"]', '"}]', '}]', '"}]', '}]",',
+            '}]"', '}]}', '}"}]', '"}]",',
+        ]
+        for closer in brute_closers:
+            try:
+                return json.loads(text_stripped + closer)
+            except json.JSONDecodeError:
+                continue
+
+        # Strategy 6: Find last complete JSON object by iterating backwards
+        for cutoff in range(len(text_stripped) - 1, max(len(text_stripped) - 200, 0), -1):
+            for appendix in ['}', '"]', '}]', '}"}]']:
+                try:
+                    return json.loads(text_stripped[:cutoff] + appendix)
+                except json.JSONDecodeError:
+                    continue
+
+        raise json.JSONDecodeError(
+            f"Unable to repair JSON after all strategies: {text_stripped[:300]}...",
+            text_stripped, 0
         )
+
+    def _call_llm_tool(self, system_prompt: str, user_prompt: str,
+                       tools: list, tool_choice_name: str,
+                       max_tokens: int = 8192, retry_on_json_error: bool = True) -> dict:
+        """C: 通用 LLM function calling 封装，含 JSON 容错与自动重试。
+        E: Generic LLM function calling wrapper with JSON resilience and auto-retry."""
+
+        def _do_call():
+            """C: 执行单次 LLM 调用 / E: Execute a single LLM call."""
+            return self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                tools=tools,
+                tool_choice={"type": "function", "function": {"name": tool_choice_name}},
+                max_tokens=max_tokens
+            )
+
+        response = _do_call()
+
+        # C: 检查 tool_calls 是否存在
+        # E: Check if tool_calls exist
+        if not response.choices[0].message.tool_calls:
+            logger.warning(
+                f"C: [_call_llm_tool] LLM 未返回 tool_calls，将重试"
+            )
+            logger.warning(
+                f"E: [_call_llm_tool] LLM returned no tool_calls, will retry"
+            )
+            if retry_on_json_error:
+                # C: 重试时提示 LLM 必须调用工具
+                # E: Prompt LLM to call the tool on retry
+                retry_user_prompt = (
+                    user_prompt + "\n\n"
+                    "C: 【重要】你必须调用 extract_concepts 工具来提交结果，不能直接返回文本。\n"
+                    "E: [IMPORTANT] You MUST call the extract_concepts tool to submit results, do NOT return plain text."
+                )
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": retry_user_prompt}
+                    ],
+                    tools=tools,
+                    tool_choice={"type": "function", "function": {"name": tool_choice_name}},
+                    max_tokens=max_tokens
+                )
+
+        # C: 二次检查 / E: Double-check
+        if not response.choices[0].message.tool_calls:
+            raise ValueError(
+                f"C: LLM 两次调用均未返回 tool_calls\n"
+                f"E: LLM returned no tool_calls in both attempts"
+            )
+
         tool_call = response.choices[0].message.tool_calls[0]
-        return json.loads(tool_call.function.arguments)
+        raw_args = tool_call.function.arguments
+
+        # C: 尝试解析 JSON，失败时使用修复策略
+        # E: Try JSON parse, use repair strategies on failure
+        try:
+            return json.loads(raw_args)
+        except json.JSONDecodeError as e:
+            logger.warning(
+                f"C: [_call_llm_tool] JSON 解析失败: {e}，尝试自动修复..."
+            )
+            logger.warning(
+                f"E: [_call_llm_tool] JSON parse failed: {e}, attempting auto-repair..."
+            )
+            logger.info(
+                f"C: [_call_llm_tool] 原始响应（前500字符）: {raw_args[:500]}"
+            )
+            logger.info(
+                f"E: [_call_llm_tool] Raw response (first 500 chars): {raw_args[:500]}"
+            )
+
+            # C: 尝试自动修复
+            # E: Attempt auto-repair
+            try:
+                repaired = self._safe_json_parse(raw_args)
+                logger.info(
+                    f"C: [_call_llm_tool] JSON 自动修复成功"
+                )
+                logger.info(
+                    f"E: [_call_llm_tool] JSON auto-repair succeeded"
+                )
+                return repaired
+            except json.JSONDecodeError as repair_error:
+                logger.error(
+                    f"C: [_call_llm_tool] JSON 自动修复也失败: {repair_error}"
+                )
+                logger.error(
+                    f"E: [_call_llm_tool] JSON auto-repair also failed: {repair_error}"
+                )
+
+                if retry_on_json_error:
+                    # C: 重试：告知 LLM 上次返回了非法 JSON，请其重新生成
+                    # E: Retry: inform LLM that previous response was invalid JSON
+                    retry_user_prompt = (
+                        user_prompt + "\n\n"
+                        f"C: 【错误反馈】上次你返回的 JSON 无法解析: {e}"
+                        "\n请确保返回格式正确的 JSON，调用工具提交。\n"
+                        f"E: [Error Feedback] Your previous JSON was unparseable: {e}"
+                        "\nPlease ensure you return properly formatted JSON via the tool call."
+                    )
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": retry_user_prompt}
+                        ],
+                        tools=tools,
+                        tool_choice={"type": "function", "function": {"name": tool_choice_name}},
+                        max_tokens=max_tokens
+                    )
+
+                    if not response.choices[0].message.tool_calls:
+                        raise ValueError(
+                            f"C: 重试后 LLM 仍未返回 tool_calls\n"
+                            f"E: LLM still returned no tool_calls after retry"
+                        )
+
+                    tool_call = response.choices[0].message.tool_calls[0]
+                    raw_args_retry = tool_call.function.arguments
+
+                    try:
+                        return json.loads(raw_args_retry)
+                    except json.JSONDecodeError as e2:
+                        # C: 重试后仍失败，再试一次修复
+                        # E: Still failed after retry, try repair one more time
+                        try:
+                            repaired = self._safe_json_parse(raw_args_retry)
+                            logger.info(
+                                f"C: [_call_llm_tool] 重试后 JSON 修复成功"
+                            )
+                            logger.info(
+                                f"E: [_call_llm_tool] JSON repaired after retry"
+                            )
+                            return repaired
+                        except json.JSONDecodeError:
+                            raise ValueError(
+                                f"C: LLM 重试后 JSON 仍无法解析: {e2}\n"
+                                f"原始响应: {raw_args_retry[:500]}\n"
+                                f"E: JSON still unparseable after LLM retry: {e2}\n"
+                                f"Raw response: {raw_args_retry[:500]}"
+                            ) from e2
+                else:
+                    raise ValueError(
+                        f"C: JSON 解析失败（未启用重试）: {e}\n"
+                        f"原始响应: {raw_args[:500]}\n"
+                        f"E: JSON parse failed (retry disabled): {e}\n"
+                        f"Raw response: {raw_args[:500]}"
+                    ) from e
 
 
-class MindMapSpecialistAgent:
-    def __init__(self):
-        # C: 初始化 LLM 客户端与工具（通过 Config 动态读取模型提供商配置）
-        # E: Initialize LLM client and tools (reads model provider config dynamically via Config)
-        self.client = OpenAI(api_key=Config.LLM_API_KEY, base_url=Config.LLM_BASE_URL)
-        self.model = Config.LLM_MODEL
+class MindMapSpecialistAgent(_BaseAgent):
+    def __init__(self, api_key: str | None = None, base_url: str | None = None,
+                 model: str | None = None):
+        # C: 继承 _BaseAgent，支持可选的模型配置覆盖（默认从 Config 读取）
+        #    DeltaGenerationAgent 通过传入参数覆盖模型，MindMapSpecialistAgent 使用默认值
+        # E: Extends _BaseAgent, supports optional model config override
+        #    DeltaGenerationAgent overrides via params, MindMapSpecialistAgent uses defaults
+        api_key = api_key or Config.LLM_API_KEY
+        base_url = base_url or Config.LLM_BASE_URL
+        model = model or Config.LLM_MODEL
+        super().__init__(api_key, base_url, model)
         self.tools = get_mindmap_tools()
 
     def _get_system_prompt(self):
@@ -196,48 +487,83 @@ E: [Language Rules - Must Strictly Follow]
 9. All labels and details must exactly match the language of the user's input.
 10. Never switch node content to any other language, including Chinese."""
 
-    def generate_map_from_context(self, chat_history: str, current_map: dict) -> dict:
-        # C: 构建 ReAct 式输入提示词
-        # E: Construct ReAct-style input prompt
-        prompt = f"""C: 【当前导图全量状态 - 请仔细阅读】
-节点列表: {json.dumps(current_map.get('nodes', []), ensure_ascii=False)}
-连线列表: {json.dumps(current_map.get('links', []), ensure_ascii=False)}
+    def _build_react_prompt(self, chat_history: str, current_map: dict,
+                            extra_prefix: str = "") -> str:
+        """C: 构建 ReAct 格式的用户提示词。
+        extra_prefix 非空时（v2 管线：注入概念提取+层级规划结果），
+        调整 ReAct 步骤描述以适应预规划模式。
+        E: Build ReAct-formatted user prompt.
+        When extra_prefix is non-empty (v2 pipeline: injects concept+hierarchy results),
+        adjusts ReAct step descriptions to fit pre-planning mode."""
+        nodes_json = json.dumps(current_map.get('nodes', []), ensure_ascii=False)
+        links_json = json.dumps(current_map.get('links', []), ensure_ascii=False)
+
+        if extra_prefix:
+            # C: v2 管线模式 — ReAct 步骤提示包含预规划引用
+            # E: v2 pipeline mode — ReAct step hints include pre-planning references
+            step1_cn = "先阅读上方导图结构和预提取的概念/层级规划"
+            step2_cn = "再根据对话内容推理需要的增量修改（以预规划为强参考，必要时可微调）"
+            step1_en = "First read the mind map structure above and the pre-extracted concepts/hierarchy plan"
+            step2_en = "Then reason about the incremental modifications needed (use the pre-plan as strong reference, fine-tune if necessary)"
+        else:
+            # C: v1 单模型模式 — 标准 ReAct 步骤
+            # E: v1 single-model mode — standard ReAct steps
+            step1_cn = "先阅读上方导图结构，理解现有节点和层级关系"
+            step2_cn = "再根据对话内容推理需要的增量修改"
+            step1_en = "First read the mind map structure above and understand the existing nodes and hierarchy"
+            step2_en = "Then reason about the incremental modifications needed based on the conversation content"
+
+        standard_prompt = f"""C: 【当前导图全量状态 - 请仔细阅读】
+节点列表: {nodes_json}
+连线列表: {links_json}
 
 【最新对话上下文】
 {chat_history}
 
 ---
 请按照 ReAct 模式处理：
-1. 先阅读上方导图结构，理解现有节点和层级关系
-2. 再根据对话内容推理需要的增量修改
+1. {step1_cn}
+2. {step2_cn}
 3. 最后调用 modify_mind_map 工具提交增量 delta
 E: [Current Mind Map Full State - Please Read Carefully]
-Nodes: {json.dumps(current_map.get('nodes', []), ensure_ascii=False)}
-Links: {json.dumps(current_map.get('links', []), ensure_ascii=False)}
+Nodes: {nodes_json}
+Links: {links_json}
 
 [Latest Conversation Context]
 {chat_history}
 
 ---
 Please process in ReAct mode:
-1. First read the mind map structure above and understand the existing nodes and hierarchy
-2. Then reason about the incremental modifications needed based on the conversation content
+1. {step1_en}
+2. {step2_en}
 3. Finally call the modify_mind_map tool to submit the incremental delta"""
-        
+
+        return extra_prefix + standard_prompt
+
+    def _execute_and_merge(self, prompt: str, current_map: dict):
+        """C: 执行 LLM function calling + state_merge。
+        返回 (delta_dict, merged_map_dict) 元组。
+        继承 _BaseAgent._call_llm_tool 的 JSON 容错和重试能力。
+        E: Execute LLM function calling + state_merge.
+        Returns (delta_dict, merged_map_dict) tuple.
+        Inherits _BaseAgent._call_llm_tool's JSON resilience and retry capability."""
+        delta = self._call_llm_tool(
+            system_prompt=self._get_system_prompt(),
+            user_prompt=prompt,
+            tools=self.tools,
+            tool_choice_name="modify_mind_map"
+        )
+        merged = state_merge(delta, current_map)
+        return delta, merged
+
+    def generate_map_from_context(self, chat_history: str, current_map: dict) -> dict:
+        # C: 构建 ReAct 式输入提示词并执行
+        # E: Construct ReAct-style input prompt and execute
+        prompt = self._build_react_prompt(chat_history, current_map)
+
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self._get_system_prompt()},
-                    {"role": "user", "content": prompt}
-                ],
-                tools=self.tools,
-                tool_choice={"type": "function", "function": {"name": "modify_mind_map"}}
-            )
-            
-            tool_call = response.choices[0].message.tool_calls[0]
-            delta = json.loads(tool_call.function.arguments)
-            return state_merge(delta, current_map)
+            _delta, merged = self._execute_and_merge(prompt, current_map)
+            return merged
         except Exception as e:
             logger.error(f"C: [MindMap Agent] 增量绘图失败: {e}")
             logger.error(f"E: [MindMap Agent] Incremental drawing failed: {e}")
@@ -471,11 +797,9 @@ Please plan parent-child hierarchy for all new concepts, call the plan_hierarchy
 # =========================================================
 class DeltaGenerationAgent(MindMapSpecialistAgent):
     def __init__(self, api_key: str, base_url: str, model: str):
-        # C: 覆盖父类初始化，使用指定的模型配置
-        # E: Override parent init, use specified model config
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
-        self.model = model
-        self.tools = get_mindmap_tools()
+        # C: 通过父类 MindMapSpecialistAgent 初始化，参数化模型配置
+        # E: Initialize via parent MindMapSpecialistAgent with parameterized model config
+        super().__init__(api_key=api_key, base_url=base_url, model=model)
 
     def generate(self, chat_history: str, concepts: list[dict],
                  hierarchy: list[dict] | None, current_map: dict) -> dict:
@@ -486,15 +810,16 @@ class DeltaGenerationAgent(MindMapSpecialistAgent):
         Returns {"delta": raw_delta_dict, "merged_map": merged_map_dict}
         If hierarchy is None (stage 2 failed), only inject concept hints."""
 
-        # C: 构建概念提示块
-        # E: Build concept hint block
-        concept_block = ""
+        # C: 构建前缀块（概念 + 层级），共享 _build_react_prompt 的 ReAct 模板
+        # E: Build prefix blocks (concepts + hierarchy), share _build_react_prompt's ReAct template
+        extra_parts = []
+
         if concepts:
             concept_summary = json.dumps([
                 {'id': c['id'], 'label': c['label'], 'details': c.get('details', [])}
                 for c in concepts
             ], ensure_ascii=False)
-            concept_block = (
+            extra_parts.append(
                 f"C: 【预提取的新概念 - 请使用这些概念创建节点，可微调 label 和 details】\n"
                 f"{concept_summary}\n"
                 f"---\n"
@@ -503,12 +828,9 @@ class DeltaGenerationAgent(MindMapSpecialistAgent):
                 f"---\n"
             )
 
-        # C: 构建层级提示块
-        # E: Build hierarchy hint block
-        hierarchy_block = ""
         if hierarchy:
             hierarchy_summary = json.dumps(hierarchy, ensure_ascii=False)
-            hierarchy_block = (
+            extra_parts.append(
                 f"C: 【预规划的层级关系 - 请按此结构建立 add_links，可微调连线类型】\n"
                 f"{hierarchy_summary}\n"
                 f"---\n"
@@ -517,36 +839,11 @@ class DeltaGenerationAgent(MindMapSpecialistAgent):
                 f"---\n"
             )
 
-        # C: 构建增强版 prompt — 在原有 ReAct prompt 前插入概念和层级提示
-        # E: Build enhanced prompt — insert concept and hierarchy hints before original ReAct prompt
-        prompt = (
-            concept_block +
-            hierarchy_block +
-            f"""C: 【当前导图全量状态 - 请仔细阅读】
-节点列表: {json.dumps(current_map.get('nodes', []), ensure_ascii=False)}
-连线列表: {json.dumps(current_map.get('links', []), ensure_ascii=False)}
+        extra_prefix = "".join(extra_parts)
 
-【最新对话上下文】
-{chat_history}
-
----
-请按照 ReAct 模式处理：
-1. 先阅读上方导图结构和预提取的概念/层级规划
-2. 再根据对话内容推理需要的增量修改（以预规划为强参考，必要时可微调）
-3. 最后调用 modify_mind_map 工具提交增量 delta
-E: [Current Mind Map Full State - Please Read Carefully]
-Nodes: {json.dumps(current_map.get('nodes', []), ensure_ascii=False)}
-Links: {json.dumps(current_map.get('links', []), ensure_ascii=False)}
-
-[Latest Conversation Context]
-{chat_history}
-
----
-Please process in ReAct mode:
-1. First read the mind map structure above and the pre-extracted concepts/hierarchy plan
-2. Then reason about the incremental modifications needed (use the pre-plan as strong reference, fine-tune if necessary)
-3. Finally call the modify_mind_map tool to submit the incremental delta"""
-        )
+        # C: 使用父类的 _build_react_prompt（注入前缀）和 _execute_and_merge
+        # E: Use parent's _build_react_prompt (with prefix) and _execute_and_merge
+        prompt = self._build_react_prompt(chat_history, current_map, extra_prefix=extra_prefix)
 
         logger.info(
             f"C: [DeltaGeneration] 开始生成，预提取概念={len(concepts)}，预规划关系={len(hierarchy) if hierarchy else 0}，模型={self.model}"
@@ -556,19 +853,7 @@ Please process in ReAct mode:
         )
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self._get_system_prompt()},
-                    {"role": "user", "content": prompt}
-                ],
-                tools=self.tools,
-                tool_choice={"type": "function", "function": {"name": "modify_mind_map"}}
-            )
-
-            tool_call = response.choices[0].message.tool_calls[0]
-            delta = json.loads(tool_call.function.arguments)
-            merged = state_merge(delta, current_map)
+            delta, merged = self._execute_and_merge(prompt, current_map)
             return {"delta": delta, "merged_map": merged}
         except Exception as e:
             logger.error(f"C: [DeltaGeneration] 生成失败: {e}")

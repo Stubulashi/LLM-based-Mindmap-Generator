@@ -1,6 +1,7 @@
 # /home/akku/ai-mindmap-agent/mcp_server.py
 # C: MCP Server — 将 LLM 聊天/润色/绘图、Whisper 转录封装为 MCP Tools
 # E: MCP Server — encapsulates LLM chat/polish/drawing and Whisper transcription as MCP Tools
+import os
 import sys
 import logging
 from datetime import datetime
@@ -715,7 +716,6 @@ if __name__ == "__main__":
         logger.info("E: SKIP_HEAVY_INIT=1 → skipping Whisper model load (Inspector debug mode)")
         # C: 仅初始化 LLM 客户端，跳过 Whisper
         # E: Only init LLM clients, skip Whisper
-        global whisper_model, llm_client, polish_client, map_agent, map_pipeline
         llm_client = OpenAI(
             api_key=Config.LLM_API_KEY, base_url=Config.LLM_BASE_URL
         )
