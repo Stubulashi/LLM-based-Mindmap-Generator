@@ -23,11 +23,9 @@ def get_mindmap_tools():
                                     "id": {"type": "string", "description": "唯一英文标识，如 'node_cat'"},
                                     "label": {"type": "string", "description": "核心名词/短语，最多2词。反例：'chicken has rabbies'；正例：'Rabies'"},
                                     "color": {"type": "string", "description": "背景色变量，如 var(--node-blue), var(--node-green), var(--node-red)"},
-                                    "details": {"type": "array", "items": {"type": "string"}, "description": "层次化详细条目。每条以简洁前缀标识来源和类型（如 '定义:'、'关键点:'、'用户原文:'、'上下文:'），前缀语言与用户输入语言一致。融合用户输入、AI解释、转录上下文等多元信息。所有非标签的描述性、解释性内容必须存入此数组"},
-                                    "x": {"type": "integer", "description": "横坐标 200-1200"},
-                                    "y": {"type": "integer", "description": "纵坐标 50-800"}
+                                    "details": {"type": "array", "items": {"type": "string"}, "description": "层次化详细条目。每条以简洁前缀标识来源和类型（如 '定义:'、'关键点:'、'用户原文:'、'上下文:'），前缀语言与用户输入语言一致。融合用户输入、AI解释、转录上下文等多元信息。所有非标签的描述性、解释性内容必须存入此数组"}
                                 },
-                                "required": ["id", "label", "color", "x", "y"]
+                                "required": ["id", "label", "color"]
                             }
                         },
                         "update_nodes": {
@@ -50,7 +48,7 @@ def get_mindmap_tools():
                                 "properties": {
                                     "source": {"type": "string", "description": "父节点ID"},
                                     "target": {"type": "string", "description": "子节点ID"},
-                                    "type": {"type": "string", "enum": ["solid", "dashed"], "description": "实线表示直接从属，虚线表示相关或参考"}
+                                    "type": {"type": "string", "enum": ["solid", "dashed", "dotted", "reference", "contrast"], "description": "solid=父子实线, dashed=间接虚线, dotted=弱关联点线, reference=引用/依赖, contrast=对比/对立"}
                                 },
                                 "required": ["source", "target", "type"]
                             }
@@ -121,7 +119,7 @@ def get_hierarchy_planning_tools():
                                 "properties": {
                                     "parent_id": {"type": "string", "description": "父节点ID（可以是已有节点或新概念）"},
                                     "child_id": {"type": "string", "description": "子节点ID（必须是新概念或已有节点）"},
-                                    "type": {"type": "string", "enum": ["solid", "dashed"], "description": "实线表示直接从属，虚线表示相关或参考"}
+                                    "type": {"type": "string", "enum": ["solid", "dashed", "dotted", "reference", "contrast"], "description": "solid=父子实线, dashed=间接虚线, dotted=弱关联点线, reference=引用/依赖, contrast=对比/对立"}
                                 },
                                 "required": ["parent_id", "child_id", "type"]
                             }

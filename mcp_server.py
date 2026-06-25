@@ -616,11 +616,11 @@ def modify_mind_map(chat_history: str, current_map: dict) -> dict:
     """C: 根据对话上下文对思维导图进行增量修改。内部调用 LLM function calling 获取 delta，再在后端执行 State Merge。
     参数 chat_history: 包含用户消息和 AI 回复的格式化文本。
     参数 current_map: 当前导图状态 {"nodes": [...], "links": [...]}。
-    返回: {"nodes": [...], "links": [...]} 更新后的导图。
+    返回: {"tree": [...], "nodes": [...], "links": [...]} tree为G6嵌套树格式，nodes/links为扁平格式用于增量回传。
     E: Incrementally modify the mind map based on conversation context. Internally calls LLM function calling for delta, then performs State Merge on the backend.
     Args chat_history: Formatted text containing user message and AI reply.
     Args current_map: Current map state {"nodes": [...], "links": [...]}.
-    Returns: {"nodes": [...], "links": [...]} Updated map.
+    Returns: {"tree": [...], "nodes": [...], "links": [...]} tree is G6 nested format, nodes/links are flat format for round-trip.
     """
     logger.info(
         f"C: [modify_mind_map] 开始增量绘图，当前节点数={len(current_map.get('nodes', []))}"
@@ -666,13 +666,13 @@ def modify_mind_map_v2(chat_history: str, current_map: dict,
     参数 chat_history: 包含用户消息和 AI 回复的格式化文本。
     参数 current_map: 当前导图状态 {"nodes": [...], "links": [...]}。
     参数 session_ts: 可选的会话时间戳（用于跨请求共享调试目录）。
-    返回: {"nodes": [...], "links": [...]} 更新后的导图。
+    返回: {"tree": [...], "nodes": [...], "links": [...]} tree为G6嵌套树格式（前端直接消费），nodes/links为扁平格式（增量回传）。
     E: Multi-model collaborative incremental map modification. Uses internal 3-stage pipeline (concept extraction→hierarchy planning→delta generation) to improve hierarchy clarity.
     Auto-degrades to single-model ReAct when specialized models not configured, identical behavior to modify_mind_map.
     Args chat_history: Formatted text containing user message and AI reply.
     Args current_map: Current map state {"nodes": [...], "links": [...]}.
     Args session_ts: Optional session timestamp (for cross-request debug dir sharing).
-    Returns: {"nodes": [...], "links": [...]} Updated map.
+    Returns: {"tree": [...], "nodes": [...], "links": [...]} tree is G6 nested (frontend direct consumption), nodes/links are flat (round-trip).
     """
     logger.info(
         f"C: [modify_mind_map_v2] 开始多模型管线绘图，当前节点数={len(current_map.get('nodes', []))}"

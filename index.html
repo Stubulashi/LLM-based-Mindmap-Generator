@@ -3,9 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- C: 禁用浏览器缓存，确保每次加载最新代码 / E: Disable browser cache for latest code -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>AI MindMap Agent - Real Audio Analysis</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/@antv/g6@5/dist/g6.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -241,31 +246,11 @@
         </div>
     </div>
 
-    <div class="flex-1 md-card relative overflow-hidden bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiNlN2U1ZTQiLz48L3N2Zz4=')]" 
-         id="canvas-container" @mousedown="startDrag" @mousemove="onDrag" @mouseup="stopDrag" @mouseleave="stopDrag">
-        <div :style="{ transform: `translate(${canvasX}px, ${canvasY}px)` }" class="absolute transition-transform duration-75 origin-top-left">
-            <!-- C: SVG 连线层 — 与节点共享同一 CSS 坐标系，无偏移 -->
-            <!-- E: SVG link layer — shares CSS coordinate space with nodes, no offset -->
-            <svg class="absolute top-0 left-0 pointer-events-none overflow-visible" 
-                 :style="{ width: svgSize.w + 'px', height: svgSize.h + 'px' }">
-                <!-- C: 连线：solid=实线 #3b82f6, dashed=虚线 #94a3b8 → 方便调试时肉眼区分 -->
-                <!-- E: Links: solid=#3b82f6, dashed=#94a3b8 → visually distinct for debugging -->
-                <path v-for="(link, idx) in computedLinks" :key="link.source + '-' + link.target" 
-                      :d="link.path" 
-                      :stroke="link.type === 'dashed' ? '#94a3b8' : '#3b82f6'"
-                      :stroke-width="link.type === 'dashed' ? 3 : 4" 
-                      :stroke-dasharray="link.type === 'dashed' ? '8,4' : 'none'"
-                      fill="none" />
-            </svg>
-            <div v-for="node in nodes" :key="node.id"
-                 @mousedown.stop="onNodePointerDown($event, node)"
-                 class="absolute cursor-pointer px-6 py-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm border border-gray-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-md min-w-[140px]"
-                 :class="{'ring-2 ring-blue-500 shadow-md': activeNode && activeNode.id === node.id}"
-                 :style="{ top: node.y+'px', left: node.x+'px', backgroundColor: node.color }">
-                <span class="font-semibold text-gray-800">{{ node.label }}</span>
-                <span v-if="node.details && node.details.length" class="text-[10px] text-gray-500 mt-1 bg-white/50 px-2 rounded-full">{{ node.details.length }} items</span>
-            </div>
-        </div>
+    <div class="flex-1 md-card relative overflow-hidden" 
+         id="canvas-container">
+        <!-- C: G6 图容器 — G6 自动处理布局、连线、拖拽、缩放、展开/折叠 -->
+        <!-- E: G6 graph container — G6 handles layout, edges, drag, zoom, collapse/expand -->
+        <div id="g6-container" class="w-full h-full"></div>
         
         <transition name="fade">
             <div v-if="activeNode" class="absolute top-6 right-6 w-80 bg-white/90 backdrop-blur shadow-2xl rounded-2xl border border-gray-100 z-30 flex flex-col max-h-[80%]">
@@ -443,8 +428,13 @@
 
             const userInput = ref('')
             const chatHistory = ref([{ role: 'system', text: locales['en'].sysReady }])
+            // C: 保持 flat nodes+links 用于与后端交互 / E: Keep flat nodes+links for backend interaction
             const nodes = ref([])
             const links = ref([])
+            // C: G6 嵌套树数据（后端直接返回） / E: G6 nested tree data (returned by backend directly)
+            const treeRoots = ref([])
+            // C: G6 图实例引用 / E: G6 graph instance reference
+            let graph = null
 
             const transcripts = ref([])
 
@@ -749,30 +739,248 @@
                 a.click();
             };
 
-            // C: 碰撞检测：防止节点视觉重叠
-            // E: Collision detection: prevent visual node overlapping
-            const resolveOverlaps = (nodeList, maxIterations = 5) => {
-                const MIN_DX = 180, MIN_DY = 100;
-                for (let iter = 0; iter < maxIterations; iter++) {
-                    let hasOverlap = false;
-                    for (let i = 0; i < nodeList.length; i++) {
-                        for (let j = i + 1; j < nodeList.length; j++) {
-                            const a = nodeList[i], b = nodeList[j];
-                            const dx = Math.abs((a.x || 0) - (b.x || 0));
-                            const dy = Math.abs((a.y || 0) - (b.y || 0));
-                            if (dx < MIN_DX && dy < MIN_DY) {
-                                hasOverlap = true;
-                                const shiftX = (MIN_DX - dx + 20) * (Math.random() > 0.5 ? 1 : -1);
-                                const shiftY = (MIN_DY - dy + 20) * (Math.random() > 0.5 ? 1 : -1);
-                                b.x = Math.max(50, Math.min(1200, (b.x || 0) + shiftX));
-                                b.y = Math.max(30, Math.min(800, (b.y || 0) + shiftY));
-                            }
-                        }
-                    }
-                    if (!hasOverlap) break;
+            // C: G6 初始化与数据更新（加固版 + 完整调试日志）
+            // E: G6 initialization and data update (hardened + full debug logging)
+            const G6_DEBUG = true  // C: 设为 false 关闭调试日志 / E: Set false to disable debug logs
+            const _g6log = (...args) => { if (G6_DEBUG) console.log('%c[G6]', 'color:#8b5cf6;font-weight:bold', ...args) }
+            const _g6warn = (...args) => { console.warn('%c[G6]', 'color:#f59e0b;font-weight:bold', ...args) }
+            const _g6err = (...args) => { console.error('%c[G6]', 'color:#ef4444;font-weight:bold', ...args) }
+
+            // C: 将 CSS 变量颜色解析为实际 hex 值（Canvas 不支持 CSS 变量）
+            // E: Resolve CSS variable colors to actual hex (Canvas doesn't support CSS variables)
+            const CSS_COLOR_MAP = {
+                'var(--node-blue)':   '#e8f0fe',
+                'var(--node-green)':  '#e6f4ea',
+                'var(--node-yellow)': '#fef7e0',
+                'var(--node-red)':    '#fce8e6',
+                'var(--node-purple)': '#f3e8fd',
+            }
+            const resolveColor = (c) => CSS_COLOR_MAP[c] || c || '#e8f0fe'
+
+            const initG6 = () => {
+                if (graph) { _g6log('graph 已存在，跳过初始化'); return }
+
+                // C: 检查 G6 是否加载 / E: Check if G6 is loaded
+                if (typeof G6 === 'undefined') {
+                    _g6err('G6 全局对象未定义！CDN 可能加载失败。请检查网络或 CDN URL。')
+                    return
                 }
-                return nodeList;
-            };
+                _g6log('G6 全局对象已检测到，版本:', G6.version || 'unknown')
+
+                // C: 注册 G6 v5.1.x UMD 构建中未自动注册的扩展（备用）
+                // E: Register extensions not auto-registered (fallback)
+                const _regExt = (cat, name, ExtClass) => {
+                    try { G6.register(cat, name, ExtClass) } catch (e) {
+                        if (!e.message?.includes('exists')) _g6warn(`注册 ${name} 失败:`, e.message)
+                    }
+                }
+                if (G6.CompactBoxLayout) _regExt(G6.ExtensionCategory.LAYOUT, 'compactBox', G6.CompactBoxLayout)
+                if (G6.DragElement)        _regExt(G6.ExtensionCategory.BEHAVIOR, 'drag-node', G6.DragElement)
+                _g6log('扩展注册完成')
+
+                const container = document.getElementById('g6-container')
+                if (!container) { _g6err('找不到 #g6-container DOM 元素'); return }
+
+                // C: 获取有效容器尺寸（含降级） / E: Get valid container dimensions (with fallback)
+                let w = container.clientWidth
+                let h = container.clientHeight
+                if (!w || !h) {
+                    // C: 从父容器获取尺寸 / E: Get size from parent container
+                    const parent = document.getElementById('canvas-container')
+                    if (parent) {
+                        w = parent.clientWidth || parent.offsetWidth || 800
+                        h = parent.clientHeight || parent.offsetHeight || 600
+                    } else {
+                        w = w || 800; h = h || 600
+                    }
+                    _g6warn('容器尺寸为零，使用降级值:', w, 'x', h)
+                }
+                _g6log('容器尺寸:', w, 'x', h)
+
+                try {
+                    graph = new G6.Graph({
+                        container: 'g6-container',
+                        width: w,
+                        height: h,
+                        layout: {
+                            type: 'dagre',
+                            rankdir: 'LR',
+                            nodesep: 30,
+                            ranksep: 80,
+                        },
+                        behaviors: ['drag-canvas', 'zoom-canvas', 'collapse-expand'],
+                        node: {
+                            type: 'rect',
+                            style: {
+                                size: (d) => {
+                                    const labelLen = (d.label || '').length
+                                    const w = Math.max(120, labelLen * 14 + 40)
+                                    return [w, 50]
+                                },
+                                radius: 12,
+                                fill: (d) => d._isVirtual ? 'transparent' : resolveColor(d.color),
+                                stroke: (d) => d._isVirtual ? 'transparent' : '#e5e7eb',
+                                lineWidth: (d) => d._isVirtual ? 0 : 1,
+                                labelText: (d) => d._isVirtual ? '' : (d.label || ''),
+                                labelFill: '#1f2937',
+                                labelFontSize: 13,
+                                labelFontWeight: 600,
+                                labelPlacement: 'center',
+                                cursor: 'pointer',
+                            },
+                        },
+                        edge: {
+                            type: 'cubic-horizontal',
+                            style: {
+                                stroke: (d) => {
+                                    const lt = d.link_type || d.type || 'solid'
+                                    const colors = {solid: '#3b82f6', dashed: '#94a3b8', dotted: '#a78bfa', reference: '#10b981', contrast: '#f59e0b'}
+                                    return colors[lt] || '#3b82f6'
+                                },
+                                lineWidth: 2,
+                                lineDash: (d) => {
+                                    const lt = d.link_type || d.type || 'solid'
+                                    if (lt === 'dashed') return [6, 4]
+                                    if (lt === 'dotted') return [2, 4]
+                                    return undefined
+                                },
+                                endArrow: (d) => {
+                                    const lt = d.link_type || d.type || 'solid'
+                                    return lt === 'reference' || lt === 'contrast'
+                                },
+                            },
+                        },
+                        data: { nodes: [], edges: [] },
+                    })
+
+                    // C: 先执行一次 render 以初始化 Canvas 上下文（使用占位数据）
+                    // E: Execute one render to initialize Canvas context (with placeholder data)
+                    graph.render()
+                    _g6log('Graph 实例创建成功，Canvas 已初始化')
+
+                    // C: 节点点击 → 打开详情面板 / E: Node click → open detail panel
+                    graph.on('node:click', (evt) => {
+                        const nodeId = evt.target?.id
+                        if (!nodeId || nodeId === '__virtual_root__' || nodeId === '__placeholder__') return
+                        const found = findNodeInTree(treeRoots.value, nodeId)
+                        if (found) activeNode.value = found
+                    })
+                    _g6log('事件监听器已注册')
+
+                } catch (e) {
+                    _g6err('G6 Graph 创建失败:', e)
+                    graph = null
+                }
+            }
+
+            const updateG6Data = () => {
+                _g6log('updateG6Data 被调用, treeRoots.length=', treeRoots.value.length)
+                if (!graph) {
+                    _g6warn('graph 实例不存在，尝试初始化...')
+                    initG6()
+                    if (!graph) {
+                        _g6err('initG6 失败，无法更新数据')
+                        return
+                    }
+                }
+                _setG6Data()
+            }
+
+            const _setG6Data = () => {
+                if (!graph) { _g6warn('_setG6Data: graph 为空，跳过'); return }
+                if (!treeRoots.value || !treeRoots.value.length) {
+                    _g6warn('_setG6Data: treeRoots 为空或长度为0，清空图')
+                    graph.setData({ nodes: [], edges: [] })
+                    graph.render()
+                    return
+                }
+                // C: 深拷贝以避免 G6 修改响应式数据 / E: Deep copy to prevent G6 from mutating reactive data
+                const rawData = JSON.parse(JSON.stringify(treeRoots.value))
+                const rootData = rawData[0]
+                _g6log('_setG6Data: 根节点 id=', rootData?.id, 'label=', rootData?.label, 'children=', rootData?.children?.length)
+                if (!rootData) {
+                    _g6warn('_setG6Data: rootData 为空')
+                    graph.setData({ nodes: [], edges: [] })
+                } else {
+                    // C: dagre 是图布局，需要 flat {nodes, edges} 格式，不能直接消费嵌套树
+                    //    使用 G6.treeToGraphData() 将嵌套树转为 flat 图数据
+                    // E: dagre is a graph layout, needs flat {nodes, edges} format
+                    //    Use G6.treeToGraphData() to convert nested tree to flat graph data
+                    const graphData = G6.treeToGraphData(rootData)
+                    _g6log('_setG6Data: treeToGraphData → nodes=', graphData.nodes?.length, 'edges=', graphData.edges?.length)
+                    graph.setData(graphData)
+                }
+                graph.render()
+                _g6log('_setG6Data: graph.render() 完成')
+            }
+
+            // C: 手动 G6 测试函数 — 在浏览器控制台运行 __g6Test() 验证 G6 本身能否工作
+            // E: Manual G6 test — run __g6Test() in browser console to verify G6 works
+            window.__g6Test = () => {
+                if (typeof G6 === 'undefined') { console.error('G6 未加载'); return }
+                if (!graph) { console.error('graph 实例不存在，请先调用 initG6()'); initG6() }
+                if (!graph) return
+                const testData = G6.treeToGraphData({
+                    id: 'test_root',
+                    label: '测试根节点',
+                    color: '#e8f0fe',
+                    details: [],
+                    children: [
+                        { id: 'test_c1', label: '子节点1', color: '#e6f4ea', details: [], children: [] },
+                        { id: 'test_c2', label: '子节点2', color: '#fef7e0', details: [], children: [
+                            { id: 'test_gc1', label: '孙节点', color: '#fce8e6', details: [], children: [] }
+                        ]},
+                    ]
+                })
+                _g6log('__g6Test: 注入测试数据', testData)
+                graph.setData(testData)
+                graph.render()
+                console.log('%c✅ 测试数据已注入。如果右侧仍空白，请检查容器尺寸或 F12 Console 是否有红色错误。', 'color:#10b981;font-weight:bold')
+            }
+
+            // C: 诊断当前G6状态 / E: Diagnose current G6 state
+            window.__g6Diag = () => {
+                console.group('%c📋 G6 状态诊断', 'color:#8b5cf6;font-weight:bold;font-size:14px')
+                console.log('G6 全局:', typeof G6 !== 'undefined' ? '已加载 v' + (G6.version || '?') : '❌ 未加载')
+                console.log('graph 实例:', graph ? '✅ 已创建' : '❌ 为空')
+                console.log('treeRoots:', treeRoots.value.length, '个根节点')
+                console.log('flat nodes:', nodes.value.length, 'flat links:', links.value.length)
+                const container = document.getElementById('g6-container')
+                if (container) {
+                    const rect = container.getBoundingClientRect()
+                    console.log('容器尺寸:', Math.round(rect.width), 'x', Math.round(rect.height))
+                    console.log('容器可见:', rect.width > 0 && rect.height > 0 ? '✅' : '❌ 尺寸为零!')
+                } else {
+                    console.log('容器: ❌ #g6-container 不存在')
+                }
+                // C: 检查 G6 Canvas 元素 / E: Check G6 Canvas element
+                const canvasEl = document.querySelector('#g6-container canvas')
+                console.log('Canvas 元素:', canvasEl ? '✅ 存在' : '❌ 不存在')
+                console.groupEnd()
+            }
+
+            // C: 树中递归查找节点 / E: Recursively find node in tree
+            const findNodeInTree = (roots, id) => {
+                for (const node of roots) {
+                    if (node.id === id) return node
+                    if (node.children) {
+                        const found = findNodeInTree(node.children, id)
+                        if (found) return found
+                    }
+                }
+                return null
+            }
+
+            // C: 从树中递归删除节点 / E: Recursively remove node from tree
+            const removeFromTree = (roots, id) => {
+                return roots.filter(node => {
+                    if (node.id === id) return false
+                    if (node.children) {
+                        node.children = removeFromTree(node.children, id)
+                    }
+                    return true
+                })
+            }
 
             const sendMessage = async () => {
                 if (!userInput.value.trim()) return;
@@ -806,8 +1014,16 @@
                     const data = await response.json();
                     chatHistory.value.push({ role: 'ai', text: data.answer });
                     if (data.map) {
-                        nodes.value = resolveOverlaps(data.map.nodes);
-                        links.value = data.map.links;
+                        // C: 后端返回 tree（G6嵌套树）+ nodes/links（扁平回传用）
+                        // E: Backend returns tree (G6 nested) + nodes/links (flat for round-trip)
+                        nodes.value = data.map.nodes || [];
+                        links.value = data.map.links || [];
+                        treeRoots.value = data.map.tree || [];
+                        _g6log('sendMessage 收到数据: tree=', treeRoots.value.length, 'nodes=', nodes.value.length, 'links=', links.value.length)
+                        if (treeRoots.value.length) {
+                            _g6log('tree 第一个根节点:', JSON.stringify(treeRoots.value[0]).substring(0, 200))
+                        }
+                        nextTick(() => updateG6Data());
                     }
                     if (settings.autoScroll) scrollChat();
                 } catch (error) {
@@ -820,11 +1036,30 @@
                     showUploadMenu.value = false;
                 }
             };
+
+            const onMountedWithG6 = () => {
+                document.addEventListener('click', handleClickOutside);
+                nextTick(() => initG6());
+                // C: 窗口大小变化时自适应 / E: Resize G6 on window resize
+                window.addEventListener('resize', () => {
+                    if (graph) {
+                        const container = document.getElementById('g6-container')
+                        if (container) {
+                            graph.setSize(container.clientWidth, container.clientHeight)
+                            graph.render()
+                        }
+                    }
+                })
+            };
             
-            onMounted(() => document.addEventListener('click', handleClickOutside));
+            onMounted(() => onMountedWithG6());
             onUnmounted(() => {
                 document.removeEventListener('click', handleClickOutside);
                 cancelAnimationFrame(animationFrameId);
+                if (graph) {
+                    graph.destroy()
+                    graph = null
+                }
             });
 
             const scrollChat = () => nextTick(() => { if(chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight });
@@ -835,351 +1070,42 @@
             const uniqueSpeakers = computed(() => [...new Set(transcripts.value.map(t => t.speaker))]);
             const filteredTranscripts = computed(() => transcripts.value.filter(t => (selectedSpeaker.value === 'All' || t.speaker === selectedSpeaker.value) && t.text.toLowerCase().includes(searchQuery.value.toLowerCase())));
 
-            const canvasX = ref(200); const canvasY = ref(150); const isDragging = ref(false); const startX = ref(0); const startY = ref(0)
-            
-            // C: 保留平移画布的起点记录功能
-            // E: Preserve the canvas pan starting point recording functionality
-            const startDrag = (e) => { 
-                isDragging.value = true; 
-                startX.value = e.clientX - canvasX.value; 
-                startY.value = e.clientY - canvasY.value; 
+            const resetCanvas = () => {
+                if (graph) {
+                    graph.fitView()
+                    activeNode.value = null
+                }
             }
-            
-            const resetCanvas = () => { canvasX.value = 200; canvasY.value = 150; activeNode.value = null }
 
-            // C: --- 动态连线计算（全覆盖诊断版） ---
-            // E: --- Dynamic link computation (full diagnostic version) ---
-            // C: SVG 与节点共享同一 CSS 坐标系（top:0 left:0），无需偏移
-            // E: SVG shares CSS coordinate space with nodes (top:0 left:0), no offset needed
-            // C: 节点近似半宽/半高（用于计算节点中心点，含 px-6 padding = 24px）
-            //    min-w-[140px] / 2 = 70px, 但实际含 px-6 padding = 24px → 70+24 = 94
-            // E: Approximate half-width (70+24=94 accounting for px-6 padding)
-            const NODE_HALF_W = 94;
-            const NODE_HALF_H = 40;
-
-            // C: SVG 画布动态尺寸 — 根据所有节点坐标自动计算
-            // E: SVG canvas dynamic size — computed from all node positions
-            const svgSize = computed(() => {
-                if (nodes.value.length === 0) return { w: 1400, h: 900 };
-                let maxX = 0, maxY = 0;
-                nodes.value.forEach(n => {
-                    if ((n.x || 0) + 200 > maxX) maxX = (n.x || 0) + 200;
-                    if ((n.y || 0) + 120 > maxY) maxY = (n.y || 0) + 120;
-                });
-                return { w: Math.max(1400, maxX), h: Math.max(900, maxY) };
-            });
-
-            // C: 诊断状态标记（可在控制台通过 __diag 访问）
-            // E: Diagnostic state flags (accessible via __diag in console)
-            const __diag = { lastRun: 0, totalRuns: 0, lastReport: null };
-            window.__diag = __diag;
-
-            const computedLinks = computed(() => {
-                __diag.totalRuns++;
-                const now = Date.now();
-                const isFirstRun = __diag.totalRuns === 1;
-                const throttlePassed = (now - __diag.lastRun) > 5000;
-
-                // === 诊断 1: links 数组状态 ===
-                if (isFirstRun || throttlePassed) {
-                    console.group(
-                        `%c🔗 连线诊断 #${__diag.totalRuns} %c| nodes=${nodes.value.length} links=${links.value.length}`,
-                        'color:#8b5cf6;font-weight:bold;font-size:14px', 'color:inherit'
-                    );
-                    
-                    if (links.value.length === 0) {
-                        console.log('%c⚠️  links 数组为空 — 后端未返回连线数据，非前端渲染问题', 'color:#f59e0b;font-weight:bold');
-                    } else {
-                        console.log(`   links 数据类型: ${typeof links.value[0]}, 第一条:`, JSON.stringify(links.value[0]));
-                    }
-                    
-                    // === 诊断 2: nodes ID 格式 ===
-                    if (nodes.value.length > 0) {
-                        const sampleIds = nodes.value.slice(0, 3).map(n => `${typeof n.id}:${n.id}`);
-                        console.log(`   nodes ID 格式 (前3):`, sampleIds);
-                    }
-                }
-
-                const result = links.value.map((link, idx) => {
-                    // === 诊断 3: link 中 source/target 存在性 ===
-                    if (link.source === undefined || link.target === undefined) {
-                        if (isFirstRun || throttlePassed) {
-                            console.error(
-                                `%c❌ link#${idx} 缺少 source 或 target 字段!%c link=`, 
-                                'color:#ef4444;font-weight:bold', 'color:inherit', link
-                            );
-                        }
-                        return link;
-                    }
-
-                    const sourceNode = nodes.value.find(n => n.id === link.source);
-                    const targetNode = nodes.value.find(n => n.id === link.target);
-                    
-                    // === 诊断 4: ID 匹配详情 ===
-                    if (!sourceNode || !targetNode) {
-                        if (isFirstRun || throttlePassed) {
-                            const allIds = nodes.value.map(n => `${typeof n.id}:${n.id}`);
-                            console.warn(
-                                `%c⚠️  link#${idx} ID不匹配 %c${link.source}→${link.target}
-                                   %c源节点=${sourceNode ? '✓' : '✗'} 目标节点=${targetNode ? '✓' : '✗'}
-                                   nodes所有ID: [${allIds.join(', ')}]
-                                   link.source类型=${typeof link.source} 值="${link.source}"
-                                   link.target类型=${typeof link.target} 值="${link.target}"`,
-                                'color:#f59e0b;font-weight:bold', 'color:#ef4444', 'color:inherit'
-                            );
-                        }
-                        return link;
-                    }
-                    
-                    // === 诊断 5: 路径坐标计算（无偏移，与节点共用CSS坐标系）===
-                    const sx = (sourceNode.x || 0) + NODE_HALF_W;
-                    const sy = (sourceNode.y || 0) + NODE_HALF_H;
-                    const tx = (targetNode.x || 0) + NODE_HALF_W;
-                    const ty = (targetNode.y || 0) + NODE_HALF_H;
-                    
-                    // C: 检查坐标是否为 NaN
-                    // E: Check if coordinates are NaN
-                    if (isNaN(sx) || isNaN(sy) || isNaN(tx) || isNaN(ty)) {
-                        console.error(
-                            `%c❌ link#${idx} 坐标NaN! %c源(${sourceNode.x},${sourceNode.y})→(${sx},${sy}) 目标(${targetNode.x},${targetNode.y})→(${tx},${ty})`,
-                            'color:#ef4444;font-weight:bold', 'color:inherit'
-                        );
-                        return link;
-                    }
-                    
-                    // C: 检查坐标是否在 SVG 范围内
-                    // E: Check if coordinates are within SVG range
-                    const svgw = svgSize.value.w, svgh = svgSize.value.h;
-                    const inRange = (v, max) => v >= -10 && v <= max + 10;
-                    const srcInRange = inRange(sx, svgw) && inRange(sy, svgh);
-                    const tgtInRange = inRange(tx, svgw) && inRange(ty, svgh);
-                    if (!srcInRange || !tgtInRange) {
-                        if (isFirstRun || throttlePassed) {
-                            console.warn(
-                                `%c⚠️  link#${idx} 坐标超出SVG范围(${svgw}x${svgh})! %c源SVG(${sx},${sy}) 目标SVG(${tx},${ty})`,
-                                'color:#f59e0b', 'color:inherit'
-                            );
-                        }
-                    }
-                    
-                    const path = `M ${sx} ${sy} C ${sx} ${(sy + ty) / 2}, ${tx} ${(sy + ty) / 2}, ${tx} ${ty}`;
-                    
-                    // === 诊断 6: 最终路径字符串 ===
-                    if (isFirstRun || throttlePassed) {
-                        console.log(
-                            `%c✅ link#${idx} %c${link.source}→${link.target}%c | ` +
-                            `源CSS(${sourceNode.x},${sourceNode.y})→SVG(${Math.round(sx)},${Math.round(sy)}) | ` +
-                            `目标CSS(${targetNode.x},${targetNode.y})→SVG(${Math.round(tx)},${Math.round(ty)}) | ` +
-                            `d="${path.substring(0,60)}..."`,
-                            'color:#10b981;font-weight:bold', 'color:#0ea5e9;font-weight:bold', 'color:inherit'
-                        );
-                    }
-                    
-                    return { ...link, path };
-                });
-
-                if (isFirstRun || throttlePassed) {
-                    const withPath = result.filter(l => l.path).length;
-                    const withoutPath = result.length - withPath;
-                    __diag.lastReport = { 
-                        time: new Date().toISOString(), 
-                        totalLinks: result.length, 
-                        withPath, 
-                        withoutPath,
-                        totalNodes: nodes.value.length 
-                    };
-                    console.log(
-                        `%c📊 汇总: ${withPath}/${result.length} 条连线有有效路径, ${withoutPath} 条缺失`,
-                        'color:#6366f1;font-weight:bold'
-                    );
-                    console.groupEnd();
-                    __diag.lastRun = now;
-                }
-
-                return result;
-            });
-
-            // ============================================================
-            // C: 浏览器控制台诊断工具 — 在 F12 Console 中运行以排查连线问题
-            // E: Browser console diagnostic tool — run in F12 Console to debug links
-            // ============================================================
-            window.__testLines = function(scenario) {
-                // C: 预定义测试场景
-                // E: Predefined test scenarios
-                const scenarios = {
-                    // C: 场景A — 两个节点，坐标在常见范围内
-                    // E: Scenario A — two nodes, typical coordinates
-                    simple: {
-                        nodes: [
-                            { id: '__test_root', label: 'Root', color: 'var(--node-blue)', x: 400, y: 100, details: [] },
-                            { id: '__test_child', label: 'Child', color: 'var(--node-green)', x: 400, y: 300, details: [] },
-                        ],
-                        links: [
-                            { source: '__test_root', target: '__test_child', type: 'solid' }
-                        ]
-                    },
-                    // C: 场景B — 三个节点三角形，测试多条连线
-                    // E: Scenario B — three nodes triangle, test multiple lines
-                    triangle: {
-                        nodes: [
-                            { id: '__test_a', label: 'A', color: 'var(--node-blue)', x: 300, y: 100, details: [] },
-                            { id: '__test_b', label: 'B', color: 'var(--node-green)', x: 150, y: 350, details: [] },
-                            { id: '__test_c', label: 'C', color: 'var(--node-red)', x: 450, y: 350, details: [] },
-                        ],
-                        links: [
-                            { source: '__test_a', target: '__test_b', type: 'solid' },
-                            { source: '__test_a', target: '__test_c', type: 'solid' },
-                            { source: '__test_b', target: '__test_c', type: 'dashed' },
-                        ]
-                    },
-                    // C: 场景C — 坐标在极端位置（接近0和接近1500）
-                    // E: Scenario C — extreme coordinates (near 0 and near 1500)
-                    extreme: {
-                        nodes: [
-                            { id: '__test_top', label: 'TopLeft', color: 'var(--node-blue)', x: 0, y: 0, details: [] },
-                            { id: '__test_bot', label: 'BotRight', color: 'var(--node-red)', x: 800, y: 600, details: [] },
-                        ],
-                        links: [
-                            { source: '__test_top', target: '__test_bot', type: 'solid' }
-                        ]
-                    }
-                };
-                
-                const s = scenarios[scenario] || scenarios.simple;
-                const name = scenario || 'simple';
-                
-                console.group(`%c🧪 注入测试场景: ${name} %c(nodes=${s.nodes.length} links=${s.links.length})`,
-                    'color:#8b5cf6;font-weight:bold;font-size:14px', 'color:inherit');
-                
-                // C: 保留已有数据，追加测试节点
-                // E: Preserve existing data, append test nodes
-                nodes.value = [...nodes.value, ...s.nodes];
-                links.value = [...links.value, ...s.links];
-                
-                console.log('注入后 nodes:', nodes.value.length, 'links:', links.value.length);
-                
-                // C: 等待 Vue 响应式更新后检查 SVG DOM
-                // E: Check SVG DOM after Vue reactive update
-                nextTick(() => {
-                    const svgPaths = document.querySelectorAll('#canvas-container svg path');
-                    console.log(`SVG <path> 元素数量: ${svgPaths.length}`);
-                    
-                    svgPaths.forEach((p, i) => {
-                        const d = p.getAttribute('d');
-                        const cs = getComputedStyle(p);
-                        console.log(
-                            `  path#${i}: d="${d ? d.substring(0, 50) + '...' : '(空)'}" ` +
-                            `stroke="${cs.stroke}" strokeWidth="${cs.strokeWidth}" ` +
-                            `display="${cs.display}" visibility="${cs.visibility}" opacity="${cs.opacity}"`
-                        );
-                    });
-                    
-                    if (svgPaths.length === 0) {
-                        console.warn('%c⚠️ SVG 中无 <path> 元素 — 检查 v-for 是否生成了元素', 'color:#f59e0b;font-weight:bold');
-                        console.log('检查 computedLinks 返回值:', computedLinks.value);
-                    }
-                    
-                    console.groupEnd();
-                });
-            };
-
-            // C: 一键移除测试节点
-            // E: One-click remove test nodes
-            window.__clearTest = function() {
-                nodes.value = nodes.value.filter(n => !String(n.id).startsWith('__test_'));
-                links.value = links.value.filter(l => 
-                    !String(l.source).startsWith('__test_') && 
-                    !String(l.target).startsWith('__test_')
-                );
-                console.log('%c🧹 测试节点已清除', 'color:#10b981;font-weight:bold');
-            };
-
-            // C: 诊断：打印当前完整状态
-            // E: Diagnostic: print current full state
-            window.__diagFull = function() {
-                console.group('%c📋 完整连线状态诊断', 'color:#8b5cf6;font-weight:bold;font-size:14px');
-                console.log('nodes:', nodes.value.length, nodes.value.map(n => ({id:n.id, label:n.label, x:n.x, y:n.y})));
-                console.log('links:', links.value.length, links.value);
-                console.log('computedLinks:', computedLinks.value.length, computedLinks.value.map(l => ({source:l.source, target:l.target, hasPath:!!l.path, pathPreview: (l.path||'').substring(0,40)})));
-                console.log('lastReport:', __diag.lastReport);
-                
-                // C: 检查 SVG DOM
-                // E: Check SVG DOM
-                const svgEl = document.querySelector('#canvas-container svg');
-                if (svgEl) {
-                    const rect = svgEl.getBoundingClientRect();
-                    console.log('SVG元素:', { 
-                        width: svgEl.getAttribute('width'), 
-                        height: svgEl.getAttribute('height'),
-                        boundingRect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
-                        pathCount: svgEl.querySelectorAll('path').length 
-                    });
-                } else {
-                    console.warn('⚠️ 未找到 SVG 元素!');
-                }
-                console.groupEnd();
-            };
-
-            // C: --- 节点拖拽状态变量 ---
-            // E: --- Node drag state variables ---
-            const draggingNode = ref(null);
-            let startMouseX = 0; let startMouseY = 0;
-            let initialNodeX = 0; let initialNodeY = 0;
-
-            const onNodePointerDown = (e, node) => {
-                activeNode.value = node; 
-                draggingNode.value = node; 
-                startMouseX = e.clientX;
-                startMouseY = e.clientY;
-                initialNodeX = node.x;
-                initialNodeY = node.y;
-            };
-
-            // C: --- 整合后的拖拽功能核心 ---
-            // E: --- Integrated drag function core ---
-            const onDrag = (e) => {
-                if (draggingNode.value) {
-                    // C: 如果正在拖拽节点，更新节点坐标
-                    // E: If dragging a node, update node coordinates
-                    const dx = e.clientX - startMouseX;
-                    const dy = e.clientY - startMouseY;
-                    draggingNode.value.x = initialNodeX + dx;
-                    draggingNode.value.y = initialNodeY + dy;
-                } else if (isDragging.value) {
-                    // C: 如果拖拽的是画布空白处，平移整体画布
-                    // E: If dragging canvas empty area, pan the entire canvas
-                    canvasX.value = e.clientX - startX.value;
-                    canvasY.value = e.clientY - startY.value;
-                }
-            };
-
-            const stopDrag = () => {
-                isDragging.value = false;
-                draggingNode.value = null; // C: 释放拖拽 / E: release drag
-            };
-
-            // C: --- 一键清空功能 ---
-            // E: --- Clear all nodes function ---
+            // C: --- 一键清空功能（G6版） ---
+            // E: --- Clear all nodes function (G6 version) ---
             const clearAllNodes = () => {
                 if(confirm(t('confirmClear'))) {
                     nodes.value = [];
                     links.value = [];
+                    treeRoots.value = [];
                     activeNode.value = null;
                     chatHistory.value.push({ role: 'system', text: 'Canvas has been cleared manually.' });
+                    if (graph) {
+                        graph.setData({ nodes: [], edges: [] })
+                        graph.render()
+                    }
                     if (settings.autoScroll) scrollChat();
                 }
             };
 
-            // C: --- 手动删除节点逻辑 ---
-            // E: --- Manual node deletion logic ---
+            // C: --- 手动删除节点逻辑（G6版） ---
+            // E: --- Manual node deletion logic (G6 version) ---
             const deleteActiveNode = () => {
                 if (!activeNode.value) return;
                 const idToDelete = activeNode.value.id;
                 
                 nodes.value = nodes.value.filter(n => n.id !== idToDelete);
                 links.value = links.value.filter(l => l.source !== idToDelete && l.target !== idToDelete);
+                treeRoots.value = removeFromTree(treeRoots.value, idToDelete);
                 
                 activeNode.value = null;
+                nextTick(() => updateG6Data());
 
                 chatHistory.value.push({ role: 'system', text: `Node removed manually. AI will acknowledge this change.` });
                 if (settings.autoScroll) scrollChat();
@@ -1189,15 +1115,14 @@
                 t, audioPlayerEl, uploadMenuContainer, fileInput, chatBox,
                 showTrans, showUploadMenu, showSettings, activeNode, settings,
                 searchQuery, selectedSpeaker, uniqueSpeakers, filteredTranscripts, transcripts,
-                nodes, links, chatHistory, userInput,
+                nodes, links, treeRoots, chatHistory, userInput,
                 isPlaying, isRecording, currentTime, duration, progress, visualizerData, formatTime, 
                 onTimeUpdate, onLoadedMetadata, onEnded, seekAudio, togglePlay, toggleRecording,
                 triggerFileUpload, handleFileChange, getBubbleClass, sendMessage, toggleTrans,
-                canvasX, canvasY, startDrag, onDrag, stopDrag, resetCanvas,
-                svgSize,
+                resetCanvas,
                 deleteActiveNode,
                 renderMarkdown,
-                computedLinks, onNodePointerDown, clearAllNodes,
+                clearAllNodes,
                 isProcessingAudio, processingStatus, includeTranscriptContext,
                 editingIndex, editText,
                 getTranscriptIndex, deleteTranscript, startEditTranscript, saveTranscript, cancelEdit, downloadAudio

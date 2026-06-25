@@ -50,7 +50,7 @@ def _validate_chat_reply(result: dict) -> tuple[bool, str]:
 def _validate_map(result: dict) -> tuple[bool, dict]:
     """C: 验证 modify_mind_map 返回。返回 (是否通过, map_dict)。
     E: Validate modify_mind_map result. Returns (passed, map_dict)."""
-    fallback = {"nodes": [], "links": []}
+    fallback = {"tree": [], "nodes": [], "links": []}
     if not isinstance(result, dict):
         logger.warning("C: [Validate] modify_mind_map 返回类型错误")
         logger.warning("E: [Validate] modify_mind_map returned wrong type")
@@ -63,6 +63,10 @@ def _validate_map(result: dict) -> tuple[bool, dict]:
         logger.warning("C: [Validate] modify_mind_map nodes/links 类型错误")
         logger.warning("E: [Validate] modify_mind_map nodes/links wrong type")
         return False, fallback
+    # C: tree 字段可选（向后兼容），不存在时补空列表
+    # E: tree field optional (backward compat), fill empty list if missing
+    if "tree" not in result:
+        result["tree"] = []
     return True, result
 
 

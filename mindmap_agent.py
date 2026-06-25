@@ -57,6 +57,172 @@ def state_merge(delta: dict, current_map: dict) -> dict:
 
 
 # =========================================================
+# C: Flat → G6 嵌套树转换
+#    将 state_merge 产生的 flat nodes+links 转为 G6 可消费的嵌套树格式
+# E: Flat → G6 nested tree conversion
+#    Converts flat nodes+links from state_merge into G6-consumable nested tree
+# =========================================================
+def flatten_to_tree(nodes: list[dict], links: list[dict]) -> list[dict]:
+    """C: 将扁平节点列表和连线列表转换为 G6 嵌套树结构。
+    多根节点时自动包裹 _isVirtual 虚拟根节点确保树布局正常。
+    E: Convert flat node list and link list into G6 nested tree structure.
+    Auto-wraps multiple roots with _isVirtual virtual root for proper tree layout."""
+    if not nodes:
+        return []
+
+    # C: 构建 children_map: parent_id → [child_node_dicts]
+    # E: Build children_map: parent_id → [child_node_dicts]
+    nodes_dict = {}
+    for n in nodes:
+        nid = str(n['id'])
+        node_copy = {
+            'id': nid,
+            'label': n.get('label', ''),
+            'color': n.get('color', '#e8f0fe'),
+            'details': n.get('details', []),
+            'parent_id': n.get('parent_id'),
+            'collapsed': n.get('collapsed', False),
+            'children': [],
+            '_isVirtual': False,
+            '_isRoot': False,
+            '_depth': 0,
+            '_hasChildren': False,
+        }
+        nodes_dict[nid] = node_copy
+
+    # C: 建立父子关系
+    # E: Build parent-child relationships
+    child_ids_by_parent = {}
+    for link in links:
+        src = str(link['source'])
+        tgt = str(link['target'])
+        if src in nodes_dict and tgt in nodes_dict:
+            if src not in child_ids_by_parent:
+                child_ids_by_parent[src] = []
+            child_ids_by_parent[src].append(tgt)
+            # C: 同时设置 parent_id（如果节点没有的话）
+            # E: Also set parent_id if node doesn't have one
+            if not nodes_dict[tgt].get('parent_id'):
+                nodes_dict[tgt]['parent_id'] = src
+
+    # C: 递归构建 children 列表
+    # E: Recursively build children list
+    def build_children(nid):
+        node = nodes_dict.get(nid)
+        if not node:
+            return
+        child_ids = child_ids_by_parent.get(nid, [])
+        if child_ids:
+            node['_hasChildren'] = True
+            for cid in child_ids:
+                child_node = nodes_dict.get(cid)
+                if child_node:
+                    build_children(cid)
+                    node['children'].append(child_node)
+
+    # C: 找出根节点（无父节点、或父节点不在当前节点集内）
+    # E: Find root nodes (no parent_id, or parent not in current node set)
+    roots = []
+    for nid, node in nodes_dict.items():
+        pid = node.get('parent_id')
+        if not pid or pid not in nodes_dict:
+            build_children(nid)
+            node['_isRoot'] = True
+            roots.append(node)
+
+    # C: 多根节点 → 包裹虚拟根
+    # E: Multiple roots → wrap with virtual root
+    if len(roots) > 1:
+        virtual_root = {
+            'id': '__virtual_root__',
+            'label': '',
+            'color': 'transparent',
+            'details': [],
+            'parent_id': None,
+            'collapsed': False,
+            'children': roots,
+            '_isVirtual': True,
+            '_isRoot': True,
+            '_depth': -1,
+            '_hasChildren': True,
+        }
+        mark_tree_meta([virtual_root], 0)
+        return [virtual_root]
+    elif len(roots) == 1:
+        mark_tree_meta(roots, 0)
+        return roots
+    else:
+        return []
+
+
+def mark_tree_meta(roots: list[dict], depth: int) -> None:
+    """C: 递归标记树节点的 _depth, _isRoot, _hasChildren 元数据。
+    E: Recursively mark _depth, _isRoot, _hasChildren metadata on tree nodes."""
+    for node in roots:
+        node['_depth'] = depth
+        children = node.get('children', [])
+        if children:
+            node['_hasChildren'] = True
+            mark_tree_meta(children, depth + 1)
+        else:
+            node['_hasChildren'] = False
+
+
+def flatten_from_tree(roots: list[dict]) -> tuple[list[dict], list[dict]]:
+    """C: 从嵌套树反序列化为 flat nodes+links（用于 current_map 回传）。
+    E: Deserialize nested tree back to flat nodes+links (for current_map round-trip)."""
+    flat_nodes = []
+    flat_links = []
+
+    def traverse(node, parent_id=None):
+        if node.get('_isVirtual'):
+            for child in node.get('children', []):
+                traverse(child, None)
+            return
+        n = {
+            'id': node['id'],
+            'label': node.get('label', ''),
+            'color': node.get('color', '#e8f0fe'),
+            'details': node.get('details', []),
+            'parent_id': parent_id,
+            'collapsed': node.get('collapsed', False),
+        }
+        flat_nodes.append(n)
+        if parent_id:
+            flat_links.append({
+                'source': parent_id,
+                'target': node['id'],
+                'link_type': 'solid'
+            })
+        for child in node.get('children', []):
+            traverse(child, node['id'])
+
+    for root in roots:
+        traverse(root, None)
+    return flat_nodes, flat_links
+
+
+# =========================================================
+# C: state_merge_result — 合并 delta 并输出 flat + tree
+#    替代原 state_merge，同时返回 G6 嵌套树
+# E: state_merge_result — merge delta and output flat + tree
+#    Replaces original state_merge, also returns G6 nested tree
+# =========================================================
+def state_merge_with_tree(delta: dict, current_map: dict) -> dict:
+    """C: 执行 state_merge 并将结果转为 flat+tree 格式。
+    E: Execute state_merge and convert result to flat+tree format."""
+    merged = state_merge(delta, current_map)
+    merged_nodes = merged.get('nodes', [])
+    merged_links = merged.get('links', [])
+    tree = flatten_to_tree(merged_nodes, merged_links)
+    return {
+        "tree": tree,
+        "nodes": merged_nodes,
+        "links": merged_links,
+    }
+
+
+# =========================================================
 # C: 基础 Agent — 封装 LLM 客户端初始化和 function calling 调用
 # E: Base Agent — encapsulates LLM client init and function calling
 # =========================================================
@@ -166,6 +332,88 @@ class _BaseAgent:
             for extra in ['}', ']', '"']:
                 try:
                     return json.loads(text_stripped + ''.join(closers) + extra)
+                except json.JSONDecodeError:
+                    continue
+
+        # Strategy 3b: Strip back incomplete trailing element before reapplying closers
+        # C: 截断可能发生在对象/数组的中间位置（如 {"key 截断在键名中间），
+        #    此时标准 LIFO 补全产生无效 JSON（{"key"} 键缺值）。
+        #    策略：从末尾逐字符回溯，在逗号或结构边界处截断后重新补全。
+        # E: Truncation may happen mid-element (e.g. {"key truncated mid-key),
+        #    standard LIFO completion produces invalid JSON ({"key"} key without value).
+        #    Strategy: backtrack from end, cut at comma/structure boundary, recomplete.
+        cut_points = []  # C: 收集可截断位置（逗号或完整闭合处）/ E: Collect cuttable positions
+        in_s = False
+        esc = False
+        s_depth = []
+        for i, ch in enumerate(text_stripped):
+            if esc:
+                esc = False
+                continue
+            if ch == '\\':
+                esc = True
+                continue
+            if ch == '"':
+                in_s = not in_s
+                continue
+            if in_s:
+                continue
+            if ch == ',':
+                # C: 逗号处说明上一个元素是完整的 / E: Comma means previous element is complete
+                if not s_depth or s_depth[-1] in '{[':
+                    cut_points.append(i + 1)  # C: 保留逗号 / E: Keep the comma
+            elif ch in '{[':
+                s_depth.append(ch)
+            elif ch == '}':
+                if s_depth and s_depth[-1] == '{':
+                    s_depth.pop()
+                    if not s_depth:
+                        cut_points.append(i + 1)
+            elif ch == ']':
+                if s_depth and s_depth[-1] == '[':
+                    s_depth.pop()
+                    if not s_depth:
+                        cut_points.append(i + 1)
+
+        # C: 从最后的截断点向前尝试 / E: Try from last cut point backwards
+        for cut in reversed(cut_points[-10:]):  # C: 最多尝试最后10个 / E: Try at most last 10
+            truncated = text_stripped[:cut].rstrip(', \t\n\r')
+            if not truncated:
+                continue
+            # C: 对截断后的文本重新计算 LIFO 闭合 / E: Recompute LIFO closers for truncated text
+            s2 = []
+            i2 = False
+            e2 = False
+            for ch in truncated:
+                if e2:
+                    e2 = False
+                    continue
+                if ch == '\\':
+                    e2 = True
+                    continue
+                if ch == '"':
+                    i2 = not i2
+                    if i2:
+                        s2.append('"')
+                    elif s2 and s2[-1] == '"':
+                        s2.pop()
+                    continue
+                if i2:
+                    continue
+                if ch in '{[':
+                    s2.append(ch)
+                elif ch == '}':
+                    if s2 and s2[-1] == '{':
+                        s2.pop()
+                elif ch == ']':
+                    if s2 and s2[-1] == '[':
+                        s2.pop()
+            if i2 and (not s2 or s2[-1] != '"'):
+                s2.append('"')
+            if s2:
+                c2 = [closer_map[it] for it in reversed(s2)]
+                try:
+                    return json.loads(truncated + ''.join(c2))
                 except json.JSONDecodeError:
                     continue
 
@@ -463,11 +711,9 @@ E: [Atomic Label Rules - Must Strictly Follow]
 C: 【常规绘图规则】
 4. 建立纵深与层级，使用 add_links 连接父子节点（source=父, target=子）。
 5. 不要重复创建：如果节点已存在，使用 update_nodes 追加详情到其 details。
-6. 坐标分布：父节点在上方/左侧，子节点在下方/右侧。避免与已有节点坐标重叠。
 E: [General Drawing Rules]
 4. Establish depth and hierarchy by using add_links to connect parent and child nodes (source=parent, target=child).
 5. Do not create duplicates: if a node already exists, use update_nodes to append details to its details array.
-6. Coordinate distribution: parent nodes on top/left, child nodes on bottom/right. Avoid overlapping with existing node coordinates.
 
 C: 7. 关联更新机制与层级隔离（重点）：当用户为现有的某个概念（如节点A）添加特征、附属物或下级概念（如节点B）时，你必须同时进行两步操作：
    - 第一步：使用 add_nodes 创建新节点 B，并使用 add_links 将其与 A 连接。
@@ -541,11 +787,11 @@ Please process in ReAct mode:
         return extra_prefix + standard_prompt
 
     def _execute_and_merge(self, prompt: str, current_map: dict):
-        """C: 执行 LLM function calling + state_merge。
-        返回 (delta_dict, merged_map_dict) 元组。
+        """C: 执行 LLM function calling + state_merge_with_tree。
+        返回 (delta_dict, tree_map_dict) 元组，其中 tree_map 包含 tree/nodes/links。
         继承 _BaseAgent._call_llm_tool 的 JSON 容错和重试能力。
-        E: Execute LLM function calling + state_merge.
-        Returns (delta_dict, merged_map_dict) tuple.
+        E: Execute LLM function calling + state_merge_with_tree.
+        Returns (delta_dict, tree_map_dict) tuple, where tree_map contains tree/nodes/links.
         Inherits _BaseAgent._call_llm_tool's JSON resilience and retry capability."""
         delta = self._call_llm_tool(
             system_prompt=self._get_system_prompt(),
@@ -553,7 +799,7 @@ Please process in ReAct mode:
             tools=self.tools,
             tool_choice_name="modify_mind_map"
         )
-        merged = state_merge(delta, current_map)
+        merged = state_merge_with_tree(delta, current_map)
         return delta, merged
 
     def generate_map_from_context(self, chat_history: str, current_map: dict) -> dict:
@@ -804,11 +1050,13 @@ class DeltaGenerationAgent(MindMapSpecialistAgent):
     def generate(self, chat_history: str, concepts: list[dict],
                  hierarchy: list[dict] | None, current_map: dict) -> dict:
         """C: 基于预提取的概念和层级规划生成 delta。
-        返回 {"delta": raw_delta_dict, "merged_map": merged_map_dict}
+        返回 {"delta": raw_delta_dict, "merged_map": {tree/nodes/links}}
         如果 hierarchy 为 None（阶段2失败），则仅注入概念提示。
+        merged_map 包含 tree（G6嵌套树）、nodes（扁平列表）、links（扁平列表）。
         E: Generate delta based on pre-extracted concepts and hierarchy plan.
-        Returns {"delta": raw_delta_dict, "merged_map": merged_map_dict}
-        If hierarchy is None (stage 2 failed), only inject concept hints."""
+        Returns {"delta": raw_delta_dict, "merged_map": {tree/nodes/links}}
+        If hierarchy is None (stage 2 failed), only inject concept hints.
+        merged_map contains tree (G6 nested), nodes (flat), links (flat)."""
 
         # C: 构建前缀块（概念 + 层级），共享 _build_react_prompt 的 ReAct 模板
         # E: Build prefix blocks (concepts + hierarchy), share _build_react_prompt's ReAct template
