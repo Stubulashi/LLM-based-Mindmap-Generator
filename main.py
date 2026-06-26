@@ -18,6 +18,9 @@ from mcp_client import MCPMindMapClient  # C: MCP Client 封装 / E: MCP Client 
 # C: MCP Client 全局实例（在 lifespan 中启动）
 # E: MCP Client global instance (started in lifespan)
 mcp_client: MCPMindMapClient | None = None
+# C: 词典标注 MCP Client 全局实例
+# E: Dictionary underline MCP Client global instance
+dict_underline_client: MCPMindMapClient | None = None
 
 # C: 配置日志
 # E: Configure logging
@@ -97,12 +100,44 @@ def _validate_polish(result: dict) -> tuple[bool, dict]:
     return True, result
 
 
-async def _call_tool_with_retry(tool_name: str, arguments: dict, validator, max_retries: int = MAX_RETRIES):
+def _validate_annotations(result: dict) -> tuple[bool, dict]:
+    """C: 验证 annotate_terms 返回。返回 (是否通过, annotations_dict)。
+    E: Validate annotate_terms result. Returns (passed, annotations_dict)."""
+    fallback = {"status": "success", "annotations": {}, "detail_level": "medium"}
+    if not isinstance(result, dict):
+        logger.warning("C: [Validate] annotate_terms 返回类型错误")
+        logger.warning("E: [Validate] annotate_terms returned wrong type")
+        return False, fallback
+    if "annotations" not in result or not isinstance(result["annotations"], dict):
+        logger.warning("C: [Validate] annotate_terms 缺少 annotations 字段")
+        logger.warning("E: [Validate] annotate_terms missing annotations field")
+        return False, fallback
+    return True, result
+
+
+def _validate_definition(result: dict) -> tuple[bool, dict]:
+    """C: 验证 get_definition 返回。返回 (是否通过, definition_dict)。
+    E: Validate get_definition result. Returns (passed, definition_dict)."""
+    fallback = {"definition": "Definition unavailable.", "ipa": "", "literal_meaning": "", "source": "none"}
+    if not isinstance(result, dict):
+        logger.warning("C: [Validate] get_definition 返回类型错误")
+        logger.warning("E: [Validate] get_definition returned wrong type")
+        return False, fallback
+    if "definition" not in result:
+        logger.warning("C: [Validate] get_definition 缺少 definition 字段")
+        logger.warning("E: [Validate] get_definition missing definition field")
+        return False, fallback
+    return True, result
+
+
+async def _call_tool_with_retry(tool_name: str, arguments: dict, validator, max_retries: int = MAX_RETRIES, client=None):
     """C: 带验证和重试的工具调用封装。
     调用 MCP 工具 → 验证结果 → 不通过则重试 → 仍失败则返回降级值。
     E: Tool call wrapper with validation and retry.
     Calls MCP tool → validates result → retries on failure → returns degraded on exhaustion.
     """
+    if client is None:
+        client = mcp_client
     last_error = None
     for attempt in range(max_retries + 1):
         try:
@@ -113,7 +148,7 @@ async def _call_tool_with_retry(tool_name: str, arguments: dict, validator, max_
                 logger.warning(
                     f"E: [Retry] Retrying {tool_name} (attempt {attempt}/{max_retries})"
                 )
-            raw_result = await mcp_client.call_tool(tool_name, arguments)
+            raw_result = await client.call_tool(tool_name, arguments)
             passed, result = validator(raw_result)
             if passed:
                 if attempt > 0:
@@ -154,7 +189,7 @@ subtree_session_memory: dict[str, list] = {}
 # ---------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global mcp_client
+    global mcp_client, dict_underline_client
     logger.info("C: 正在启动 MCP Client（连接 MCP Server 子进程）...")
     logger.info("E: Starting MCP Client (connecting to MCP Server subprocess)...")
 
@@ -174,11 +209,46 @@ async def lifespan(app: FastAPI):
         mcp_client = client
         logger.info("C: MCP Client 就绪，服务启动完成")
         logger.info("E: MCP Client ready, server startup complete")
+
+        # ---------------------------------------------------------
+        # C: 条件启动词典标注 MCP Client
+        #    由 ANNOTATION_ENABLED 控制是否启动
+        # E: Conditionally start dictionary underline MCP Client
+        #    Controlled by ANNOTATION_ENABLED
+        # ---------------------------------------------------------
+        if Config.ANNOTATION_ENABLED:
+            dict_client = MCPMindMapClient(Config.DICT_UNDERLINE_SERVER_SCRIPT)
+            try:
+                await dict_client.start()
+                dict_underline_client = dict_client
+                logger.info("C: Dict-Underline MCP Client 就绪")
+                logger.info("E: Dict-Underline MCP Client ready")
+            except Exception as e:
+                logger.error(f"C: Dict-Underline MCP Client 启动失败: {e}")
+                logger.error(f"E: Dict-Underline MCP Client startup failed: {e}")
+                dict_underline_client = None
+        else:
+            logger.info("C: ANNOTATION_ENABLED=false → 跳过 Dict-Underline MCP Client 启动")
+            logger.info("E: ANNOTATION_ENABLED=false → skipping Dict-Underline MCP Client")
+            dict_underline_client = None
+
         try:
             yield
         finally:
             # C: close() 与 start() 在同一个 lifespan task 中执行
             # E: close() runs in the same lifespan task as start()
+            # C: 先关闭 Dict-Underline Client
+            # E: Close Dict-Underline Client first
+            if dict_underline_client is not None:
+                try:
+                    await dict_underline_client.close()
+                except Exception as e:
+                    logger.error(f"C: 关闭 Dict-Underline MCP Client 异常: {e}")
+                    logger.error(f"E: Error closing Dict-Underline MCP Client: {e}")
+                finally:
+                    dict_underline_client = None
+                    logger.info("C: Dict-Underline MCP Client 已关闭")
+                    logger.info("E: Dict-Underline MCP Client closed")
             try:
                 if mcp_client is not None:
                     await mcp_client.close()
@@ -414,6 +484,77 @@ E: [Language Rules - Must Strictly Follow]
         logger.error(f"C: 系统运行错误: {e}")
         logger.error(f"E: System runtime error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ---------------------------------------------------------
+# C: 术语标注路由 — 分析导图节点，标记需要下划线标注的关键术语
+# E: Term annotation route — analyze map nodes, mark key terms for underline annotation
+# ---------------------------------------------------------
+class AnnotateRequest(BaseModel):
+    current_map: Dict[str, Any]
+    density_mode: str = "medium"     # "low" | "medium" | "high"
+    detail_level: str = "medium"     # "brief" | "medium" | "detailed"
+
+@app.post("/annotate")
+async def annotate_map(request: AnnotateRequest):
+    """C: 纯编排器 — 分析导图节点，标记需要下划线标注的关键术语。
+    E: Pure orchestrator — analyze map nodes, mark key terms for underline annotation."""
+    if dict_underline_client is None:
+        raise HTTPException(status_code=503, detail="C: 标注服务不可用（ANNOTATION_ENABLED=false 或启动失败）\nE: Annotation service unavailable (ANNOTATION_ENABLED=false or startup failed)")
+
+    session_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    logger.info("C: [Orchestrator] 调度 annotate_terms 任务...")
+    logger.info("E: [Orchestrator] Dispatching annotate_terms task...")
+    result = await _call_tool_with_retry(
+        "annotate_terms",
+        {
+            "current_map": request.current_map,
+            "density_mode": request.density_mode,
+            "detail_level": request.detail_level,
+            "session_ts": session_ts
+        },
+        _validate_annotations,
+        client=dict_underline_client
+    )
+    logger.info("C: [Orchestrator] annotate_terms 完成")
+    logger.info("E: [Orchestrator] annotate_terms complete")
+    return result
+
+
+# ---------------------------------------------------------
+# C: 术语定义查询路由 — Wikipedia 优先，LLM 回退，含 IPA + 字面含义
+# E: Term definition lookup route — Wikipedia first, LLM fallback, with IPA + literal meaning
+# ---------------------------------------------------------
+class DefineRequest(BaseModel):
+    term: str
+    detail_level: str = "medium"     # "brief" | "medium" | "detailed"
+    language: str = "en"
+
+@app.post("/define")
+async def define_term(request: DefineRequest):
+    """C: 纯编排器 — 获取术语定义（Wikipedia优先，LLM回退），含 IPA 和字面含义。
+    E: Pure orchestrator — get term definition (Wikipedia first, LLM fallback), with IPA and literal meaning."""
+    if dict_underline_client is None:
+        raise HTTPException(status_code=503, detail="C: 定义查询服务不可用\nE: Definition lookup service unavailable")
+
+    session_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    logger.info("C: [Orchestrator] 调度 get_definition 任务...")
+    logger.info("E: [Orchestrator] Dispatching get_definition task...")
+    result = await _call_tool_with_retry(
+        "get_definition",
+        {
+            "term": request.term,
+            "detail_level": request.detail_level,
+            "language": request.language,
+            "session_ts": session_ts
+        },
+        _validate_definition,
+        client=dict_underline_client
+    )
+    logger.info("C: [Orchestrator] get_definition 完成")
+    logger.info("E: [Orchestrator] get_definition complete")
+    return result
 
 # ---------------------------------------------------------
 # C: 音频上传 + MCP Whisper STT + MCP LLM 润色 路由

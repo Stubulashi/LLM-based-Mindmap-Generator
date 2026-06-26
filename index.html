@@ -83,6 +83,61 @@
         .rendered-md li { margin: 0.125em 0; }
         .rendered-md blockquote { border-left: 3px solid #cbd5e1; padding-left: 0.75em; margin: 0.5em 0; color: #64748b; }
         .rendered-md a { color: #0b57d0; text-decoration: underline; }
+
+        /* C: 词典术语下划线标注样式 */
+        .anno-term {
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-decoration-color: #0b57d0;
+            cursor: pointer;
+            color: #0b57d0;
+            transition: background-color 0.15s;
+            font-weight: inherit;
+        }
+        .anno-term:hover {
+            background-color: rgba(11, 87, 208, 0.12);
+            border-radius: 2px;
+        }
+        /* C: HTML 节点标签容器 */
+        .g6-node-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 4px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1f2937;
+            text-align: center;
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-sizing: border-box;
+        }
+        /* C: 定义弹窗样式 */
+        .definition-popup {
+            position: absolute;
+            background: white;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            border-radius: 1rem;
+            border: 1px solid #e5e7eb;
+            z-index: 50;
+            padding: 1.25rem;
+            max-width: 320px;
+            pointer-events: auto;
+        }
+        .definition-popup .fixed-info {
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .definition-popup .source-tag {
+            font-size: 0.7rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+        }
     </style>
 </head>
 <body class="h-screen p-4 flex">
@@ -277,16 +332,48 @@
                 </div>
                 <div class="p-5 overflow-y-auto">
                     <ul class="space-y-3">
-                        <li v-for="p in activeNode.details" class="flex items-start gap-3 text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                            <span class="text-blue-500 mt-0.5">•</span> <span>{{ p }}</span>
+                        <li v-for="(p, detailIdx) in activeNode.details" class="flex items-start gap-3 text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                            <span class="text-blue-500 mt-0.5">•</span> <span v-html="renderAnnotatedText(p, activeNode.id, detailIdx)"></span>
                         </li>
                     </ul>
                 </div>
             </div>
         </transition>
 
+        <!-- C: 术语定义弹窗 / E: Term definition popup -->
+        <transition name="fade">
+            <div v-if="definitionPopup" class="definition-popup" :style="{left: Math.min(definitionPopup.x, window.innerWidth - 340) + 'px', top: Math.min(definitionPopup.y, window.innerHeight - 280) + 'px'}">
+                <div class="flex justify-between items-start mb-3">
+                    <h3 class="font-bold text-lg text-gray-800">{{ definitionPopup.term }}</h3>
+                    <button @click="closeDefinition" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+                </div>
+                <div v-if="definitionPopup.loading" class="text-gray-400 text-sm py-2">Loading definition...</div>
+                <template v-else>
+                    <!-- C: 固定信息层: IPA + 字面含义（不受 detail_level 影响） -->
+                    <!-- E: Fixed info layer: IPA + literal meaning (NOT affected by detail_level) -->
+                    <div class="fixed-info">
+                        <div v-if="definitionPopup.ipa" class="text-sm text-gray-600 mb-1">
+                            <span class="font-medium text-gray-500">IPA:</span> /{{ definitionPopup.ipa }}/
+                        </div>
+                        <div v-if="definitionPopup.literal_meaning" class="text-sm text-gray-600">
+                            <span class="font-medium text-gray-500">字面义:</span> {{ definitionPopup.literal_meaning }}
+                        </div>
+                    </div>
+                    <!-- C: 定义正文 -->
+                    <!-- E: Definition text -->
+                    <div class="text-sm text-gray-700 leading-relaxed">{{ definitionPopup.definition }}</div>
+                    <div class="source-tag">Source: {{ definitionPopup.source }}</div>
+                </template>
+            </div>
+        </transition>
+
         <div class="absolute bottom-6 right-6 flex gap-3 items-center z-20">
             <span class="bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-xs text-gray-500 shadow-sm border border-gray-100">{{ t('dragToPan') }}</span>
+
+            <!-- C: 术语标注按钮 / E: Term annotation button -->
+            <button @click="triggerAnnotation" class="w-12 h-12 bg-white rounded-full shadow-lg border border-blue-100 hover:bg-blue-50 flex items-center justify-center text-blue-500 transition-transform active:scale-95" title="Annotate Terms">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+            </button>
 
             <!-- C: 保存/加载按钮 / E: Save/Load buttons -->
             <button @click="saveCurrentMap" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" title="Save Map">
@@ -364,6 +451,28 @@
                             <button @click="settings.fontSize = '14px'" :class="{'bg-white shadow text-blue-600 font-bold': settings.fontSize === '14px'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('small') }}</button>
                             <button @click="settings.fontSize = '16px'" :class="{'bg-white shadow text-blue-600 font-bold': settings.fontSize === '16px'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('medium') }}</button>
                             <button @click="settings.fontSize = '18px'" :class="{'bg-white shadow text-blue-600 font-bold': settings.fontSize === '18px'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('large') }}</button>
+                        </div>
+                    </div>
+
+                    <div class="h-px bg-gray-100"></div>
+
+                    <!-- C: 标注密度设置 / E: Annotation density setting -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">标注密度 (Annotation Density)</label>
+                        <div class="flex bg-gray-100 rounded-xl p-1">
+                            <button @click="annotationDensity = 'low'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'low'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">少 (Low)</button>
+                            <button @click="annotationDensity = 'medium'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'medium'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">中 (Med)</button>
+                            <button @click="annotationDensity = 'high'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'high'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">多 (High)</button>
+                        </div>
+                    </div>
+
+                    <!-- C: 定义详细度设置 / E: Definition detail setting -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">定义详细度 (Definition Detail)</label>
+                        <div class="flex bg-gray-100 rounded-xl p-1">
+                            <button @click="annotationDetail = 'brief'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'brief'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">简要 (Brief)</button>
+                            <button @click="annotationDetail = 'medium'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'medium'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">中等 (Med)</button>
+                            <button @click="annotationDetail = 'detailed'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'detailed'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">详细 (Full)</button>
                         </div>
                     </div>
 
@@ -494,6 +603,13 @@
             // E: Subtree-scoped conversation mode state
             const subtreeMode = ref(false);
             const subtreeRootId = ref(null);
+
+            // C: 词典标注状态
+            // E: Dictionary annotation state
+            const annotations = ref({});
+            const annotationDensity = ref('medium');
+            const annotationDetail = ref('medium');
+            const definitionPopup = ref(null);
 
             const userInput = ref('')
             const chatHistory = ref([{ role: 'system', text: locales['en'].sysReady }])
@@ -879,7 +995,14 @@
                         },
                         behaviors: ['drag-canvas', 'zoom-canvas', 'collapse-expand', 'drag-element'],
                         node: {
-                            type: 'rect',
+                            type: (d) => {
+                                // C: 有 label 标注的节点使用 HTML 渲染以支持下划线
+                                // E: Nodes with label annotations use HTML rendering for underlines
+                                if (d._isVirtual) return 'rect';
+                                const nodeAnn = annotations.value[d.id];
+                                if (nodeAnn && nodeAnn.some(a => a.source === 'label')) return 'html';
+                                return 'rect';
+                            },
                             style: {
                                 size: (d) => {
                                     const labelLen = (d.label || '').length
@@ -890,6 +1013,9 @@
                                 fill: (d) => d._isVirtual ? 'transparent' : resolveColor(d.color),
                                 stroke: (d) => d._isVirtual ? 'transparent' : '#e5e7eb',
                                 lineWidth: (d) => d._isVirtual ? 0 : 1,
+                                // C: HTML 节点使用 innerHTML，rect 节点使用 labelText
+                                // E: HTML nodes use innerHTML, rect nodes use labelText
+                                innerHTML: (d) => annotatedLabelHTML(d),
                                 labelText: (d) => d._isVirtual ? '' : (d.label || ''),
                                 labelFill: '#1f2937',
                                 labelFontSize: 13,
@@ -1105,6 +1231,131 @@
                 })
             }
 
+            // C: --- 词典标注辅助函数 ---
+            // E: --- Dictionary annotation helper functions ---
+            const escapeHtml = (str) => {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            };
+
+            // C: 渲染带标注下划线的文本
+            // E: Render text with annotated term underlines
+            const renderAnnotatedText = (text, nodeId, detailIdx) => {
+                const nodeAnn = annotations.value[nodeId];
+                if (!nodeAnn || nodeAnn.length === 0) return escapeHtml(text);
+                const detailAnnotations = nodeAnn.filter(
+                    a => a.source === 'details' && a.detail_index === detailIdx
+                );
+                if (detailAnnotations.length === 0) return escapeHtml(text);
+                let result = escapeHtml(text);
+                // C: 按 char_start 降序排列避免偏移问题
+                // E: Sort by char_start descending to avoid offset issues
+                detailAnnotations.sort((a, b) => b.char_start - a.char_start);
+                for (const ann of detailAnnotations) {
+                    const term = escapeHtml(text.substring(ann.char_start, ann.char_end));
+                    result = result.substring(0, ann.char_start) +
+                        `<span class="anno-term" data-term="${term}" data-node="${nodeId}">${term}</span>` +
+                        result.substring(ann.char_end);
+                }
+                return result;
+            };
+
+            // C: 生成带下划线的节点标签 HTML
+            // E: Generate annotated node label HTML
+            const annotatedLabelHTML = (d) => {
+                const nodeAnn = annotations.value[d.id];
+                if (!nodeAnn || nodeAnn.length === 0) return null;
+                const labelAnnotations = nodeAnn.filter(a => a.source === 'label');
+                let label = d.label || '';
+                if (labelAnnotations.length === 0) return `<div class="g6-node-label">${escapeHtml(label)}</div>`;
+                // C: 按 char_start 降序排列
+                // E: Sort by char_start descending
+                labelAnnotations.sort((a, b) => b.char_start - a.char_start);
+                for (const ann of labelAnnotations) {
+                    const term = escapeHtml(label.substring(ann.char_start, ann.char_end));
+                    label = label.substring(0, ann.char_start) +
+                        `<span class="anno-term" data-term="${term}" data-node="${d.id}">${term}</span>` +
+                        label.substring(ann.char_end);
+                }
+                return `<div class="g6-node-label">${label}</div>`;
+            };
+
+            // C: 触发术语标注
+            // E: Trigger term annotation
+            const triggerAnnotation = async () => {
+                try {
+                    const response = await fetch('/annotate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            current_map: { nodes: nodes.value, links: links.value },
+                            density_mode: annotationDensity.value,
+                            detail_level: annotationDetail.value
+                        })
+                    });
+                    if (!response.ok) {
+                        const err = await response.json().catch(() => ({}));
+                        throw new Error(err.detail || `HTTP ${response.status}`);
+                    }
+                    const data = await response.json();
+                    if (data.annotations) {
+                        annotations.value = data.annotations;
+                        nextTick(() => updateG6Data());
+                    }
+                    const nodeCount = Object.keys(data.annotations || {}).length;
+                    chatHistory.value.push({
+                        role: 'system',
+                        text: `[Annotation] ${nodeCount} nodes annotated (density: ${annotationDensity.value}).`
+                    });
+                } catch (err) {
+                    chatHistory.value.push({ role: 'system', text: `Annotation failed: ${err.message}` });
+                }
+                if (settings.autoScroll) scrollChat();
+            };
+
+            // C: 显示术语定义弹窗
+            // E: Show term definition popup
+            const showDefinition = async (term, x, y) => {
+                // C: 避免重复点击已打开的弹窗
+                // E: Avoid re-clicking already open popup
+                if (definitionPopup.value && definitionPopup.value.term === term && !definitionPopup.value.loading) {
+                    return;
+                }
+                definitionPopup.value = { term, definition: '', ipa: '', literal_meaning: '', source: '', x, y, loading: true };
+                try {
+                    const response = await fetch('/define', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            term: term,
+                            detail_level: annotationDetail.value,
+                            language: 'en'
+                        })
+                    });
+                    const data = await response.json();
+                    definitionPopup.value = {
+                        term, x, y, loading: false,
+                        definition: data.definition || 'Definition unavailable.',
+                        ipa: data.ipa || '',
+                        literal_meaning: data.literal_meaning || '',
+                        source: data.source || 'unknown'
+                    };
+                } catch (err) {
+                    definitionPopup.value = {
+                        term, x, y, loading: false,
+                        definition: 'Failed to load definition.',
+                        ipa: '', literal_meaning: '', source: 'error'
+                    };
+                }
+            };
+
+            // C: 关闭定义弹窗
+            // E: Close definition popup
+            const closeDefinition = () => {
+                definitionPopup.value = null;
+            };
+
             const sendMessage = async () => {
                 if (!userInput.value.trim()) return;
                 const text = userInput.value;
@@ -1224,6 +1475,20 @@
                         }
                     }
                 })
+                // C: 委托点击事件 — 处理下划线术语点击
+                // E: Delegate click events — handle annotated term clicks
+                const g6Container = document.getElementById('g6-container');
+                if (g6Container) {
+                    g6Container.addEventListener('click', (e) => {
+                        const annoEl = e.target.closest('.anno-term');
+                        if (!annoEl) return;
+                        e.stopPropagation();
+                        const term = annoEl.dataset.term;
+                        if (term) {
+                            showDefinition(term, e.clientX, e.clientY);
+                        }
+                    });
+                }
             };
             
             onMounted(() => onMountedWithG6());
@@ -1390,7 +1655,13 @@
                 subtreeMode,
                 isProcessingAudio, processingStatus, includeTranscriptContext,
                 editingIndex, editText,
-                getTranscriptIndex, deleteTranscript, startEditTranscript, saveTranscript, cancelEdit, downloadAudio
+                getTranscriptIndex, deleteTranscript, startEditTranscript, saveTranscript, cancelEdit, downloadAudio,
+                // C: 词典标注相关
+                // E: Dictionary annotation related
+                annotations, annotationDensity, annotationDetail,
+                definitionPopup,
+                triggerAnnotation, renderAnnotatedText,
+                showDefinition, closeDefinition
             }
         }
     }).mount('#app')

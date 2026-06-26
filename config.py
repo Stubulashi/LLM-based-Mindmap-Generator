@@ -175,6 +175,28 @@ class Config:
         in ('true', '1', 'yes')
     )
 
+    # ---------------------------------------------------------
+    # C: 词典术语下划线标注配置
+    #    ANNOTATION_ENABLED: 是否启用节点术语下划线标注功能
+    #    DICT_UNDERLINE_SERVER_SCRIPT: 词典标注 MCP Server 脚本路径
+    #    WIKIPEDIA_LANGUAGE: Wikipedia API 摘要语言（en / zh / ...）
+    #    WIKIPEDIA_TIMEOUT: Wikipedia API 超时秒数
+    # E: Dictionary term underline annotation configuration
+    #    ANNOTATION_ENABLED: Whether to enable term underline annotation
+    #    DICT_UNDERLINE_SERVER_SCRIPT: Dictionary underline MCP Server script path
+    #    WIKIPEDIA_LANGUAGE: Wikipedia API summary language (en / zh / ...)
+    #    WIKIPEDIA_TIMEOUT: Wikipedia API timeout in seconds
+    # ---------------------------------------------------------
+    ANNOTATION_ENABLED = (
+        os.getenv('ANNOTATION_ENABLED', 'true').lower()
+        in ('true', '1', 'yes')
+    )
+    DICT_UNDERLINE_SERVER_SCRIPT = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "dict_underline_server.py"
+    )
+    WIKIPEDIA_LANGUAGE = os.getenv('WIKIPEDIA_LANGUAGE', 'en')
+    WIKIPEDIA_TIMEOUT = int(os.getenv('WIKIPEDIA_TIMEOUT', '5'))
+
 # C: 为了兼容 agent.py，我们在类外部定义这个变量
 # E: For compatibility with agent.py, we define this variable outside the class
 DEEPSEEK_CONFIG = {

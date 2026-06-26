@@ -130,3 +130,72 @@ def get_hierarchy_planning_tools():
             }
         }
     ]
+
+
+def get_annotation_tools():
+    # C: 词典标注工具 — 识别节点标签和详情中值得下划线标注的关键术语
+    #    返回 annotated_terms function calling schema，供 dict_underline_server 使用
+    # E: Dictionary annotation tool — identify key terms in node labels and details for underline annotation
+    #    Returns annotated_terms function calling schema for dict_underline_server
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "annotate_terms",
+                "description": (
+                    "C: 分析导图节点的 label 和 details 文本，识别值得下划线标注的关键术语（领域术语、专有名词、技术概念）。"
+                    "不要标注常见词汇（冠词、介词、基础动词等）。用 char_start/char_end 精确定位术语在原文中的位置。\n"
+                    "E: Analyze mind map node labels and details text, identify key terms worth underlining annotation "
+                    "(domain terminology, proper nouns, technical concepts). "
+                    "Do NOT annotate common words (articles, prepositions, basic verbs). "
+                    "Use char_start/char_end to precisely locate terms in the original text."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "annotations": {
+                            "type": "object",
+                            "description": (
+                                "C: 每个节点ID对应的标注列表（键为节点ID字符串）。"
+                                "如果某节点无关键术语，可不包含此键。\n"
+                                "E: Map of node IDs to their annotation lists (keys are node ID strings)."
+                                "If a node has no key terms, this key may be omitted."
+                            ),
+                            "additionalProperties": {
+                                "type": "array",
+                                "description": "C: 该节点的术语标注列表\nE: List of term annotations for this node",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "term": {
+                                            "type": "string",
+                                            "description": "C: 需要标注的术语文本（原始文本片段）\nE: The term text to annotate (original text substring)"
+                                        },
+                                        "source": {
+                                            "type": "string",
+                                            "enum": ["label", "details"],
+                                            "description": "C: 术语来源：label=节点主标签, details=节点详情条目\nE: Term source: label=node main label, details=node detail entry"
+                                        },
+                                        "detail_index": {
+                                            "type": ["integer", "null"],
+                                            "description": "C: 若 source=details，对应详情数组的索引（0-based）。若 source=label，此字段为 null\nE: If source=details, the index in details array (0-based). If source=label, this field is null"
+                                        },
+                                        "char_start": {
+                                            "type": "integer",
+                                            "description": "C: 术语在源文本中的起始字符位置（0-based，按 Unicode 码点计数）\nE: Starting character position in source text (0-based, counted by Unicode code points)"
+                                        },
+                                        "char_end": {
+                                            "type": "integer",
+                                            "description": "C: 术语在源文本中的结束字符位置（0-based，不包含）\nE: Ending character position in source text (0-based, exclusive)"
+                                        }
+                                    },
+                                    "required": ["term", "source", "char_start", "char_end"]
+                                }
+                            }
+                        }
+                    },
+                    "required": ["annotations"]
+                }
+            }
+        }
+    ]
