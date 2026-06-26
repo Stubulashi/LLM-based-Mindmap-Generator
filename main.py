@@ -11,6 +11,7 @@ import logging
 import tempfile
 from datetime import datetime
 
+from mindmap_agent import extract_subtree_context
 from config import Config
 from mcp_client import MCPMindMapClient  # C: MCP Client 封装 / E: MCP Client wrapper
 
@@ -138,6 +139,9 @@ async def _call_tool_with_retry(tool_name: str, arguments: dict, validator, max_
 # C: 在内存中维护一下近期的对话上下文（简单版 Memory）
 # E: Maintain recent conversation context in memory (simple version of Memory)
 session_memory = []
+# C: 子树隔离对话的独立记忆（按 subtree_root_id 隔离）
+# E: Independent memory for subtree-scoped conversations (isolated by subtree_root_id)
+subtree_session_memory: dict[str, list] = {}
 
 
 # ---------------------------------------------------------
@@ -205,6 +209,7 @@ class ChatRequest(BaseModel):
     message: str
     current_map: Optional[Dict[str, Any]] = None
     transcript_context: Optional[str] = None
+    subtree_node_id: Optional[str] = None  # C: 子树隔离对话的目标节点ID / E: Target node ID for subtree-scoped conversation
 
 @app.post("/chat")
 async def handle_multimodal_chat(request: ChatRequest):
@@ -214,7 +219,7 @@ async def handle_multimodal_chat(request: ChatRequest):
     E: Pure orchestrator — contains no LLM API calls or business logic.
     Flow: Build context → MCP chat_generate → validate → MCP modify_mind_map_v2 → validate → assemble response.
     modify_mind_map_v2 internally uses 3-stage multi-model pipeline (concept extraction→hierarchy planning→delta generation) for better hierarchy clarity."""
-    global session_memory
+    global session_memory, subtree_session_memory
     try:
         # C: 生成当前请求的会话时间戳（用于跨工具共享调试目录）
         # E: Generate session timestamp for this request (for cross-tool debug dir sharing)
@@ -222,10 +227,51 @@ async def handle_multimodal_chat(request: ChatRequest):
 
         user_msg = request.message
         current_map = request.current_map or {"nodes": [], "links": []}
+        subtree_node_id = request.subtree_node_id
+
+        # C: 判断是否为子树隔离对话
+        # E: Determine if this is a subtree-scoped conversation
+        is_subtree_mode = bool(subtree_node_id) and subtree_node_id in {
+            str(n['id']) for n in current_map.get('nodes', [])}
+
+        if is_subtree_mode:
+            # C: 子树模式 — 使用独立记忆，提取子树上下文
+            # E: Subtree mode — use independent memory, extract subtree context
+            if subtree_node_id not in subtree_session_memory:
+                subtree_session_memory[subtree_node_id] = []
+            active_memory = subtree_session_memory[subtree_node_id]
+
+            # C: 提取子树上下文（过滤掉子孙节点）
+            # E: Extract subtree context (filter out descendants)
+            filtered_map = extract_subtree_context(subtree_node_id, current_map)
+            if filtered_map.get('_subtree_context'):
+                current_map = filtered_map
+                logger.info(
+                    f"C: [子树模式] subtree_root={subtree_node_id}, "
+                    f"祖先={len(filtered_map.get('_ancestors', []))}级, "
+                    f"nodes={len(filtered_map.get('nodes', []))}"
+                )
+                logger.info(
+                    f"E: [Subtree Mode] subtree_root={subtree_node_id}, "
+                    f"ancestors={len(filtered_map.get('_ancestors', []))} levels, "
+                    f"nodes={len(filtered_map.get('nodes', []))}"
+                )
+            else:
+                logger.warning(
+                    f"C: [子树模式] 提取失败: {filtered_map.get('_warning')}, 降级到全局模式"
+                )
+                logger.warning(
+                    f"E: [Subtree Mode] Extraction failed: {filtered_map.get('_warning')}, "
+                    f"degrading to global mode"
+                )
+                is_subtree_mode = False
+                active_memory = session_memory
+        else:
+            active_memory = session_memory
 
         # C: 将用户的话加入记忆
         # E: Add user message to memory
-        session_memory.append({"role": "user", "content": user_msg})
+        active_memory.append({"role": "user", "content": user_msg})
 
         # ---------------------------------------------------------
         # C: 阶段一：编排聊天上下文，调度到 MCP chat_generate 工具
@@ -249,7 +295,26 @@ E: [Language Rules - Must Strictly Follow]
 
         # C: 截取最近 5 轮对话，防止上下文过长
         # E: Truncate to the last 5 rounds to prevent context overflow
-        recent_context = [{"role": "system", "content": chat_sys_prompt}] + session_memory[-5:]
+        recent_context = [{"role": "system", "content": chat_sys_prompt}] + active_memory[-5:]
+
+        if is_subtree_mode:
+            # C: 子树模式 — 注入子树上下文到 system prompt
+            # E: Subtree mode — inject subtree context into system prompt
+            ancestors = current_map.get('_ancestors', [])
+            breadcrumb = ' > '.join(
+                [a.get('label', a['id']) for a in ancestors]
+                + [request.message[:30]]
+            )
+            recent_context.insert(1, {
+                "role": "system",
+                "content": (
+                    f"C: [子树对话模式] 你正在针对导图中节点 [{breadcrumb}] 进行子话题讨论。\n"
+                    f"当前对话仅限于该节点及其祖先节点的上下文，你新增的节点将挂载到该节点下。\n"
+                    f"E: [Subtree Conversation Mode] You are discussing sub-topic [{breadcrumb}].\n"
+                    f"This conversation is scoped to this node and its ancestors. "
+                    f"New nodes will be attached under this node."
+                )
+            })
 
         # C: 如果前端传了转录上下文，以 system 角色注入
         # E: If transcript context is provided, inject as system role
@@ -273,7 +338,7 @@ E: [Language Rules - Must Strictly Follow]
 
         # C: 将 AI 的回复也加入记忆
         # E: Add AI reply to memory
-        session_memory.append({"role": "assistant", "content": ai_reply})
+        active_memory.append({"role": "assistant", "content": ai_reply})
 
         # ---------------------------------------------------------
         # C: 阶段二：调度绘图任务到 MCP modify_mind_map 工具
@@ -426,6 +491,105 @@ async def handle_audio_upload(file: UploadFile = File(...)):
             except OSError as e:
                 logger.warning(f"C: 清理临时文件失败 {tmp_path}: {e}")
                 logger.warning(f"E: Failed to remove temp file {tmp_path}: {e}")
+
+# ---------------------------------------------------------
+# C: 导图持久化 — 保存/加载/列表
+# E: Map persistence — save/load/list
+# ---------------------------------------------------------
+MAPS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'maps')
+os.makedirs(MAPS_DIR, exist_ok=True)
+
+class SaveMapRequest(BaseModel):
+    map_data: dict
+    name: str = "untitled"
+
+@app.post("/save_map")
+async def save_map(request: SaveMapRequest):
+    """C: 保存导图到文件系统。返回 map_id。
+    E: Save map to filesystem. Returns map_id."""
+    import uuid
+    map_id = str(uuid.uuid4())[:8]
+    timestamp = datetime.now().isoformat()
+    node_count = len(request.map_data.get('nodes', []))
+    link_count = len(request.map_data.get('links', []))
+
+    payload = {
+        "map_id": map_id,
+        "name": request.name,
+        "created_at": timestamp,
+        "updated_at": timestamp,
+        "node_count": node_count,
+        "link_count": link_count,
+        "data": request.map_data,
+    }
+
+    filepath = os.path.join(MAPS_DIR, f"{map_id}.json")
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    logger.info(f"C: [save_map] 已保存 map_id={map_id}, nodes={node_count}")
+    logger.info(f"E: [save_map] Saved map_id={map_id}, nodes={node_count}")
+
+    return {"status": "success", "map_id": map_id}
+
+
+@app.get("/load_map")
+async def load_map(map_id: str):
+    """C: 加载指定导图。返回 map_data。
+    E: Load a specific map. Returns map_data."""
+    filepath = os.path.join(MAPS_DIR, f"{map_id}.json")
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail=f"Map {map_id} not found")
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        payload = json.load(f)
+
+    logger.info(f"C: [load_map] 已加载 map_id={map_id}")
+    logger.info(f"E: [load_map] Loaded map_id={map_id}")
+
+    return {
+        "status": "success",
+        "map_id": payload["map_id"],
+        "name": payload["name"],
+        "updated_at": payload["updated_at"],
+        "node_count": payload["node_count"],
+        "link_count": payload["link_count"],
+        "map_data": payload["data"],
+    }
+
+
+@app.get("/list_maps")
+async def list_maps():
+    """C: 列出所有已保存的导图。
+    E: List all saved maps."""
+    maps_list = []
+    if not os.path.exists(MAPS_DIR):
+        return {"maps": []}
+
+    for fname in os.listdir(MAPS_DIR):
+        if not fname.endswith('.json'):
+            continue
+        filepath = os.path.join(MAPS_DIR, fname)
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                payload = json.load(f)
+            maps_list.append({
+                "map_id": payload["map_id"],
+                "name": payload["name"],
+                "updated_at": payload["updated_at"],
+                "node_count": payload["node_count"],
+                "link_count": payload["link_count"],
+            })
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"C: [list_maps] 跳过无效文件 {fname}: {e}")
+            logger.warning(f"E: [list_maps] Skipping invalid file {fname}: {e}")
+            continue
+
+    # C: 按更新时间降序排列 / E: Sort by update time descending
+    maps_list.sort(key=lambda m: m.get('updated_at', ''), reverse=True)
+
+    return {"maps": maps_list}
+
 
 if __name__ == "__main__":
     import uvicorn

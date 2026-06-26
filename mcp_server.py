@@ -93,12 +93,12 @@ def _init_models():
     # C: 初始化多模型管线（三阶段协作导图生成）
     #    所有模型均可独立配置，未配置时自动降级为单模型 ReAct。
     #    - 阶段1 概念提取: CONCEPT_MODEL（轻量）
-    #    - 阶段2 层级规划: HIERARCHY_MODEL（中等）
+    #    - 阶段2 概念分组: HIERARCHY_MODEL（中等）
     #    - 阶段3 Delta生成: DELTA_MODEL（主力）
     # E: Initialize multi-model pipeline (3-stage collaborative map generation)
     #    All models independently configurable, auto-degrade to single-model ReAct when not set.
     #    - Stage 1 concept extraction: CONCEPT_MODEL (lightweight)
-    #    - Stage 2 hierarchy planning: HIERARCHY_MODEL (medium)
+    #    - Stage 2 concept grouping: HIERARCHY_MODEL (medium)
     #    - Stage 3 delta generation: DELTA_MODEL (main)
     # ---------------------------------------------------------
 
@@ -114,21 +114,22 @@ def _init_models():
         logger.info(f"C: 概念提取 Agent 就绪，模型={Config.CONCEPT_MODEL}")
         logger.info(f"E: Concept extraction agent ready, model={Config.CONCEPT_MODEL}")
     else:
-        concept_model_name = Config.LLM_MODEL
         concept_agent = ConceptExtractionAgent(
             api_key=Config.LLM_API_KEY,
             base_url=Config.LLM_BASE_URL,
-            model=concept_model_name
+            model=Config.LLM_MODEL
         )
         logger.info(
-            f"C: 未配置 CONCEPT_MODEL，概念提取使用主力模型={concept_model_name}"
+            f"C: 未配置 CONCEPT_MODEL，概念提取使用主力模型={Config.LLM_MODEL}"
         )
         logger.info(
-            f"E: CONCEPT_MODEL not set, concept extraction uses main model={concept_model_name}"
+            f"E: CONCEPT_MODEL not set, concept extraction uses main model={Config.LLM_MODEL}"
         )
 
-    # C: 阶段2 — 层级规划 Agent（None = 跳过阶段2）
-    # E: Stage 2 — Hierarchy planning agent (None = skip stage 2)
+    # C: 阶段2 — 概念分组 Agent（None = 跳过阶段2，管线降为两阶段）
+    #    默认不启用，仅在显式配置 HIERARCHY_MODEL 时才启用
+    # E: Stage 2 — Concept grouping agent (None = skip stage 2, pipeline degrades to 2-stage)
+    #    Disabled by default, only enabled when HIERARCHY_MODEL is explicitly configured
     hierarchy_agent = None
     if Config.HIERARCHY_MODEL:
         hierarchy_agent = HierarchyPlanningAgent(
@@ -136,20 +137,14 @@ def _init_models():
             base_url=Config.HIERARCHY_BASE_URL,
             model=Config.HIERARCHY_MODEL
         )
-        logger.info(f"C: 层级规划 Agent 就绪，模型={Config.HIERARCHY_MODEL}")
-        logger.info(f"E: Hierarchy planning agent ready, model={Config.HIERARCHY_MODEL}")
+        logger.info(f"C: 概念分组 Agent 就绪，模型={Config.HIERARCHY_MODEL}")
+        logger.info(f"E: Concept grouping agent ready, model={Config.HIERARCHY_MODEL}")
     else:
-        hierarchy_model_name = Config.LLM_MODEL
-        hierarchy_agent = HierarchyPlanningAgent(
-            api_key=Config.LLM_API_KEY,
-            base_url=Config.LLM_BASE_URL,
-            model=hierarchy_model_name
+        logger.info(
+            "C: 未配置 HIERARCHY_MODEL，跳过阶段2（两阶段模式）"
         )
         logger.info(
-            f"C: 未配置 HIERARCHY_MODEL，层级规划使用主力模型={hierarchy_model_name}"
-        )
-        logger.info(
-            f"E: HIERARCHY_MODEL not set, hierarchy planning uses main model={hierarchy_model_name}"
+            "E: HIERARCHY_MODEL not set, skipping stage 2 (2-stage mode)"
         )
 
     # C: 阶段3 — Delta 生成 Agent（始终配置，默认复用主力模型）
@@ -756,12 +751,6 @@ if __name__ == "__main__":
                 api_key=Config.HIERARCHY_API_KEY,
                 base_url=Config.HIERARCHY_BASE_URL,
                 model=Config.HIERARCHY_MODEL
-            )
-        else:
-            hierarchy_agent = HierarchyPlanningAgent(
-                api_key=Config.LLM_API_KEY,
-                base_url=Config.LLM_BASE_URL,
-                model=Config.LLM_MODEL
             )
         delta_agent = DeltaGenerationAgent(
             api_key=Config.DELTA_API_KEY,

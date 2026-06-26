@@ -87,36 +87,48 @@ def flatten_to_tree(nodes: list[dict], links: list[dict]) -> list[dict]:
             '_isRoot': False,
             '_depth': 0,
             '_hasChildren': False,
+            'x': n.get('x'),
+            'y': n.get('y'),
+            'userPositioned': n.get('userPositioned', False),
         }
         nodes_dict[nid] = node_copy
 
-    # C: 建立父子关系
-    # E: Build parent-child relationships
-    child_ids_by_parent = {}
+    # C: 建立父子关系（同时保留连线类型）
+    # E: Build parent-child relationships (preserve link types)
+    child_ids_by_parent = {}  # parent_id -> [(child_id, link_type), ...]
     for link in links:
         src = str(link['source'])
         tgt = str(link['target'])
+        lt = link.get('link_type') or link.get('type', 'solid')
         if src in nodes_dict and tgt in nodes_dict:
             if src not in child_ids_by_parent:
                 child_ids_by_parent[src] = []
-            child_ids_by_parent[src].append(tgt)
+            child_ids_by_parent[src].append((tgt, lt))
             # C: 同时设置 parent_id（如果节点没有的话）
             # E: Also set parent_id if node doesn't have one
             if not nodes_dict[tgt].get('parent_id'):
                 nodes_dict[tgt]['parent_id'] = src
 
-    # C: 递归构建 children 列表
-    # E: Recursively build children list
+    # C: 递归构建 children 列表（已访问集合防止多入边导致重复）
+    # E: Recursively build children list (visited set prevents duplicates from multi-incoming edges)
+    visited: set[str] = set()
+
     def build_children(nid):
         node = nodes_dict.get(nid)
         if not node:
             return
-        child_ids = child_ids_by_parent.get(nid, [])
-        if child_ids:
+        visited.add(nid)
+        child_entries = child_ids_by_parent.get(nid, [])
+        if child_entries:
             node['_hasChildren'] = True
-            for cid in child_ids:
+            for cid, link_type in child_entries:
+                if cid in visited:
+                    # C: 已通过其他父节点访问过该子节点，跳过避免重复
+                    # E: Already visited via another parent, skip to avoid duplicates
+                    continue
                 child_node = nodes_dict.get(cid)
                 if child_node:
+                    child_node['link_type'] = link_type
                     build_children(cid)
                     node['children'].append(child_node)
 
@@ -186,13 +198,16 @@ def flatten_from_tree(roots: list[dict]) -> tuple[list[dict], list[dict]]:
             'details': node.get('details', []),
             'parent_id': parent_id,
             'collapsed': node.get('collapsed', False),
+            'x': node.get('x'),
+            'y': node.get('y'),
+            'userPositioned': node.get('userPositioned', False),
         }
         flat_nodes.append(n)
         if parent_id:
             flat_links.append({
                 'source': parent_id,
                 'target': node['id'],
-                'link_type': 'solid'
+                'link_type': node.get('link_type', 'solid')
             })
         for child in node.get('children', []):
             traverse(child, node['id'])
@@ -411,7 +426,9 @@ class _BaseAgent:
             if i2 and (not s2 or s2[-1] != '"'):
                 s2.append('"')
             if s2:
-                c2 = [closer_map[it] for it in reversed(s2)]
+                # C: 使用内联 dict 避免 Python 3.12 条件赋值引起的 UnboundLocalError
+                # E: Use inline dict to avoid Python 3.12 UnboundLocalError from conditional assignment
+                c2 = [{'[': ']', '{': '}', '"': '"'}[it] for it in reversed(s2)]
                 try:
                     return json.loads(truncated + ''.join(c2))
                 except json.JSONDecodeError:
@@ -952,10 +969,10 @@ E: [Core Iron Laws - Must Strictly Follow]
 
 
 # =========================================================
-# C: 阶段2 — 层级规划 Agent（中等模型）
-#    将新概念与已有节点组织为有深度的层级树
-# E: Stage 2 — Hierarchy Planning Agent (medium model)
-#    Organizes new concepts with existing nodes into a deep hierarchy tree
+# C: 阶段2 — 概念分组 Agent（中等模型）
+#    将新概念与已有节点按语义划分为概念组（不指定父子关系）
+# E: Stage 2 — Concept Grouping Agent (medium model)
+#    Groups new concepts with existing nodes by semantics (no parent-child)
 # =========================================================
 class HierarchyPlanningAgent(_BaseAgent):
     def __init__(self, api_key: str, base_url: str, model: str):
@@ -963,25 +980,27 @@ class HierarchyPlanningAgent(_BaseAgent):
         self.tools = get_hierarchy_planning_tools()
 
     def _get_system_prompt(self) -> str:
-        return """C: 你是一个专业的层级结构规划器。你的任务是：将新概念与已有节点组织为有深度的树状层级。
-E: You are a professional hierarchy planner. Your task: organize new concepts with existing nodes into a deep tree hierarchy.
+        return """C: 你是一个专业的概念分组器。你的任务是：将新概念与已有节点按主题划分为概念组。
+不指定具体的父子从属关系——只说明哪些概念在语义上属于同一主题。
+E: You are a professional concept grouper. Your task: group new concepts with existing nodes by topic.
+Do NOT specify parent-child relationships — only indicate which concepts belong to the same topic.
 
-C: 【层级规划铁律 - 必须严格遵守】
-1. 建立纵深：严禁将所有新节点平铺在同一层级。必须构建至少 2-3 层的树状结构。
-2. 语义挂载：优先将新概念挂载到语义最相关的已有节点下。根级概念可挂载为顶级节点（无 parent）。
-3. 父子关系清晰：每个新概念必须明确其父节点（parent_id）。如果找不到合适的已有父节点，选择最相关的同级概念作为兄弟节点。
-4. 连线类型：直接从属用 solid，间接相关或参考用 dashed。
-5. 只能引用存在的 ID：parent_id 和 child_id 必须来自「已有节点 + 新概念」的 ID 集合。
-E: [Hierarchy Planning Iron Laws - Must Strictly Follow]
-1. Build depth: strictly prohibit flattening all new nodes at the same level. Must build at least 2-3 layers of tree structure.
-2. Semantic attachment: prioritize attaching new concepts under the most semantically relevant existing nodes. Root-level concepts can be top-level nodes (no parent).
-3. Clear parent-child: each new concept must have an explicit parent (parent_id). If no suitable existing parent, choose the most relevant sibling concept.
-4. Link types: solid for direct subordination, dashed for indirect relation or reference.
-5. Only reference existing IDs: parent_id and child_id must come from the set of [existing nodes + new concepts] IDs."""
+C: 【分组铁律 - 必须严格遵守】
+1. 创建逻辑分组：将语义相关的概念划分到同一组（如'音位变化类型'组包含 Drag/Pull/Push Change）。
+2. 每个概念可出现在多个分组中（如果它涉及多个主题），但应尽量保持每个概念在一个分组中。
+3. 分组大小：每组至少 2 个概念，最多不超过 8 个。
+4. 语义标签：为每组提供一个清晰的中/英文语义标签。
+5. 只能引用存在的 ID：concept_ids 必须来自「已有节点 + 新概念」的 ID 集合。
+E: [Grouping Rules - Must Strictly Follow]
+1. Create logical groups: place semantically related concepts in the same group.
+2. A concept may appear in multiple groups if it spans topics, but prefer single-group placement.
+3. Group size: at least 2, at most 8 concepts per group.
+4. Semantic labels: provide clear labels for each group.
+5. Only reference existing IDs: concept_ids must come from [existing nodes + new concepts] IDs."""
 
     def plan(self, concepts: list[dict], current_map: dict) -> list[dict]:
-        """C: 为概念规划层级关系。
-        E: Plan hierarchy for concepts."""
+        """C: 为概念规划分组建议。
+        E: Plan grouping suggestions for concepts."""
         existing_nodes = current_map.get('nodes', [])
         existing_links = current_map.get('links', [])
 
@@ -992,24 +1011,24 @@ E: [Hierarchy Planning Iron Laws - Must Strictly Follow]
             {'id': n['id'], 'label': n['label']} for n in existing_nodes
         ], ensure_ascii=False)
 
-        prompt = f"""C: 【新概念列表 - 需要规划层级】
+        prompt = f"""C: 【新概念列表 - 需要规划分组】
 {concept_summary}
 
-【当前导图已有节点与连线 - 作为挂载参考】
+【当前导图已有节点 - 作为参考】
 节点: {existing_summary}
 连线: {json.dumps(existing_links, ensure_ascii=False)}
 
 ---
-请为所有新概念规划父子层级关系，调用 plan_hierarchy 工具提交。
-E: [New Concepts - Need Hierarchy Planning]
+请为所有新概念规划概念分组，调用 plan_hierarchy 工具提交。
+E: [New Concepts - Need Grouping]
 {concept_summary}
 
-[Existing Nodes and Links - For Attachment Reference]
+[Existing Nodes - For Reference]
 Nodes: {existing_summary}
 Links: {json.dumps(existing_links, ensure_ascii=False)}
 
 ---
-Please plan parent-child hierarchy for all new concepts, call the plan_hierarchy tool."""
+Please plan concept groupings for all new concepts, call the plan_hierarchy tool."""
 
         logger.info(
             f"C: [HierarchyPlanning] 开始规划，新概念={len(concepts)}，已有节点={len(existing_nodes)}，模型={self.model}"
@@ -1024,15 +1043,15 @@ Please plan parent-child hierarchy for all new concepts, call the plan_hierarchy
             tools=self.tools,
             tool_choice_name="plan_hierarchy"
         )
-        relations = result.get('relations', [])
+        groups = result.get('groups', [])
 
         logger.info(
-            f"C: [HierarchyPlanning] 规划完成，关系数={len(relations)}"
+            f"C: [HierarchyPlanning] 规划完成，分组数={len(groups)}"
         )
         logger.info(
-            f"E: [HierarchyPlanning] Done, relations={len(relations)}"
+            f"E: [HierarchyPlanning] Done, groups={len(groups)}"
         )
-        return relations
+        return groups
 
 
 # =========================================================
@@ -1049,17 +1068,17 @@ class DeltaGenerationAgent(MindMapSpecialistAgent):
 
     def generate(self, chat_history: str, concepts: list[dict],
                  hierarchy: list[dict] | None, current_map: dict) -> dict:
-        """C: 基于预提取的概念和层级规划生成 delta。
+        """C: 基于预提取的概念和分组建议生成 delta。
         返回 {"delta": raw_delta_dict, "merged_map": {tree/nodes/links}}
         如果 hierarchy 为 None（阶段2失败），则仅注入概念提示。
         merged_map 包含 tree（G6嵌套树）、nodes（扁平列表）、links（扁平列表）。
-        E: Generate delta based on pre-extracted concepts and hierarchy plan.
+        E: Generate delta based on pre-extracted concepts and grouping suggestions.
         Returns {"delta": raw_delta_dict, "merged_map": {tree/nodes/links}}
         If hierarchy is None (stage 2 failed), only inject concept hints.
         merged_map contains tree (G6 nested), nodes (flat), links (flat)."""
 
-        # C: 构建前缀块（概念 + 层级），共享 _build_react_prompt 的 ReAct 模板
-        # E: Build prefix blocks (concepts + hierarchy), share _build_react_prompt's ReAct template
+        # C: 构建前缀块（概念 + 分组），共享 _build_react_prompt 的 ReAct 模板
+        # E: Build prefix blocks (concepts + grouping), share _build_react_prompt's ReAct template
         extra_parts = []
 
         if concepts:
@@ -1077,13 +1096,16 @@ class DeltaGenerationAgent(MindMapSpecialistAgent):
             )
 
         if hierarchy:
-            hierarchy_summary = json.dumps(hierarchy, ensure_ascii=False)
+            group_summary = json.dumps(hierarchy, ensure_ascii=False)
             extra_parts.append(
-                f"C: 【预规划的层级关系 - 请按此结构建立 add_links，可微调连线类型】\n"
-                f"{hierarchy_summary}\n"
+                f"C: 【概念分组参考 - 同一组内的概念语义相关，建议在组织结构时考虑这些分组。"
+                f"你可以自主决定各组内部及组之间的父子从属关系。】\n"
+                f"{group_summary}\n"
                 f"---\n"
-                f"E: [Pre-planned Hierarchy - Establish add_links following this structure, may fine-tune link types]\n"
-                f"{hierarchy_summary}\n"
+                f"E: [Concept Grouping Reference - Concepts in the same group are semantically related. "
+                f"Consider these groupings when organizing the hierarchy. "
+                f"You have full autonomy over parent-child relationships within and across groups.]\n"
+                f"{group_summary}\n"
                 f"---\n"
             )
 
@@ -1284,18 +1306,18 @@ class DebugOutputManager:
         )
         self._write_file("02_hierarchy_planning_input.txt", content)
 
-    def save_stage2_output(self, raw_relations: list,
-                           validated_relations: list) -> None:
+    def save_stage2_output(self, raw_groups: list,
+                           validated_groups: list) -> None:
         """C: 保存 02_hierarchy_planning_output.json — 阶段2的输出。
         E: Save 02_hierarchy_planning_output.json — stage 2 output."""
         output = {
-            "raw_relations": raw_relations,
-            "validated_relations": validated_relations,
-            "raw_count": len(raw_relations) if isinstance(raw_relations, list) else 0,
-            "validated_count": len(validated_relations),
+            "raw_groups": raw_groups,
+            "validated_groups": validated_groups,
+            "raw_count": len(raw_groups) if isinstance(raw_groups, list) else 0,
+            "validated_count": len(validated_groups),
             "filtered_out": (
-                len(raw_relations) - len(validated_relations)
-                if isinstance(raw_relations, list) else 0
+                len(raw_groups) - len(validated_groups)
+                if isinstance(raw_groups, list) else 0
             ),
         }
         self._write_file("02_hierarchy_planning_output.json", output, is_json=True)
@@ -1307,7 +1329,7 @@ class DebugOutputManager:
         content = (
             f"=== Injected Concepts ({len(concepts)}) ===\n"
             f"{json.dumps(concepts, ensure_ascii=False, indent=2)}\n\n"
-            f"=== Injected Hierarchy Plan ===\n"
+            f"=== Injected Group Suggestions ===\n"
             f"{json.dumps(hierarchy, ensure_ascii=False, indent=2) if hierarchy else '(none - skipped)'}\n\n"
             f"=== Chat History ===\n{chat_history}\n\n"
             f"=== Current Map Nodes ({len(current_map.get('nodes', []))}) ===\n"
@@ -1401,39 +1423,35 @@ class MindMapPipelineOrchestrator:
         return valid
 
     @staticmethod
-    def _validate_hierarchy(relations: list, concepts: list,
+    def _validate_hierarchy(groups: list, concepts: list,
                             current_map: dict) -> list:
-        """C: 验证层级关系，确保引用的 ID 都存在。
-        E: Validate hierarchy, ensure all referenced IDs exist."""
-        if not isinstance(relations, list):
+        """C: 验证概念分组，确保引用的 ID 都存在。
+        E: Validate concept groups, ensure all referenced IDs exist."""
+        if not isinstance(groups, list):
             return []
         valid_ids = {str(c['id']) for c in concepts}
         valid_ids |= {str(n['id']) for n in current_map.get('nodes', [])}
         valid = []
-        for r in relations:
-            if not isinstance(r, dict):
+        for g in groups:
+            if not isinstance(g, dict):
                 continue
-            src = str(r.get('parent_id', ''))
-            tgt = str(r.get('child_id', ''))
-            if not src or not tgt:
+            gid = g.get('group_id', '')
+            cids = g.get('concept_ids', [])
+            if not gid or not isinstance(cids, list) or len(cids) < 1:
                 continue
-            if src not in valid_ids:
+            # C: 过滤掉不在 valid_ids 中的概念ID
+            # E: Filter out concept IDs not in valid_ids
+            valid_cids = [c for c in cids if c in valid_ids]
+            if not valid_cids:
                 logger.warning(
-                    f"C: [Validate] 层级规划引用了未知父节点 '{src}'，跳过"
+                    f"C: [Validate] 分组 '{gid}' 无有效概念ID，跳过"
                 )
                 logger.warning(
-                    f"E: [Validate] Hierarchy references unknown parent '{src}', skipped"
+                    f"E: [Validate] Group '{gid}' has no valid concept IDs, skipped"
                 )
                 continue
-            if tgt not in valid_ids:
-                logger.warning(
-                    f"C: [Validate] 层级规划引用了未知子节点 '{tgt}'，跳过"
-                )
-                logger.warning(
-                    f"E: [Validate] Hierarchy references unknown child '{tgt}', skipped"
-                )
-                continue
-            valid.append(r)
+            g['concept_ids'] = valid_cids
+            valid.append(g)
         return valid
 
     def generate(self, chat_history: str, current_map: dict,
@@ -1444,11 +1462,19 @@ class MindMapPipelineOrchestrator:
           阶段1 失败 → 跳过阶段1+2，直接用 legacy 单模型
           阶段2 失败 → 跳过阶段2，阶段3 仅接收概念提示
           阶段3 失败 → 返回原图
+        返回: {"nodes": [...], "links": [...], "tree": [...],
+               "_timing": {"stage1": x, "stage2": x, "stage3": x, "total": x},
+               "_degradation": {"stage1_failed": bool, "stage2_failed": bool,
+                                "stage3_failed": bool, "degraded_to_legacy": bool}}
         E: Execute 3-stage pipeline with automatic degradation.
         Degradation chain:
           Stage 1 fails → skip stages 1+2, use legacy single-model directly
           Stage 2 fails → skip stage 2, stage 3 receives only concept hints
           Stage 3 fails → return original map
+        Returns: {"nodes": [...], "links": [...], "tree": [...],
+               "_timing": {"stage1": x, "stage2": x, "stage3": x, "total": x},
+               "_degradation": {"stage1_failed": bool, "stage2_failed": bool,
+                                "stage3_failed": bool, "degraded_to_legacy": bool}}
         """
         # C: 初始化调试输出管理器
         # E: Initialize debug output manager
@@ -1458,6 +1484,30 @@ class MindMapPipelineOrchestrator:
             session_ts=session_ts
         )
         t_start = datetime.now()
+
+        # C: 降级计数和 stage-wise 时序
+        # E: Degradation counter and stage-wise timing
+        degradation = {
+            "stage1_failed": False,
+            "stage2_failed": False,
+            "stage3_failed": False,
+            "degraded_to_legacy": False,
+        }
+        timing = {"stage1": 0.0, "stage2": 0.0, "stage3": 0.0}
+
+        def _build_result(final_map: dict) -> dict:
+            """C: 组装最终返回结果（含时序和降级信息）
+            E: Build final result with timing and degradation info"""
+            result = dict(final_map)
+            result["_timing"] = {
+                "stage1": round(timing["stage1"], 2),
+                "stage2": round(timing["stage2"], 2),
+                "stage3": round(timing["stage3"], 2),
+                "total": round((datetime.now() - t_start).total_seconds(), 2),
+            }
+            result["_degradation"] = dict(degradation)
+            return result
+
         debug.add_log(f"[Pipeline Start] {t_start.isoformat()}")
         debug.add_log(f"Chat history length: {len(chat_history)} chars")
         debug.add_log(f"Current map nodes: {len(current_map.get('nodes', []))}, links: {len(current_map.get('links', []))}")
@@ -1466,6 +1516,8 @@ class MindMapPipelineOrchestrator:
         # C: 如果没有配置概念提取 Agent，直接降级到 legacy
         # E: If concept agent not configured, degrade to legacy directly
         if self.concept_agent is None:
+            degradation["stage1_failed"] = True
+            degradation["degraded_to_legacy"] = True
             msg = "C: [Pipeline] 未配置概念提取模型 → 降级到单模型 ReAct"
             msg_en = "E: [Pipeline] Concept model not configured → degrade to single-model ReAct"
             logger.info(msg)
@@ -1477,7 +1529,7 @@ class MindMapPipelineOrchestrator:
             debug.save_final_map(result)
             debug.add_log(f"[Pipeline End] Duration: {(datetime.now() - t_start).total_seconds():.2f}s (legacy fallback)")
             debug.flush_logs()
-            return result
+            return _build_result(result)
 
         # ========================
         # C: 阶段1 — 概念提取
@@ -1498,11 +1550,15 @@ class MindMapPipelineOrchestrator:
             logger.error(msg_en)
             debug.add_log(f"[Stage 1 ERROR] {msg}")
             debug.flush_logs()
-            return self.legacy_agent.generate_map_from_context(
+            degradation["stage1_failed"] = True
+            degradation["degraded_to_legacy"] = True
+            result = self.legacy_agent.generate_map_from_context(
                 chat_history, current_map
             )
+            return _build_result(result)
 
         t1_elapsed = (datetime.now() - t1_start).total_seconds()
+        timing["stage1"] = t1_elapsed
         debug.save_stage1_output(
             raw_concepts if isinstance(raw_concepts, list) else [],
             concepts
@@ -1525,61 +1581,65 @@ class MindMapPipelineOrchestrator:
             debug.save_final_map(result)
             debug.add_log(f"[Pipeline End] Duration: {(datetime.now() - t_start).total_seconds():.2f}s (empty concepts → legacy)")
             debug.flush_logs()
-            return result
+            return _build_result(result)
+
+        timing["stage1"] = t1_elapsed
 
         # ========================
-        # C: 阶段2 — 层级规划
-        # E: Stage 2 — Hierarchy planning
+        # C: 阶段2 — 概念分组
+        # E: Stage 2 — Concept grouping
         # ========================
-        logger.info("C: [Pipeline] === 阶段2: 层级规划 ===")
-        logger.info("E: [Pipeline] === Stage 2: Hierarchy Planning ===")
+        logger.info("C: [Pipeline] === 阶段2: 概念分组 ===")
+        logger.info("E: [Pipeline] === Stage 2: Concept Grouping ===")
         debug.add_log(f"[Stage 2 Start] {datetime.now().isoformat()}")
         hierarchy = None
-        raw_relations = []
+        raw_groups = []
         if self.hierarchy_agent is not None:
             debug.save_stage2_input(concepts, current_map)
             t2_start = datetime.now()
             try:
-                raw_relations = self.hierarchy_agent.plan(concepts, current_map)
+                raw_groups = self.hierarchy_agent.plan(concepts, current_map)
                 hierarchy = self._validate_hierarchy(
-                    raw_relations, concepts, current_map
+                    raw_groups, concepts, current_map
                 )
             except Exception as e:
-                msg = f"C: [Pipeline] 阶段2 异常: {e} → 跳过层级规划，继续阶段3"
-                msg_en = f"E: [Pipeline] Stage 2 error: {e} → skip hierarchy, continue to stage 3"
+                msg = f"C: [Pipeline] 阶段2 异常: {e} → 跳过概念分组，继续阶段3"
+                msg_en = f"E: [Pipeline] Stage 2 error: {e} → skip grouping, continue to stage 3"
                 logger.error(msg)
                 logger.error(msg_en)
                 debug.add_log(f"[Stage 2 ERROR] {msg}")
+                degradation["stage2_failed"] = True
                 hierarchy = None
 
             t2_elapsed = (datetime.now() - t2_start).total_seconds()
+            timing["stage2"] = t2_elapsed
             debug.save_stage2_output(
-                raw_relations if isinstance(raw_relations, list) else [],
+                raw_groups if isinstance(raw_groups, list) else [],
                 hierarchy if hierarchy else []
             )
             debug.add_log(
                 f"[Stage 2 Done] {t2_elapsed:.2f}s | "
-                f"raw={len(raw_relations) if isinstance(raw_relations, list) else 0}, "
+                f"raw={len(raw_groups) if isinstance(raw_groups, list) else 0}, "
                 f"valid={len(hierarchy) if hierarchy else 0}"
             )
         else:
             logger.info(
-                "C: [Pipeline] 未配置层级规划模型 → 跳过阶段2"
+                "C: [Pipeline] 未配置概念分组模型 → 跳过阶段2"
             )
             logger.info(
-                "E: [Pipeline] Hierarchy model not configured → skip stage 2"
+                "E: [Pipeline] Grouping model not configured → skip stage 2"
             )
-            debug.add_log("[Stage 2 Skipped] Hierarchy agent not configured")
+            debug.add_log("[Stage 2 Skipped] Grouping agent not configured")
 
         # ========================
         # C: 阶段3 — Delta 生成
         # E: Stage 3 — Delta generation
         # ========================
         logger.info(
-            f"C: [Pipeline] === 阶段3: Delta 生成 ===（概念={len(concepts)}，层级关系={len(hierarchy) if hierarchy else 0}）"
+            f"C: [Pipeline] === 阶段3: Delta 生成 ===（概念={len(concepts)}，分组={len(hierarchy) if hierarchy else 0}）"
         )
         logger.info(
-            f"E: [Pipeline] === Stage 3: Delta Generation === (concepts={len(concepts)}, relations={len(hierarchy) if hierarchy else 0})"
+            f"E: [Pipeline] === Stage 3: Delta Generation === (concepts={len(concepts)}, groups={len(hierarchy) if hierarchy else 0})"
         )
         debug.add_log(f"[Stage 3 Start] {datetime.now().isoformat()}")
         debug.save_stage3_input(concepts, hierarchy, chat_history, current_map)
@@ -1617,7 +1677,8 @@ class MindMapPipelineOrchestrator:
             logger.info(
                 f"E: [Pipeline] 3-stage pipeline complete, final nodes={len(final_map.get('nodes', []))}"
             )
-            return final_map
+            timing["stage3"] = t3_elapsed
+            return _build_result(final_map)
         except Exception as e:
             t3_elapsed = (datetime.now() - t3_start).total_seconds()
             msg = f"C: [Pipeline] 阶段3 异常: {e} → 返回原图"
@@ -1627,4 +1688,93 @@ class MindMapPipelineOrchestrator:
             debug.add_log(f"[Stage 3 ERROR after {t3_elapsed:.2f}s] {msg}")
             debug.add_log(f"[Pipeline Failed] Returning original map unchanged")
             debug.flush_logs()
-            return current_map
+            degradation["stage3_failed"] = True
+            return _build_result(current_map)
+
+
+# =========================================================
+# C: 子树上下文提取 — 为子树隔离对话提供过滤后的导图
+#    包含指定节点及其所有祖先节点，排除其所有子孙节点
+# E: Subtree context extraction — provides filtered map for subtree-scoped conversation
+#    Includes the specified node and all ancestors, excludes all descendants
+# =========================================================
+def extract_subtree_context(node_id: str, current_map: dict) -> dict:
+    """C: 从 flat nodes+links 中提取子树上下文。
+    返回 filtered_map 包含:
+      - node_id 及其所有祖先节点（直达根节点）
+      - 完全排除 node_id 的所有子孙节点
+      - _subtree_context: true（标记为子树模式）
+      - _subtree_root_id: node_id
+      - _ancestors: 从根到 node_id 的祖先路径
+    降级: 如果 node_id 不在树中，返回原图但附加 warning。
+    E: Extract subtree context from flat nodes+links.
+    Returns filtered_map containing:
+      - node_id and all its ancestors (up to root)
+      - All descendants of node_id are EXCLUDED
+      - _subtree_context: true
+      - _subtree_root_id: node_id
+      - _ancestors: ancestor path from root to node_id
+    Fallback: if node_id not found, return original map with warning."""
+    nodes = current_map.get('nodes', [])
+    links = current_map.get('links', [])
+
+    if not nodes or not node_id:
+        result = dict(current_map)
+        result['_subtree_context'] = False
+        result['_warning'] = 'Empty map or no node_id provided'
+        return result
+
+    # Step 1: 构建嵌套树
+    tree = flatten_to_tree(nodes, links)
+    if not tree:
+        result = dict(current_map)
+        result['_subtree_context'] = False
+        result['_warning'] = 'Failed to build tree for subtree extraction'
+        return result
+
+    # Step 2: 在树中定位 node_id 并收集祖先路径
+    # E: Locate node_id in tree and collect ancestor path
+    def find_node_and_ancestors(roots, target_id, ancestors=None):
+        if ancestors is None:
+            ancestors = []
+        for node in roots:
+            if node['id'] == target_id:
+                return node, ancestors
+            if node.get('children'):
+                result = find_node_and_ancestors(
+                    node['children'], target_id,
+                    ancestors + [{'id': node['id'], 'label': node.get('label', '')}]
+                )
+                if result[0] is not None:
+                    return result
+        return None, []
+
+    found_node, ancestors = find_node_and_ancestors(tree, node_id)
+    if found_node is None:
+        result = dict(current_map)
+        result['_subtree_context'] = False
+        result['_warning'] = f'Node "{node_id}" not found in tree'
+        return result
+
+    # Step 3: 从树中删除 node_id 的所有子孙节点
+    # E: Remove all descendants of node_id from the tree
+    def prune_children(node):
+        node['children'] = []
+        node['_hasChildren'] = False
+
+    prune_children(found_node)
+
+    # Step 4: 将修剪后的树转回 flat 格式
+    # E: Convert pruned tree back to flat format
+    flat_nodes, flat_links = flatten_from_tree(tree)
+
+    # Step 5: 组装返回结果
+    # E: Assemble return result
+    result = {
+        'nodes': flat_nodes,
+        'links': flat_links,
+        '_subtree_context': True,
+        '_subtree_root_id': node_id,
+        '_ancestors': ancestors,
+    }
+    return result

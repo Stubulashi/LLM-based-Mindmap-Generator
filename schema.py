@@ -17,6 +17,12 @@ class Node(BaseModel):
     children: Optional[List['Node']] = Field(default=None, description="C: 子节点列表 / E: Children list")
     # C: 折叠状态 / E: Collapse state
     collapsed: bool = Field(default=False, description="C: 折叠状态 / E: Collapse state")
+    # C: 节点坐标X（可选，拖拽后由前端设置） / E: Node X coordinate (optional, set by frontend after drag)
+    x: Optional[float] = Field(default=None, description="C: 节点坐标X / E: Node X coordinate")
+    # C: 节点坐标Y（可选，拖拽后由前端设置） / E: Node Y coordinate (optional, set by frontend after drag)
+    y: Optional[float] = Field(default=None, description="C: 节点坐标Y / E: Node Y coordinate")
+    # C: 用户手动定位标记（true=跳过自动布局） / E: User positioned flag (true=skip auto-layout)
+    userPositioned: bool = Field(default=False, description="C: 用户手动定位标记 / E: User positioned flag")
     # C: G6内部元数据标记（序列化为 _isVirtual, _isRoot, _depth, _hasChildren）
     # E: G6 internal metadata flags (serialized as _isVirtual, _isRoot, _depth, _hasChildren)
     isVirtual: bool = Field(default=False, serialization_alias='_isVirtual', description="C: 虚拟根节点标记 / E: Virtual root flag")

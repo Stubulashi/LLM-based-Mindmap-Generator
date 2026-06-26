@@ -100,32 +100,32 @@ def get_concept_extraction_tools():
 
 
 def get_hierarchy_planning_tools():
-    # C: 阶段2 层级规划工具 — 为概念构建父子层级关系
-    # E: Stage 2 Hierarchy planning tool — build parent-child hierarchy for concepts
+    # C: 阶段2 概念分组工具 — 将语义相关的概念划分为一组（不指定具体的父子从属关系）
+    # E: Stage 2 Concept grouping tool — group semantically related concepts (no specific parent-child relations)
     return [
         {
             "type": "function",
             "function": {
                 "name": "plan_hierarchy",
-                "description": "C: 为提取的概念规划父子层级关系。建立纵深结构，避免所有节点平铺在同一层。优先将新概念挂载到语义最相关的已有节点下。\nE: Plan parent-child hierarchy for extracted concepts. Establish depth structure, avoid flattening all nodes at the same level. Prioritize attaching new concepts under the most semantically relevant existing nodes.",
+                "description": "C: 为提取的概念规划概念分组。将语义相关的概念划分为同一组，不指定具体的父子从属关系。每组包含一个或多个概念ID。\nE: Plan concept groupings for extracted concepts. Group semantically related concepts together, without specifying specific parent-child relationships. Each group contains one or more concept IDs.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "relations": {
+                        "groups": {
                             "type": "array",
-                            "description": "C: 层级关系列表。每个关系表示一对父子连线。\nE: List of hierarchy relations. Each relation represents a parent-child link.",
+                            "description": "C: 概念分组列表。每个分组包含一个分组标识、包含的概念ID列表以及语义描述。\nE: List of concept groups. Each group has an ID, concept IDs, and a semantic label.",
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "parent_id": {"type": "string", "description": "父节点ID（可以是已有节点或新概念）"},
-                                    "child_id": {"type": "string", "description": "子节点ID（必须是新概念或已有节点）"},
-                                    "type": {"type": "string", "enum": ["solid", "dashed", "dotted", "reference", "contrast"], "description": "solid=父子实线, dashed=间接虚线, dotted=弱关联点线, reference=引用/依赖, contrast=对比/对立"}
+                                    "group_id": {"type": "string", "description": "分组标识，如 'group_phonetics'"},
+                                    "concept_ids": {"type": "array", "items": {"type": "string"}, "description": "C: 该分组包含的概念ID列表（必须来自新概念或已有节点）\nE: List of concept IDs in this group (must come from new concepts or existing nodes)"},
+                                    "semantic_label": {"type": "string", "description": "C: 该分组的语义描述（如 '音位变化类型'）\nE: Semantic label for this group (e.g., 'Types of sound change')"}
                                 },
-                                "required": ["parent_id", "child_id", "type"]
+                                "required": ["group_id", "concept_ids", "semantic_label"]
                             }
                         }
                     },
-                    "required": ["relations"]
+                    "required": ["groups"]
                 }
             }
         }

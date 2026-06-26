@@ -248,6 +248,15 @@
 
     <div class="flex-1 md-card relative overflow-hidden" 
          id="canvas-container">
+        <!-- C: 子树模式 顶部提示条 / E: Subtree mode top banner -->
+        <div v-if="subtreeMode" 
+             class="absolute top-0 left-0 right-0 z-40 bg-blue-600 text-white px-4 py-2 flex items-center justify-between text-sm shadow-lg">
+            <span>{{ t('subtreeBanner') + ' ' + (activeNode?.label || subtreeRootId) }}</span>
+            <button @click="exitSubtreeMode" 
+                    class="bg-white text-blue-700 px-3 py-1 rounded-full text-xs font-medium hover:bg-blue-50 transition-colors">
+                {{ t('exitSubtree') }}
+            </button>
+        </div>
         <!-- C: G6 图容器 — G6 自动处理布局、连线、拖拽、缩放、展开/折叠 -->
         <!-- E: G6 graph container — G6 handles layout, edges, drag, zoom, collapse/expand -->
         <div id="g6-container" class="w-full h-full"></div>
@@ -257,6 +266,9 @@
                 <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
                     <h3 class="font-bold text-lg text-gray-800">{{ activeNode.label }}</h3>
                     <div class="flex gap-2 items-center">
+                        <button @click="startSubtreeConversation" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-blue-50 text-blue-500 transition-colors" title="Subtree Conversation">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        </button>
                         <button @click="deleteActiveNode" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 text-red-500 transition-colors" title="Delete Node">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
@@ -275,6 +287,14 @@
 
         <div class="absolute bottom-6 right-6 flex gap-3 items-center z-20">
             <span class="bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-xs text-gray-500 shadow-sm border border-gray-100">{{ t('dragToPan') }}</span>
+
+            <!-- C: 保存/加载按钮 / E: Save/Load buttons -->
+            <button @click="saveCurrentMap" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" title="Save Map">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+            </button>
+            <button @click="showMapList = true; fetchMapList()" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" title="Load Map">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            </button>
             
             <button @click="clearAllNodes" class="w-12 h-12 bg-white rounded-full shadow-lg border border-red-100 hover:bg-red-50 flex items-center justify-center text-red-500 transition-transform active:scale-95" title="Clear All Nodes">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -285,6 +305,30 @@
             </button>
         </div>
     </div>
+
+    <!-- C: 导图列表弹窗 / E: Map list modal -->
+    <transition name="modal">
+        <div v-if="showMapList" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm" @click.self="showMapList = false">
+            <div class="bg-white w-[450px] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[70%]">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <h2 class="text-xl font-bold text-gray-800">{{ t('mapList') }}</h2>
+                    <button @click="showMapList = false" class="text-gray-400 hover:text-gray-700">x</button>
+                </div>
+                <div class="p-4 overflow-y-auto flex-1">
+                    <div v-if="savedMaps.length === 0" class="text-center text-gray-400 py-8">{{ t('noSavedMaps') }}</div>
+                    <div v-else v-for="m in savedMaps" 
+                         @click="loadMapById(m.map_id)"
+                         class="p-4 rounded-xl border border-gray-100 mb-3 hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all">
+                        <div class="flex justify-between items-center">
+                            <div class="font-medium text-gray-800">{{ m.name }}</div>
+                            <div class="text-xs text-gray-400">{{ m.node_count }} nodes</div>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">{{ m.updated_at }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </transition>
 
     <transition name="modal">
         <div v-if="showSettings" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm" @click.self="showSettings = false">
@@ -375,9 +419,18 @@
             syncToMap: 'Sync Chat to Map', syncDesc: 'AI dynamically updates map based on chat.',
             autoScroll: 'Auto-scroll Chat', autoScrollDesc: 'Always scroll to newest messages.',
             done: 'Done', dragToPan: 'Drag to pan',
-            sysReady: 'System ready. Waiting for audio context.', 
+            sysReady: 'System ready. Waiting for audio context.',
             confirmClear: 'Are you sure you want to clear the canvas?',
-            includeTranscriptAsContext: 'Include as context'
+            includeTranscriptAsContext: 'Include as context',
+            subtreeMode: 'Subtree Conversation',
+            exitSubtree: 'Exit Subtree Mode',
+            subtreeBanner: 'Subtree Mode: Exploring ',
+            saveMap: 'Save Map',
+            loadMap: 'Load Map',
+            mapList: 'Saved Maps',
+            noSavedMaps: 'No saved maps yet.',
+            mapSaved: 'Map saved successfully!',
+            confirmLoad: 'Load this map? Current changes will be lost.'
         },
         zh: {
             appTitle: '语音智能体', totalTime: '总时长', transcript: '会议转录', agentChat: '智能对话',
@@ -388,9 +441,18 @@
             syncToMap: '对话同步至导图', syncDesc: 'AI 将根据您的聊天指令实时修改右侧导图。',
             autoScroll: '对话自动滚动', autoScrollDesc: '收到新消息时强制滚动到底部。',
             done: '完成设置', dragToPan: '拖拽空白处移动画布',
-            sysReady: '系统已就绪，请录音或上传音频文件。', 
+            sysReady: '系统已就绪，请录音或上传音频文件。',
             confirmClear: '确定要清空画布上的所有节点吗？',
-            includeTranscriptAsContext: '作为上下文发送'
+            includeTranscriptAsContext: '作为上下文发送',
+            subtreeMode: '子树对话',
+            exitSubtree: '退出子树模式',
+            subtreeBanner: '子树模式：正在探索 ',
+            saveMap: '保存导图',
+            loadMap: '加载导图',
+            mapList: '已保存的导图',
+            noSavedMaps: '暂无已保存的导图。',
+            mapSaved: '导图已保存！',
+            confirmLoad: '加载此导图？当前内容将被替换。'
         }
     }
 
@@ -425,6 +487,13 @@
             const showUploadMenu = ref(false);
             const showSettings = ref(false);
             const activeNode = ref(null);
+            // C: 地图列表弹窗 / E: Map list modal
+            const showMapList = ref(false);
+            const savedMaps = ref([]);
+            // C: 子树隔离对话模式状态
+            // E: Subtree-scoped conversation mode state
+            const subtreeMode = ref(false);
+            const subtreeRootId = ref(null);
 
             const userInput = ref('')
             const chatHistory = ref([{ role: 'system', text: locales['en'].sysReady }])
@@ -808,7 +877,7 @@
                             nodesep: 30,
                             ranksep: 80,
                         },
-                        behaviors: ['drag-canvas', 'zoom-canvas', 'collapse-expand'],
+                        behaviors: ['drag-canvas', 'zoom-canvas', 'collapse-expand', 'drag-element'],
                         node: {
                             type: 'rect',
                             style: {
@@ -848,6 +917,18 @@
                                     const lt = d.link_type || d.type || 'solid'
                                     return lt === 'reference' || lt === 'contrast'
                                 },
+                                labelText: (d) => {
+                                    const lt = d.link_type || d.type || 'solid'
+                                    if (lt === 'solid') return ''
+                                    const labels = {dashed: '关联', dotted: '弱关联', reference: '引用', contrast: '对比'}
+                                    return labels[lt] || ''
+                                },
+                                labelFontSize: 10,
+                                labelFill: '#64748b',
+                                labelBackground: true,
+                                labelBackgroundFill: '#ffffff',
+                                labelBackgroundOpacity: 0.85,
+                                labelPadding: [2, 6],
                             },
                         },
                         data: { nodes: [], edges: [] },
@@ -864,6 +945,48 @@
                         if (!nodeId || nodeId === '__virtual_root__' || nodeId === '__placeholder__') return
                         const found = findNodeInTree(treeRoots.value, nodeId)
                         if (found) activeNode.value = found
+                    })
+
+                    // C: 展开/折叠事件 → 同步 collapsed 状态到响应式数据
+                    // E: Collapse/expand event → sync collapsed state to reactive data
+                    graph.on('collapse:after', (evt) => {
+                        const nodeId = evt.nodeId
+                        if (!nodeId) return
+                        // C: 更新 treeRoots 中对应节点的 collapsed 状态
+                        // E: Update collapsed state in treeRoots
+                        const updateCollapsed = (roots) => {
+                            for (const r of roots) {
+                                if (r.id === nodeId) {
+                                    // C: G6 的 collapse-expand 会切换 collapsed，我们同步到数据
+                                    // E: G6's collapse-expand toggles collapsed, sync to data
+                                    r.collapsed = !r.collapsed
+                                    return true
+                                }
+                                if (r.children && updateCollapsed(r.children)) return true
+                            }
+                            return false
+                        }
+                        updateCollapsed(treeRoots.value)
+                        _g6log('collapse:after', nodeId, 'synced')
+                    })
+
+                    // C: 拖拽结束 → 捕获坐标（供后续 userPositioned 处理）
+                    // E: Drag end → capture coordinates (for userPositioned handling)
+                    graph.on('drag-end', (evt) => {
+                        const nodeId = evt.item?.id
+                        if (!nodeId || nodeId === '__virtual_root__') return
+                        const model = evt.item?.getModel()
+                        if (model) {
+                            _g6log('drag-end', nodeId, 'pos=', model.x?.toFixed(0), model.y?.toFixed(0))
+                            // C: 标记 userPositioned（用于 schema.x/y 回传）
+                            // E: Mark userPositioned (for schema.x/y round-trip)
+                            const found = findNodeInTree(treeRoots.value, nodeId)
+                            if (found) {
+                                found.userPositioned = true
+                                found.x = model.x
+                                found.y = model.y
+                            }
+                        }
                     })
                     _g6log('事件监听器已注册')
 
@@ -993,6 +1116,12 @@
                     current_map: { nodes: nodes.value, links: links.value }
                 };
                 
+                // C: 子树模式 — 传递子树节点ID
+                // E: Subtree mode — pass subtree node ID
+                if (subtreeMode.value && subtreeRootId.value) {
+                    requestBody.subtree_node_id = subtreeRootId.value;
+                }
+                
                 // C: 如果开启了"转录作为上下文"，通过独立字段传递给后端
                 // E: If "include transcript as context" is on, pass as separate field
                 if (includeTranscriptContext.value && transcripts.value.length > 0) {
@@ -1014,11 +1143,56 @@
                     const data = await response.json();
                     chatHistory.value.push({ role: 'ai', text: data.answer });
                     if (data.map) {
-                        // C: 后端返回 tree（G6嵌套树）+ nodes/links（扁平回传用）
-                        // E: Backend returns tree (G6 nested) + nodes/links (flat for round-trip)
-                        nodes.value = data.map.nodes || [];
-                        links.value = data.map.links || [];
-                        treeRoots.value = data.map.tree || [];
+                        if (subtreeMode.value) {
+                            // C: 子树模式 — 局部合并：保留全局树，仅替换子树根以下内容
+                            // E: Subtree mode — local merge: preserve full tree, replace under subtree root
+                            _g6log('子树模式: 局部合并 nodes=', data.map.nodes?.length, 'links=', data.map.links?.length)
+                            // C: 从完整 flat 数据中移除旧的子树节点
+                            // E: Remove old subtree nodes from full flat data
+                            const newIds = new Set((data.map.nodes || []).map(n => n.id))
+                            nodes.value = nodes.value.filter(n => !newIds.has(n.id) || n.id === subtreeRootId.value)
+                            // C: 保留不在新数据中的旧链接
+                            // E: Keep old links not in new data
+                            const newLinkKeys = new Set((data.map.links || []).map(l => `${l.source}->${l.target}`))
+                            links.value = links.value.filter(l => !newLinkKeys.has(`${l.source}->${l.target}`))
+                            // C: 合并新数据
+                            // E: Merge new data
+                            nodes.value.push(...(data.map.nodes || []).filter(n => n.id !== subtreeRootId.value))
+                            links.value.push(...(data.map.links || []))
+                            // C: 重建完整树 — 用后端返回的子树树替换旧子树
+                            // E: Rebuild full tree — replace old subtree with backend's
+                            const rebuildTree = (roots) => {
+                                for (let i = 0; i < roots.length; i++) {
+                                    if (roots[i].id === subtreeRootId.value) {
+                                        // C: 用后端的新子树替换
+                                        // E: Replace with backend's new subtree
+                                        if (data.map.tree && data.map.tree.length > 0) {
+                                            const newRoot = JSON.parse(JSON.stringify(data.map.tree[0]))
+                                            roots[i] = newRoot
+                                        }
+                                        return true
+                                    }
+                                    if (roots[i].children) {
+                                        if (rebuildTree(roots[i].children)) return true
+                                    }
+                                }
+                                return false
+                            }
+                            const treeCopy = JSON.parse(JSON.stringify(treeRoots.value))
+                            if (!rebuildTree(treeCopy)) {
+                                // C: 降级：全量替换
+                                // E: Fallback: full replacement
+                                treeRoots.value = data.map.tree || []
+                            } else {
+                                treeRoots.value = treeCopy
+                            }
+                        } else {
+                            // C: 全局模式 — 全量替换
+                            // E: Global mode — full replacement
+                            nodes.value = data.map.nodes || [];
+                            links.value = data.map.links || [];
+                            treeRoots.value = data.map.tree || [];
+                        }
                         _g6log('sendMessage 收到数据: tree=', treeRoots.value.length, 'nodes=', nodes.value.length, 'links=', links.value.length)
                         if (treeRoots.value.length) {
                             _g6log('tree 第一个根节点:', JSON.stringify(treeRoots.value[0]).substring(0, 200))
@@ -1085,6 +1259,8 @@
                     links.value = [];
                     treeRoots.value = [];
                     activeNode.value = null;
+                    subtreeMode.value = false;
+                    subtreeRootId.value = null;
                     chatHistory.value.push({ role: 'system', text: 'Canvas has been cleared manually.' });
                     if (graph) {
                         graph.setData({ nodes: [], edges: [] })
@@ -1092,6 +1268,88 @@
                     }
                     if (settings.autoScroll) scrollChat();
                 }
+            };
+
+            // C: --- 启动子树隔离对话 ---
+            // E: --- Start subtree-scoped conversation ---
+            const startSubtreeConversation = () => {
+                if (!activeNode.value) return;
+                subtreeRootId.value = activeNode.value.id;
+                subtreeMode.value = true;
+                chatHistory.value.push({
+                    role: 'system',
+                    text: `[Subtree Mode] Focused on "${activeNode.value.label}". Your changes will be scoped to this node.`
+                });
+                if (settings.autoScroll) scrollChat();
+            };
+
+            // C: --- 退出子树模式 ---
+            // E: --- Exit subtree mode ---
+            const exitSubtreeMode = () => {
+                subtreeMode.value = false;
+                subtreeRootId.value = null;
+                activeNode.value = null;
+                chatHistory.value.push({
+                    role: 'system',
+                    text: '[Subtree Mode] Exited subtree mode. Back to full map view.'
+                });
+                if (settings.autoScroll) scrollChat();
+            };
+
+            // C: --- 保存当前导图 ---
+            // E: --- Save current map ---
+            const saveCurrentMap = async () => {
+                const mapData = { nodes: nodes.value, links: links.value };
+                const name = prompt('Map name:', `mindmap_${new Date().toISOString().slice(0,10)}`);
+                if (!name) return;
+                try {
+                    const response = await fetch('/save_map', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ map_data: mapData, name })
+                    });
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        chatHistory.value.push({ role: 'system', text: `${t('mapSaved')} (ID: ${data.map_id})` });
+                    }
+                } catch (err) {
+                    chatHistory.value.push({ role: 'system', text: `Save failed: ${err.message}` });
+                }
+                if (settings.autoScroll) scrollChat();
+            };
+
+            // C: --- 获取已保存的导图列表 ---
+            // E: --- Fetch saved maps list ---
+            const fetchMapList = async () => {
+                try {
+                    const response = await fetch('/list_maps');
+                    const data = await response.json();
+                    savedMaps.value = data.maps || [];
+                } catch (err) {
+                    console.error('Failed to list maps:', err);
+                }
+            };
+
+            // C: --- 加载指定导图 ---
+            // E: --- Load specific map ---
+            const loadMapById = async (mapId) => {
+                if (!confirm(t('confirmLoad'))) return;
+                try {
+                    const response = await fetch(`/load_map?map_id=${mapId}`);
+                    const data = await response.json();
+                    if (data.status === 'success' && data.map_data) {
+                        nodes.value = data.map_data.nodes || [];
+                        links.value = data.map_data.links || [];
+                        treeRoots.value = data.map_data.tree || [];
+                        showMapList.value = false;
+                        activeNode.value = null;
+                        chatHistory.value.push({ role: 'system', text: `Loaded map: ${data.name} (${data.node_count} nodes)` });
+                        nextTick(() => updateG6Data());
+                    }
+                } catch (err) {
+                    chatHistory.value.push({ role: 'system', text: `Load failed: ${err.message}` });
+                }
+                if (settings.autoScroll) scrollChat();
             };
 
             // C: --- 手动删除节点逻辑（G6版） ---
@@ -1113,7 +1371,8 @@
 
             return {
                 t, audioPlayerEl, uploadMenuContainer, fileInput, chatBox,
-                showTrans, showUploadMenu, showSettings, activeNode, settings,
+                showTrans, showUploadMenu, showSettings, showMapList, activeNode, settings,
+                savedMaps,
                 searchQuery, selectedSpeaker, uniqueSpeakers, filteredTranscripts, transcripts,
                 nodes, links, treeRoots, chatHistory, userInput,
                 isPlaying, isRecording, currentTime, duration, progress, visualizerData, formatTime, 
@@ -1123,6 +1382,12 @@
                 deleteActiveNode,
                 renderMarkdown,
                 clearAllNodes,
+                saveCurrentMap,
+                fetchMapList,
+                loadMapById,
+                startSubtreeConversation,
+                exitSubtreeMode,
+                subtreeMode,
                 isProcessingAudio, processingStatus, includeTranscriptContext,
                 editingIndex, editText,
                 getTranscriptIndex, deleteTranscript, startEditTranscript, saveTranscript, cancelEdit, downloadAudio
