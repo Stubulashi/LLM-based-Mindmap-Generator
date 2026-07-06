@@ -1,0 +1,49 @@
+{
+  "__purpose": "示例人工评分数据集 — 用于 §6 人工评估与自动化对齐",
+  "__purpose_en": "Example Human Scoring Dataset — for §6 Human Evaluation & Automated Alignment",
+  "__source": "模拟 30 个导图样本的 5 点 Likert 量表评分（包含 3 位评分者）。评估维度：可读性、层级直觉性、信息密度。",
+  "__source_en": "Simulated 5-point Likert scale scores for 30 mind map samples with 3 raters. Dimensions: readability, hierarchy intuitiveness, information density.",
+
+  "__note": "实际使用时应至少 5 位评分者评估 30+ 样本。评分者间信度目标 ICC(3,k) >= 0.70。",
+  "__note_en": "In production, use at least 5 raters for 30+ samples. Target inter-rater ICC(3,k) >= 0.70.",
+
+  "samples": [
+    {"sample_id": "map_01", "readability": 4.2, "hierarchy_intuitiveness": 4.0, "information_density": 3.8, "pedagogical_utility": 4.0, "raters": 3},
+    {"sample_id": "map_02", "readability": 3.5, "hierarchy_intuitiveness": 3.0, "information_density": 4.0, "pedagogical_utility": 3.2, "raters": 3},
+    {"sample_id": "map_03", "readability": 4.8, "hierarchy_intuitiveness": 4.5, "information_density": 4.2, "pedagogical_utility": 4.6, "raters": 3},
+    {"sample_id": "map_04", "readability": 2.8, "hierarchy_intuitiveness": 2.5, "information_density": 3.0, "pedagogical_utility": 2.5, "raters": 3},
+    {"sample_id": "map_05", "readability": 4.0, "hierarchy_intuitiveness": 4.2, "information_density": 3.5, "pedagogical_utility": 3.8, "raters": 3},
+    {"sample_id": "map_06", "readability": 3.2, "hierarchy_intuitiveness": 3.5, "information_density": 4.5, "pedagogical_utility": 3.5, "raters": 3},
+    {"sample_id": "map_07", "readability": 4.5, "hierarchy_intuitiveness": 4.3, "information_density": 4.0, "pedagogical_utility": 4.3, "raters": 3},
+    {"sample_id": "map_08", "readability": 2.0, "hierarchy_intuitiveness": 2.0, "information_density": 2.5, "pedagogical_utility": 1.8, "raters": 3},
+    {"sample_id": "map_09", "readability": 3.8, "hierarchy_intuitiveness": 3.5, "information_density": 3.2, "pedagogical_utility": 3.5, "raters": 3},
+    {"sample_id": "map_10", "readability": 4.3, "hierarchy_intuitiveness": 4.5, "information_density": 3.8, "pedagogical_utility": 4.2, "raters": 3},
+    {"sample_id": "map_11", "readability": 3.0, "hierarchy_intuitiveness": 3.0, "information_density": 3.5, "pedagogical_utility": 3.0, "raters": 3},
+    {"sample_id": "map_12", "readability": 4.5, "hierarchy_intuitiveness": 4.0, "information_density": 4.5, "pedagogical_utility": 4.5, "raters": 3},
+    {"sample_id": "map_13", "readability": 2.5, "hierarchy_intuitiveness": 2.8, "information_density": 3.0, "pedagogical_utility": 2.5, "raters": 3},
+    {"sample_id": "map_14", "readability": 4.0, "hierarchy_intuitiveness": 3.8, "information_density": 4.0, "pedagogical_utility": 4.0, "raters": 3},
+    {"sample_id": "map_15", "readability": 3.5, "hierarchy_intuitiveness": 4.0, "information_density": 3.0, "pedagogical_utility": 3.5, "raters": 3},
+    {"sample_id": "map_16", "readability": 4.7, "hierarchy_intuitiveness": 4.5, "information_density": 4.2, "pedagogical_utility": 4.5, "raters": 3},
+    {"sample_id": "map_17", "readability": 2.8, "hierarchy_intuitiveness": 3.0, "information_density": 3.5, "pedagogical_utility": 3.0, "raters": 3},
+    {"sample_id": "map_18", "readability": 3.5, "hierarchy_intuitiveness": 3.2, "information_density": 4.0, "pedagogical_utility": 3.5, "raters": 3},
+    {"sample_id": "map_19", "readability": 4.2, "hierarchy_intuitiveness": 4.0, "information_density": 3.5, "pedagogical_utility": 4.0, "raters": 3},
+    {"sample_id": "map_20", "readability": 3.0, "hierarchy_intuitiveness": 3.5, "information_density": 2.8, "pedagogical_utility": 3.0, "raters": 3},
+    {"sample_id": "map_21", "readability": 4.0, "hierarchy_intuitiveness": 3.5, "information_density": 4.5, "pedagogical_utility": 4.0, "raters": 3},
+    {"sample_id": "map_22", "readability": 2.5, "hierarchy_intuitiveness": 2.0, "information_density": 3.0, "pedagogical_utility": 2.5, "raters": 3},
+    {"sample_id": "map_23", "readability": 4.5, "hierarchy_intuitiveness": 4.8, "information_density": 4.0, "pedagogical_utility": 4.5, "raters": 3},
+    {"sample_id": "map_24", "readability": 3.2, "hierarchy_intuitiveness": 3.5, "information_density": 3.5, "pedagogical_utility": 3.2, "raters": 3},
+    {"sample_id": "map_25", "readability": 4.0, "hierarchy_intuitiveness": 4.0, "information_density": 4.0, "pedagogical_utility": 4.0, "raters": 3},
+    {"sample_id": "map_26", "readability": 3.8, "hierarchy_intuitiveness": 3.5, "information_density": 4.2, "pedagogical_utility": 3.8, "raters": 3},
+    {"sample_id": "map_27", "readability": 4.5, "hierarchy_intuitiveness": 4.2, "information_density": 3.8, "pedagogical_utility": 4.2, "raters": 3},
+    {"sample_id": "map_28", "readability": 2.0, "hierarchy_intuitiveness": 2.5, "information_density": 2.5, "pedagogical_utility": 2.0, "raters": 3},
+    {"sample_id": "map_29", "readability": 3.5, "hierarchy_intuitiveness": 3.0, "information_density": 4.0, "pedagogical_utility": 3.5, "raters": 3},
+    {"sample_id": "map_30", "readability": 4.2, "hierarchy_intuitiveness": 4.5, "information_density": 3.5, "pedagogical_utility": 4.0, "raters": 3}
+  ],
+
+  "dimensions": {
+    "readability": "可读性 — 文字标签是否清晰易懂 / Are labels clear and understandable?",
+    "hierarchy_intuitiveness": "层级直觉性 — 父子从属关系是否符合直觉 / Do parent-child relationships follow intuition?",
+    "information_density": "信息密度 — 是否高效传达了核心内容 / Does it efficiently convey core content?",
+    "pedagogical_utility": "教学实用性 — 作为复习资料的使用意愿 / Willingness to use as review material"
+  }
+}

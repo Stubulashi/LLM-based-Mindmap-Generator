@@ -1,0 +1,44 @@
+{
+  "samples": [
+    {
+      "sample_id": "map_01",
+      "readability": 4.2,
+      "hierarchy_intuitiveness": 4.0,
+      "information_density": 3.8,
+      "pedagogical_utility": 4.0,
+      "raters": 3
+    },
+    {
+      "sample_id": "map_02",
+      "readability": 3.5,
+      "hierarchy_intuitiveness": 3.8,
+      "information_density": 4.1,
+      "pedagogical_utility": 3.6,
+      "raters": 3
+    },
+    {
+      "sample_id": "map_03",
+      "readability": 4.8,
+      "hierarchy_intuitiveness": 4.5,
+      "information_density": 4.3,
+      "pedagogical_utility": 4.7,
+      "raters": 5
+    },
+    {
+      "sample_id": "map_04",
+      "readability": 3.0,
+      "hierarchy_intuitiveness": 3.2,
+      "information_density": 3.5,
+      "pedagogical_utility": 2.8,
+      "raters": 2
+    },
+    {
+      "sample_id": "map_05",
+      "readability": 4.5,
+      "hierarchy_intuitiveness": 4.6,
+      "information_density": 4.0,
+      "pedagogical_utility": 4.4,
+      "raters": 4
+    }
+  ]
+}

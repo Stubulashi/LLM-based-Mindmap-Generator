@@ -1,0 +1,14 @@
+{
+  "questions": [
+    {"id": 1, "type": "fact_retrieval", "question": "In machine learning, what is the task of predicting discrete category labels called?", "answer": "Classification"},
+    {"id": 2, "type": "fact_retrieval", "question": "What are common unsupervised learning tasks?", "answer": "Clustering and dimensionality reduction"},
+    {"id": 3, "type": "fact_retrieval", "question": "In supervised learning, what is the task called when labels are continuous values?", "answer": "Regression"},
+    {"id": 4, "type": "fact_retrieval", "question": "What is the phenomenon called when a model learns training data too well but performs poorly on new data?", "answer": "Overfitting"},
+    {"id": 5, "type": "relation_inference", "question": "Does a Decision Tree belong to supervised learning or unsupervised learning?", "answer": "Supervised learning"},
+    {"id": 6, "type": "relation_inference", "question": "Under which learning paradigm is Principal Component Analysis (PCA) typically used?", "answer": "Unsupervised learning"},
+    {"id": 7, "type": "relation_inference", "question": "What is the relationship between Gradient Descent and the Loss Function?", "answer": "Gradient Descent optimizes model parameters by minimizing the Loss Function"},
+    {"id": 8, "type": "relation_inference", "question": "What is the relationship between Cross Validation and Overfitting?", "answer": "Cross Validation is used to detect and prevent overfitting"},
+    {"id": 9, "type": "synthesis", "question": "Describe the main differences between supervised and unsupervised learning, and give one typical algorithm for each.", "answer": "Supervised learning uses labeled data to train models, typical algorithms include Decision Tree and SVM; Unsupervised learning finds patterns in unlabeled data, typical algorithms include K-means clustering and PCA"},
+    {"id": 10, "type": "synthesis", "question": "Why is feature engineering important in a machine learning project? How does it relate to model performance?", "answer": "Feature engineering improves model input quality through feature selection, extraction, and transformation. Good feature engineering can significantly improve model performance and generalization ability"}
+  ]
+}

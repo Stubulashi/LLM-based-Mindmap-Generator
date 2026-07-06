@@ -1,0 +1,22 @@
+{
+  "concepts": [
+    "机器学习",
+    "监督学习",
+    "无监督学习",
+    "强化学习",
+    "神经网络",
+    "深度学习",
+    "决策树",
+    "支持向量机",
+    "聚类分析",
+    "主成分分析",
+    "过拟合",
+    "交叉验证",
+    "梯度下降",
+    "损失函数",
+    "特征工程"
+  ],
+  "__purpose": "核心概念集合 (Es)，用于 Entity Recall 评估",
+  "__purpose_en": "Essential Concepts Set (Es) for Entity Recall evaluation",
+  "__format_notes": "请包含 10-30 个关键术语/Please include 10-30 key terms"
+}

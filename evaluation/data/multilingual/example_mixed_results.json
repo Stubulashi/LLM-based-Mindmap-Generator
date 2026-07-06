@@ -1,0 +1,20 @@
+{
+  "__purpose": "示例中英混合测试集结果 — 用于 §5.1 多语言输入支持度评估",
+  "__purpose_en": "Example Chinese-English Mixed Test Results — for §5.1 Multilingual Input Support Evaluation",
+  "__source": "模拟 5 个中英混合 Lecture 片段的评估结果（Entity Recall、LabelSim、PC-F1 各维度）",
+  "__source_en": "Simulated evaluation results from 5 Chinese-English mixed lecture segments across Entity Recall, LabelSim, and PC-F1 dimensions",
+
+  "results": [
+    {"segment_id": "mixed_01", "entity_recall": 0.90, "label_sim": 0.86, "pc_f1": 0.82},
+    {"segment_id": "mixed_02", "entity_recall": 0.88, "label_sim": 0.84, "pc_f1": 0.80},
+    {"segment_id": "mixed_03", "entity_recall": 0.91, "label_sim": 0.87, "pc_f1": 0.83},
+    {"segment_id": "mixed_04", "entity_recall": 0.87, "label_sim": 0.83, "pc_f1": 0.79},
+    {"segment_id": "mixed_05", "entity_recall": 0.89, "label_sim": 0.85, "pc_f1": 0.81}
+  ],
+
+  "summary": {
+    "mean_entity_recall": 0.890,
+    "mean_label_sim": 0.850,
+    "mean_pc_f1": 0.810
+  }
+}

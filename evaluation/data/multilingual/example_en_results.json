@@ -1,0 +1,20 @@
+{
+  "__purpose": "示例纯英文测试集结果 — 用于 §5.1 多语言输入支持度评估",
+  "__purpose_en": "Example English-Only Test Results — for §5.1 Multilingual Input Support Evaluation",
+  "__source": "模拟 5 个纯英文 Lecture 片段的评估结果（Entity Recall、LabelSim、PC-F1 各维度）",
+  "__source_en": "Simulated evaluation results from 5 English-only lecture segments across Entity Recall, LabelSim, and PC-F1 dimensions",
+
+  "results": [
+    {"segment_id": "en_01", "entity_recall": 0.88, "label_sim": 0.85, "pc_f1": 0.80},
+    {"segment_id": "en_02", "entity_recall": 0.86, "label_sim": 0.83, "pc_f1": 0.78},
+    {"segment_id": "en_03", "entity_recall": 0.90, "label_sim": 0.87, "pc_f1": 0.82},
+    {"segment_id": "en_04", "entity_recall": 0.85, "label_sim": 0.82, "pc_f1": 0.77},
+    {"segment_id": "en_05", "entity_recall": 0.87, "label_sim": 0.84, "pc_f1": 0.79}
+  ],
+
+  "summary": {
+    "mean_entity_recall": 0.872,
+    "mean_label_sim": 0.842,
+    "mean_pc_f1": 0.792
+  }
+}

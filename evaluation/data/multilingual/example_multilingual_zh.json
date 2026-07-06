@@ -1,0 +1,44 @@
+{
+  "results": [
+    {
+      "segment_id": "seg_01",
+      "entity_recall": 0.92,
+      "label_sim": 0.88,
+      "pc_f1": 0.85
+    },
+    {
+      "segment_id": "seg_02",
+      "entity_recall": 0.89,
+      "label_sim": 0.91,
+      "pc_f1": 0.87
+    },
+    {
+      "segment_id": "seg_03",
+      "entity_recall": 0.95,
+      "label_sim": 0.93,
+      "pc_f1": 0.91
+    },
+    {
+      "segment_id": "seg_04",
+      "entity_recall": 0.87,
+      "label_sim": 0.84,
+      "pc_f1": 0.82
+    },
+    {
+      "segment_id": "seg_05",
+      "entity_recall": 0.93,
+      "label_sim": 0.89,
+      "pc_f1": 0.86
+    }
+  ],
+  "summary": {
+    "mean_entity_recall": 0.912,
+    "mean_label_sim": 0.890,
+    "mean_pc_f1": 0.862
+  },
+  "metadata": {
+    "language": "zh",
+    "description": "中文多语言测试结果 - 机器学习概念思维导图",
+    "description_en": "Chinese multilingual test results - Machine Learning concept mindmap"
+  }
+}

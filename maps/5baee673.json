@@ -1,0 +1,71 @@
+{
+  "map_id": "5baee673",
+  "name": "mindmap_2026-06-26",
+  "created_at": "2026-06-26T11:41:53.453542",
+  "updated_at": "2026-06-26T11:41:53.453542",
+  "node_count": 4,
+  "link_count": 3,
+  "data": {
+    "nodes": [
+      {
+        "id": "node_chain_shift",
+        "label": "Chain Shift",
+        "color": "var(--node-blue)",
+        "details": [
+          "定义: 指音系中一个音位的变化引发其他音位连锁反应的现象",
+          "用户原文: Immediate questions that arose from listening to the presentation or reading the text about chain shifts"
+        ]
+      },
+      {
+        "id": "node_drag_chain_shift",
+        "label": "Drag Chain Shift",
+        "color": "var(--node-green)",
+        "details": [
+          "定义: 一个音位先发生变化，在系统中留下一个'空缺'，邻近的音位被'拉'进来填补这个空缺",
+          "关键点: 也称为 Pull Chain Shift",
+          "关键点: Pull/Drag 比 Push 更常见",
+          "类比: 像是队列中第一个人走了，后面的人依次向前移动",
+          "用户原文: Pull is the same as drag chain shifts. One phoneme changes and pulls the other phoneme with it to maintain the same distance."
+        ]
+      },
+      {
+        "id": "node_pull_chain_shift",
+        "label": "Pull Chain Shift",
+        "color": "var(--node-green)",
+        "details": [
+          "定义: 与 Drag Chain Shift 相同",
+          "关键点: Pull = Drag",
+          "用户原文: Pull is the same as drag chain shifts"
+        ]
+      },
+      {
+        "id": "node_push_chain_shift",
+        "label": "Push Chain Shift",
+        "color": "var(--node-red)",
+        "details": [
+          "定义: 音位系统空间变得'拥挤'，一个音位为了保持区别，会'推'开另一个音位，使其发生移位",
+          "关键点: 比拉链移位少见",
+          "类比: 像是列车上空间不足，一个人挤过来，把另一个人推走了",
+          "用户原文: In a push chain shift, there is acoustic crowding, and some phoneme needs to make space"
+        ]
+      }
+    ],
+    "links": [
+      {
+        "source": "node_chain_shift",
+        "target": "node_drag_chain_shift",
+        "type": "solid"
+      },
+      {
+        "source": "node_chain_shift",
+        "target": "node_push_chain_shift",
+        "type": "solid"
+      },
+      {
+        "source": "node_drag_chain_shift",
+        "target": "node_pull_chain_shift",
+        "type": "reference"
+      }
+    ]
+  }
+}

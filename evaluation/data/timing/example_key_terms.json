@@ -1,0 +1,50 @@
+{
+  "__purpose": "示例关键术语列表 — 用于 §4.2.2 KTRR 关键术语保留率计算",
+  "__purpose_en": "Example Key Terms List — for §4.2.2 Key Term Retention Rate (KTRR) Calculation",
+  "__source": "通过 TF-IDF 从机器学习课程逐字稿中提取的 30 个领域关键术语",
+  "__source_en": "30 domain key terms extracted from machine learning lecture transcript via TF-IDF",
+
+  "key_terms": [
+    "机器学习",
+    "Machine Learning",
+    "深度学习",
+    "Deep Learning",
+    "神经网络",
+    "Neural Network",
+    "监督学习",
+    "Supervised Learning",
+    "无监督学习",
+    "Unsupervised Learning",
+    "强化学习",
+    "Reinforcement Learning",
+    "线性回归",
+    "Linear Regression",
+    "逻辑回归",
+    "Logistic Regression",
+    "支持向量机",
+    "Support Vector Machine",
+    "决策树",
+    "Decision Tree",
+    "随机森林",
+    "Random Forest",
+    "K-Means",
+    "主成分分析",
+    "Principal Component Analysis",
+    "梯度下降",
+    "Gradient Descent",
+    "反向传播",
+    "Backpropagation",
+    "Transformer"
+  ],
+
+  "__format_notes": {
+    "rule_1": "每个术语应为一个独立的领域关键词，不包含标点符号",
+    "rule_1_en": "Each term should be a standalone domain keyword, without punctuation",
+    "rule_2": "建议同时包含中英文版本，以覆盖不同语言的 STT 输出",
+    "rule_2_en": "It is recommended to include both Chinese and English versions to cover different STT output languages",
+    "rule_3": "术语总数建议 20-30 个，通过 TF-IDF 或专家标注确定",
+    "rule_3_en": "Recommended total: 20-30 terms, determined via TF-IDF or expert annotation",
+    "rule_4": "评估时使用模糊匹配（允许 1 字符编辑距离的中文容错）",
+    "rule_4_en": "Fuzzy matching is used during evaluation (1-character edit distance tolerance for Chinese)"
+  }
+}

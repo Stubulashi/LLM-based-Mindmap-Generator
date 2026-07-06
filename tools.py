@@ -100,28 +100,29 @@ def get_concept_extraction_tools():
 
 
 def get_hierarchy_planning_tools():
-    # C: 阶段2 概念分组工具 — 将语义相关的概念划分为一组（不指定具体的父子从属关系）
-    # E: Stage 2 Concept grouping tool — group semantically related concepts (no specific parent-child relations)
+    # C: 阶段2 概念分组工具 — 支持嵌套子分组以产生多级树结构
+    # E: Stage 2 Concept grouping tool — supports nested sub-groups for multi-level tree
     return [
         {
             "type": "function",
             "function": {
                 "name": "plan_hierarchy",
-                "description": "C: 为提取的概念规划概念分组。将语义相关的概念划分为同一组，不指定具体的父子从属关系。每组包含一个或多个概念ID。\nE: Plan concept groupings for extracted concepts. Group semantically related concepts together, without specifying specific parent-child relationships. Each group contains one or more concept IDs.",
+                "description": "C: 为提取的概念规划多级概念分组。支持嵌套子分组以形成 3-5 级深度的树结构。\nE: Plan multi-level concept groupings. Supports nested sub-groups to form 3-5 level deep tree structures.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "groups": {
                             "type": "array",
-                            "description": "C: 概念分组列表。每个分组包含一个分组标识、包含的概念ID列表以及语义描述。\nE: List of concept groups. Each group has an ID, concept IDs, and a semantic label.",
+                            "description": "C: 概念分组列表。支持嵌套子分组 (sub_groups) 以形成多级层次。\nE: List of concept groups. Supports sub_groups for multi-level hierarchy.",
                             "items": {
                                 "type": "object",
                                 "properties": {
                                     "group_id": {"type": "string", "description": "分组标识，如 'group_phonetics'"},
-                                    "concept_ids": {"type": "array", "items": {"type": "string"}, "description": "C: 该分组包含的概念ID列表（必须来自新概念或已有节点）\nE: List of concept IDs in this group (must come from new concepts or existing nodes)"},
-                                    "semantic_label": {"type": "string", "description": "C: 该分组的语义描述（如 '音位变化类型'）\nE: Semantic label for this group (e.g., 'Types of sound change')"}
+                                    "concept_ids": {"type": "array", "items": {"type": "string"}, "description": "C: 该分组直接包含的概念ID列表\nE: Concept IDs directly in this group"},
+                                    "semantic_label": {"type": "string", "description": "C: 该分组的语义标签（将作为父节点 label）\nE: Semantic label for this group (will be used as parent node label)"},
+                                    "sub_groups": {"type": "array", "description": "C: 【重要】嵌套子分组列表，递归结构同 groups。用于创建更深层级。\nE: [IMPORTANT] Nested sub-groups list, same structure recursively. Used for deeper hierarchy."}
                                 },
-                                "required": ["group_id", "concept_ids", "semantic_label"]
+                                "required": ["group_id", "semantic_label"]
                             }
                         }
                     },

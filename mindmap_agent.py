@@ -7,6 +7,7 @@ from datetime import datetime
 from openai import OpenAI
 from config import Config
 from tools import get_mindmap_tools, get_concept_extraction_tools, get_hierarchy_planning_tools
+from schema import NODE_COLOR_SCHEMA
 
 # C: 日志输出到 stderr，避免污染 stdio 协议通道
 # E: Log to stderr to avoid polluting the stdio protocol channel
@@ -27,16 +28,38 @@ def state_merge(delta: dict, current_map: dict) -> dict:
     for n in delta.get('add_nodes', []):
         nodes_dict[str(n['id'])] = n
 
-    # C: 更新旧节点 / E: Update existing nodes
+    # C: 更新旧节点（含去重） / E: Update existing nodes (with dedup)
     for u in delta.get('update_nodes', []):
         nid = str(u['id'])
         if nid in nodes_dict:
             if 'details' not in nodes_dict[nid]:
                 nodes_dict[nid]['details'] = []
-            nodes_dict[nid]['details'].extend(u.get('append_details', []))
+            # C: 去重 — 仅追加不重复的 detail 条目（精确字符串匹配）
+            # E: Dedup — only append non-duplicate detail entries (exact string match)
+            existing_details = set(nodes_dict[nid]['details'])
+            new_details = [
+                d for d in u.get('append_details', [])
+                if d not in existing_details
+            ]
+            if new_details:
+                nodes_dict[nid]['details'].extend(new_details)
 
-    # C: 建立新连线 / E: Create new links
+    # C: 建立新连线（自动归一化 type→link_type）/ E: Create new links (auto-normalize type→link_type)
+    VALID_LINK_TYPES = {'solid', 'dashed', 'dotted', 'reference', 'contrast'}
     for l in delta.get('add_links', []):
+        # C: 归一化: LLM 输出用 type, 系统内用 link_type（幂等: pop 后下次不存在）
+        # E: Normalize: LLM output uses type, system uses link_type (idempotent)
+        raw_type = l.pop('type', None)
+        lt = l.get('link_type') or raw_type or 'solid'
+        if lt not in VALID_LINK_TYPES:
+            logger.warning(
+                f"C: [state_merge] link_type '{lt}' 非法（{l.get('source')}→{l.get('target')}），回退到 solid"
+            )
+            logger.warning(
+                f"E: [state_merge] Invalid link_type '{lt}' ({l.get('source')}→{l.get('target')}), fallback to solid"
+            )
+            lt = 'solid'
+        l['link_type'] = lt
         if not any(
             el['source'] == l['source'] and el['target'] == l['target']
             for el in links_list
@@ -180,6 +203,75 @@ def mark_tree_meta(roots: list[dict], depth: int) -> None:
             node['_hasChildren'] = False
 
 
+# =========================================================
+# C: 树深度统计 — 计算扁平节点列表的深度相关指标
+#    用于生成后校验深度是否达标
+# E: Tree depth statistics — compute depth metrics from flat node list
+#    Used for post-generation depth validation
+# =========================================================
+def compute_depth_stats(nodes: list[dict], links: list[dict]) -> dict:
+    """C: 计算树的深度统计指标。
+    返回:
+      max_depth: 最大深度（根=1）
+      avg_depth: 平均节点深度
+      depth_distribution: {depth: count} 各深度节点数
+      top_level_count: 顶层（L2，根的子节点）节点数
+      shallow_leaves: 深度 < min_depth 的叶子节点数
+      min_depth: 配置的最小目标深度
+    E: Compute tree depth statistics.
+    Returns:
+      max_depth, avg_depth, depth_distribution, top_level_count,
+      shallow_leaves, min_depth"""
+    if not nodes:
+        return {"max_depth": 0, "avg_depth": 0, "depth_distribution": {},
+                "top_level_count": 0, "shallow_leaves": 0,
+                "min_depth": Config.MIN_TREE_DEPTH}
+
+    # C: 构建 parent_id 映射
+    # E: Build parent_id mapping
+    parent_map = {}
+    for n in nodes:
+        pid = n.get('parent_id')
+        if pid:
+            parent_map[str(n['id'])] = str(pid)
+
+    def _node_depth(nid: str, cache: dict) -> int:
+        if nid in cache:
+            return cache[nid]
+        pid = parent_map.get(nid)
+        if pid is None:
+            cache[nid] = 1  # C: 根 = L1 / E: root = L1
+        else:
+            cache[nid] = _node_depth(pid, cache) + 1
+        return cache[nid]
+
+    depth_cache = {}
+    for n in nodes:
+        _node_depth(str(n['id']), depth_cache)
+
+    if not depth_cache:
+        return {"max_depth": 0, "avg_depth": 0, "depth_distribution": {},
+                "top_level_count": 0, "shallow_leaves": 0,
+                "min_depth": Config.MIN_TREE_DEPTH}
+
+    max_depth = max(depth_cache.values())
+    avg_depth = sum(depth_cache.values()) / len(depth_cache)
+    depth_dist = {}
+    for d in depth_cache.values():
+        depth_dist[d] = depth_dist.get(d, 0) + 1
+    top_level_count = sum(1 for d in depth_cache.values() if d == 2)
+    shallow_leaves = sum(1 for d in depth_cache.values() if d < Config.MIN_TREE_DEPTH)
+
+    return {
+        "max_depth": max_depth,
+        "avg_depth": round(avg_depth, 2),
+        "depth_distribution": dict(sorted(depth_dist.items())),
+        "top_level_count": top_level_count,
+        "shallow_leaves": shallow_leaves,
+        "min_depth": Config.MIN_TREE_DEPTH,
+    }
+
+
 def flatten_from_tree(roots: list[dict]) -> tuple[list[dict], list[dict]]:
     """C: 从嵌套树反序列化为 flat nodes+links（用于 current_map 回传）。
     E: Deserialize nested tree back to flat nodes+links (for current_map round-trip)."""
@@ -198,6 +290,7 @@ def flatten_from_tree(roots: list[dict]) -> tuple[list[dict], list[dict]]:
             'details': node.get('details', []),
             'parent_id': parent_id,
             'collapsed': node.get('collapsed', False),
+            '_depth': node.get('_depth', 0),
             'x': node.get('x'),
             'y': node.get('y'),
             'userPositioned': node.get('userPositioned', False),
@@ -479,16 +572,27 @@ class _BaseAgent:
 
     def _call_llm_tool(self, system_prompt: str, user_prompt: str,
                        tools: list, tool_choice_name: str,
-                       max_tokens: int = 8192, retry_on_json_error: bool = True) -> dict:
+                       max_tokens: int = 8192, retry_on_json_error: bool = True,
+                       extra_system_messages: list[str] | None = None) -> dict:
         """C: 通用 LLM function calling 封装，含 JSON 容错与自动重试。
-        E: Generic LLM function calling wrapper with JSON resilience and auto-retry."""
+        extra_system_messages: 额外的系统消息列表（注入在 system_prompt 之后、user_prompt 之前）
+        E: Generic LLM function calling wrapper with JSON resilience and auto-retry.
+        extra_system_messages: extra system messages injected after system_prompt, before user_prompt"""
+
+        # C: 构建消息列表，支持额外系统消息（用于结构化概念注入等）
+        # E: Build message list with optional extra system messages
+        base_messages = [
+            {"role": "system", "content": system_prompt},
+        ]
+        if extra_system_messages:
+            for msg_text in extra_system_messages:
+                base_messages.append({"role": "system", "content": msg_text})
 
         def _do_call():
             """C: 执行单次 LLM 调用 / E: Execute a single LLM call."""
             return self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
+                messages=base_messages + [
                     {"role": "user", "content": user_prompt}
                 ],
                 tools=tools,
@@ -517,8 +621,7 @@ class _BaseAgent:
                 )
                 response = self.client.chat.completions.create(
                     model=self.model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
+                    messages=base_messages + [
                         {"role": "user", "content": retry_user_prompt}
                     ],
                     tools=tools,
@@ -585,8 +688,7 @@ class _BaseAgent:
                     )
                     response = self.client.chat.completions.create(
                         model=self.model,
-                        messages=[
-                            {"role": "system", "content": system_prompt},
+                        messages=base_messages + [
                             {"role": "user", "content": retry_user_prompt}
                         ],
                         tools=tools,
@@ -650,17 +752,17 @@ class MindMapSpecialistAgent(_BaseAgent):
         # C: 返回系统提示词（中英双语），根据 DETAILS_ENRICHMENT_ENABLED 动态调整规则3
         # E: Return system prompt (bilingual CN/EN), dynamically adjusts rule 3 based on DETAILS_ENRICHMENT_ENABLED
 
-        # C: 规则3 — 根据配置决定 AI 回复内容的使用策略
-        # E: Rule 3 — determine AI reply content usage strategy based on config
+        # C: 规则4 — 根据配置决定 AI 回复内容的使用策略
+        # E: Rule 4 — determine AI reply content usage strategy based on config
         if Config.DETAILS_ENRICHMENT_ENABLED:
-            rule3_cn = (
-                "3. Details 层次化补充：【AI回复说】中对概念的定义、解释、关键点、举例等，"
+            rule4_cn = (
+                "4. Details 层次化补充：【AI回复说】中对概念的定义、解释、关键点、举例等，"
                 "可按条目化方式追加到对应节点的 details 数组中。"
                 "每条以简洁前缀标识来源和类型（如 '定义:'、'关键点:'、'上下文:'、'用户原文:'），前缀文本语言必须与用户输入语言一致。"
                 "严禁将 AI 的分析逻辑创建为独立节点（元节点）——AI 内容只能作为已有节点的 details 补充。"
             )
-            rule3_en = (
-                "3. Hierarchical Details Enrichment: Definitions, explanations, key points, and examples "
+            rule4_en = (
+                "4. Hierarchical Details Enrichment: Definitions, explanations, key points, and examples "
                 "from [AI Replies] may be appended as structured entries to the corresponding node's details array. "
                 "Prefix each entry with a concise source/type tag (e.g., 'Definition:', 'Key Point:', "
                 "'Context:', 'User Input:'), and the tag language must match the user's input language. "
@@ -668,14 +770,29 @@ class MindMapSpecialistAgent(_BaseAgent):
                 "AI content may only serve as details enrichment for existing nodes."
             )
         else:
-            rule3_cn = (
-                "3. 屏蔽 AI 发散：【AI回复说】的内容仅作为语境参考。"
+            rule4_cn = (
+                "4. 屏蔽 AI 发散：【AI回复说】的内容仅作为语境参考。"
                 "你的图谱实体提取必须 100% 以用户提供的词汇为准。"
             )
-            rule3_en = (
-                "3. Block AI divergence: the content of [AI Replies] is for contextual reference only. "
+            rule4_en = (
+                "4. Block AI divergence: the content of [AI Replies] is for contextual reference only. "
                 "Your graph entity extraction must be 100% based on the vocabulary provided by the user."
             )
+
+        depth_rule_cn = (
+            "3. 【禁止宽而浅的结构】严禁创建大量顶层节点后各自只挂一两个子节点。"
+            "例如以下结构是**不合格**的（宽度过大、深度不足）："
+            "Root → A, B, C, D, E, F (6个顶层节点, 每个只有1个子节点)。"
+            "以下结构是**合格**的（深度优先）："
+            "Root → A(L2) → A1(L3) → A1a(L4);  B(L2) → B1(L3);  C(L2) → ..."
+        )
+        depth_rule_en = (
+            "3. [Ban Wide-Shallow] Strictly prohibit creating many top-level nodes "
+            "each with only 1-2 children. **UNQUALIFIED**: "
+            "Root → A, B, C, D, E, F (6 top-level nodes, each with 1 child). "
+            "**QUALIFIED** (depth-first): "
+            "Root → A(L2) → A1(L3) → A1a(L4);  B(L2) → B1(L3);  C(L2) → ..."
+        )
 
         return f"""C: 你是一个专业的 MCP 思维导图绘图引擎，遵循 ReAct（Reasoning + Acting）模式工作。
 你的任务是：根据对话历史，对当前导图进行【增量修改】，而非从头重建。
@@ -685,11 +802,13 @@ Your task is to make incremental modifications to the current mind map based on 
 C: 【核心铁律 - 必须严格遵守】
 1. 绝对服从用户：【用户说】的内容具有绝对的权威。即使用户的逻辑是荒诞的、无厘头的或违反常理的，你也必须严格按照用户的概念拓扑直接建图。
 2. 严禁生成"元节点（Meta-nodes）"：绝对不要将 AI 的逻辑分析、说教或总结画进导图。画布只用来呈现用户指定的客观概念。
-{rule3_cn}
+{depth_rule_cn}
+{rule4_cn}
 E: [Core Iron Laws - Must Strictly Follow]
 1. Absolute obedience to the user: the content of [User Says] has absolute authority. Even if the user's logic is absurd, nonsensical, or violates common sense, you must strictly build the map according to the user's conceptual topology.
 2. Strictly prohibit generating meta-nodes: never draw AI's logical analysis, preaching, or summaries into the mind map. The canvas is only for presenting objective concepts specified by the user.
-{rule3_en}
+{depth_rule_en}
+{rule4_en}
 
 C: 【ReAct 工作流程 - 每轮调用前必须在心中完成】
 步骤一（READ）：阅读当前导图全量结构。识别已有节点、它们的父子关系、以及各节点的 details 内容。
@@ -725,12 +844,36 @@ E: [Atomic Label Rules - Must Strictly Follow]
    - Correct: label='Cat', details=['Likes fish', 'Self-identifies as a cat']
 3. All explanatory, descriptive, and logical content must be placed in the details array.
 
-C: 【常规绘图规则】
-4. 建立纵深与层级，使用 add_links 连接父子节点（source=父, target=子）。
-5. 不要重复创建：如果节点已存在，使用 update_nodes 追加详情到其 details。
-E: [General Drawing Rules]
-4. Establish depth and hierarchy by using add_links to connect parent and child nodes (source=parent, target=child).
-5. Do not create duplicates: if a node already exists, use update_nodes to append details to its details array.
+C: 【常规绘图规则 — 深度优先策略（核心）】
+4. 【深度优先铁律】必须采用深度优先策略：优先为已有节点挖掘子节点，将已有分支向下延伸，而不是创建大量同层级的顶层节点。树的深度优先于宽度。
+   目标深度 ≥ {Config.MIN_TREE_DEPTH} 层（根为第1层）。如：科学(L1)→物理学(L2)→力学(L3)→牛顿定律(L4)。
+   每个非叶子节点至少要有 1 个子节点，避免孤立叶子。
+   每个节点的直接子节点数建议不超过 {Config.MAX_SIBLINGS_PER_NODE} 个，超出时优先创建子分组。
+5. 使用 add_links 连接父子节点（source=父, target=子）。
+5b. 【连线类型选择 - 必须为每条 add_links 指定 type】
+   为每条连线选择合适的关系类型（type 字段），5 种可选：
+   - solid（实线）：标准的父子/从属关系。适用于"A 属于 B"、"A 是 B 的子类"等直接层级关系。
+   - dashed（虚线）：间接关联或非直接层级关系。适用于"A 与 B 相关但不直接从属"、"A 影响 B"等较弱的结构关系。
+   - dotted（点线）：弱关联或侧面引用。适用于"A 偶尔提及 B"、"A 的背景信息是 B"等次要关系。
+   - reference（引用/依赖）：引用或依赖关系（绿色箭头）。适用于"A 引用了 B"、"A 依赖于 B"、"A 参考了 B 的定义"。
+   - contrast（对比/对立）：对比或对立关系（橙色箭头）。适用于"A 与 B 形成对比"、"A 不同于 B"、"A 是 B 的对立面"。
+   默认使用 solid。非父子关系（如跨分支引用）优先使用 reference 或 contrast。
+6. 不要重复创建：如果节点已存在，使用 update_nodes 追加详情到其 details。
+E: [General Drawing Rules — Depth-First Strategy (Core)]
+4. [Depth-First Iron Law] MUST adopt a depth-first strategy: prioritize digging children for existing nodes and extending existing branches downward, rather than creating many top-level sibling nodes. Tree DEPTH is more important than WIDTH.
+   Target depth ≥ {Config.MIN_TREE_DEPTH} levels (root=level 1). E.g., Science(L1)→Physics(L2)→Mechanics(L3)→Newton's Laws(L4).
+   Every non-leaf node must have at least 1 child node. Avoid orphan leaves.
+   Each node should have at most {Config.MAX_SIBLINGS_PER_NODE} direct children. Beyond that, prefer creating sub-groups.
+5. Use add_links to connect parent-child nodes (source=parent, target=child).
+5b. [Link Type Selection - MUST specify type for each add_links]
+   Choose the appropriate relationship type for each link (type field), 5 options:
+   - solid: Standard parent-child / affiliation. Use for direct hierarchical relationships like "A belongs to B", "A is a subclass of B".
+   - dashed: Indirect association or non-direct hierarchy. Use for "A relates to B but not directly subordinate", "A influences B".
+   - dotted: Weak association or tangential reference. Use for "A briefly mentions B", "A's background includes B".
+   - reference: Citation or dependency (green arrow). Use for "A references B", "A depends on B", "A refers to B's definition".
+   - contrast: Contrast or opposition (orange arrow). Use for "A contrasts with B", "A differs from B", "A is the opposite of B".
+   Default to solid. For non-parent-child relationships (e.g., cross-branch references), prefer reference or contrast.
+6. Do not create duplicates: if a node already exists, use update_nodes to append details to its details array.
 
 C: 7. 关联更新机制与层级隔离（重点）：当用户为现有的某个概念（如节点A）添加特征、附属物或下级概念（如节点B）时，你必须同时进行两步操作：
    - 第一步：使用 add_nodes 创建新节点 B，并使用 add_links 将其与 A 连接。
@@ -765,16 +908,16 @@ E: [Language Rules - Must Strictly Follow]
             # C: v2 管线模式 — ReAct 步骤提示包含预规划引用
             # E: v2 pipeline mode — ReAct step hints include pre-planning references
             step1_cn = "先阅读上方导图结构和预提取的概念/层级规划"
-            step2_cn = "再根据对话内容推理需要的增量修改（以预规划为强参考，必要时可微调）"
+            step2_cn = "再根据对话内容推理需要的增量修改（以预规划为强参考，必要时可微调），并为需要建立的关系选择正确的连线 type（solid/dashed/dotted/reference/contrast）"
             step1_en = "First read the mind map structure above and the pre-extracted concepts/hierarchy plan"
-            step2_en = "Then reason about the incremental modifications needed (use the pre-plan as strong reference, fine-tune if necessary)"
+            step2_en = "Then reason about the incremental modifications needed (use the pre-plan as strong reference, fine-tune if necessary), and select the correct link type (solid/dashed/dotted/reference/contrast) for each relationship"
         else:
             # C: v1 单模型模式 — 标准 ReAct 步骤
             # E: v1 single-model mode — standard ReAct steps
             step1_cn = "先阅读上方导图结构，理解现有节点和层级关系"
-            step2_cn = "再根据对话内容推理需要的增量修改"
+            step2_cn = "再根据对话内容推理需要的增量修改，并为需要建立的关系选择正确的连线 type（solid/dashed/dotted/reference/contrast）"
             step1_en = "First read the mind map structure above and understand the existing nodes and hierarchy"
-            step2_en = "Then reason about the incremental modifications needed based on the conversation content"
+            step2_en = "Then reason about the incremental modifications needed based on the conversation content, and select the correct link type (solid/dashed/dotted/reference/contrast) for each relationship"
 
         standard_prompt = f"""C: 【当前导图全量状态 - 请仔细阅读】
 节点列表: {nodes_json}
@@ -803,18 +946,20 @@ Please process in ReAct mode:
 
         return extra_prefix + standard_prompt
 
-    def _execute_and_merge(self, prompt: str, current_map: dict):
+    def _execute_and_merge(self, prompt: str, current_map: dict,
+                           extra_system_messages: list[str] | None = None):
         """C: 执行 LLM function calling + state_merge_with_tree。
         返回 (delta_dict, tree_map_dict) 元组，其中 tree_map 包含 tree/nodes/links。
-        继承 _BaseAgent._call_llm_tool 的 JSON 容错和重试能力。
+        extra_system_messages: 额外的系统消息（用于结构化概念注入等）
         E: Execute LLM function calling + state_merge_with_tree.
         Returns (delta_dict, tree_map_dict) tuple, where tree_map contains tree/nodes/links.
-        Inherits _BaseAgent._call_llm_tool's JSON resilience and retry capability."""
+        extra_system_messages: extra system messages for structured concept injection"""
         delta = self._call_llm_tool(
             system_prompt=self._get_system_prompt(),
             user_prompt=prompt,
             tools=self.tools,
-            tool_choice_name="modify_mind_map"
+            tool_choice_name="modify_mind_map",
+            extra_system_messages=extra_system_messages
         )
         merged = state_merge_with_tree(delta, current_map)
         return delta, merged
@@ -826,6 +971,23 @@ Please process in ReAct mode:
 
         try:
             _delta, merged = self._execute_and_merge(prompt, current_map)
+            # C: [深度优先] 单模型模式下也输出深度校验日志
+            # E: [Depth-First] Log depth check in single-model mode too
+            if Config.DEPTH_FIRST_ENABLED and merged.get('nodes'):
+                depth_stats = compute_depth_stats(
+                    merged.get('nodes', []), merged.get('links', [])
+                )
+                if depth_stats['max_depth'] < Config.MIN_TREE_DEPTH:
+                    logger.warning(
+                        f"C: [Depth Check] 单模型最大深度={depth_stats['max_depth']} < {Config.MIN_TREE_DEPTH}, "
+                        f"顶层节点数={depth_stats['top_level_count']}, "
+                        f"深度不足叶子={depth_stats['shallow_leaves']}"
+                    )
+                    logger.warning(
+                        f"E: [Depth Check] Single-model max_depth={depth_stats['max_depth']} < {Config.MIN_TREE_DEPTH}, "
+                        f"top-level={depth_stats['top_level_count']}, "
+                        f"shallow leaves={depth_stats['shallow_leaves']}"
+                    )
             return merged
         except Exception as e:
             logger.error(f"C: [MindMap Agent] 增量绘图失败: {e}")
@@ -893,7 +1055,12 @@ E: [Core Iron Laws - Must Strictly Follow]
     def extract(self, chat_history: str, current_map: dict) -> list[dict]:
         """C: 从对话中提取概念列表。
         E: Extract concept list from conversation."""
-        existing_ids = {str(n['id']) for n in current_map.get('nodes', [])}
+        # C: 子树模式: 使用 _full_existing_ids（完整导图的所有节点 ID）进行去重
+        #    否则裁剪后的 current_map 缺少子孙节点，导致已存在概念的重复创建
+        # E: Subtree mode: use _full_existing_ids (all node IDs from full map) for dedup
+        #    Otherwise pruned current_map lacks descendants, causing duplicate concepts
+        full_ids = current_map.get('_full_existing_ids')
+        existing_ids = set(full_ids) if full_ids else {str(n['id']) for n in current_map.get('nodes', [])}
         existing_labels = {str(n.get('label', '')).lower() for n in current_map.get('nodes', [])}
 
         # C: 根据 DETAILS_ENRICHMENT_ENABLED 决定对话内容的处理方式
@@ -980,22 +1147,33 @@ class HierarchyPlanningAgent(_BaseAgent):
         self.tools = get_hierarchy_planning_tools()
 
     def _get_system_prompt(self) -> str:
-        return """C: 你是一个专业的概念分组器。你的任务是：将新概念与已有节点按主题划分为概念组。
+        return f"""C: 你是一个专业的概念分组器。你的任务是：将新概念与已有节点按主题划分为【多级概念组】，
+形成 {Config.MIN_TREE_DEPTH}-5 层的树状层次结构。使用 sub_groups 字段递归嵌套子分组。
 不指定具体的父子从属关系——只说明哪些概念在语义上属于同一主题。
-E: You are a professional concept grouper. Your task: group new concepts with existing nodes by topic.
+E: You are a professional concept grouper. Your task: group new concepts with existing nodes into MULTI-LEVEL concept groups,
+forming {Config.MIN_TREE_DEPTH}-5 layer tree hierarchies. Use sub_groups field for recursive nesting.
 Do NOT specify parent-child relationships — only indicate which concepts belong to the same topic.
 
 C: 【分组铁律 - 必须严格遵守】
-1. 创建逻辑分组：将语义相关的概念划分到同一组（如'音位变化类型'组包含 Drag/Pull/Push Change）。
-2. 每个概念可出现在多个分组中（如果它涉及多个主题），但应尽量保持每个概念在一个分组中。
-3. 分组大小：每组至少 2 个概念，最多不超过 8 个。
-4. 语义标签：为每组提供一个清晰的中/英文语义标签。
+1. 【重要-深度优先分组】必须创建多级嵌套分组，优先在已有的顶层分组下挖掘子分组和孙分组，
+   而不是创建大量同层级的顶层分组。目标深度 >= {Config.MIN_TREE_DEPTH} 层（含顶层）。
+   使用 sub_groups 字段递归嵌套。例如：
+   - 合格: 科学 → 物理学 → 力学, 热学, 电磁学（深）
+   - 不合格: 科学, 艺术, 历史, 技术, 医学, 哲学, 经济 → 各自只有一两个子概念（宽而浅）
+2. 语义标签作为父节点：semantic_label 会作为分组的父节点 label。
+3. 叶子节点放在最内层分组的 concept_ids 中。
+4. 每组的直接项目数（概念+子分组）为 2-{Config.MAX_SIBLINGS_PER_NODE} 个。
 5. 只能引用存在的 ID：concept_ids 必须来自「已有节点 + 新概念」的 ID 集合。
 E: [Grouping Rules - Must Strictly Follow]
-1. Create logical groups: place semantically related concepts in the same group.
-2. A concept may appear in multiple groups if it spans topics, but prefer single-group placement.
-3. Group size: at least 2, at most 8 concepts per group.
-4. Semantic labels: provide clear labels for each group.
+1. [IMPORTANT-Depth-First Grouping] MUST create multi-level nested groups. Prioritize digging
+   sub-groups and sub-sub-groups under existing top-level groups, rather than creating many
+   top-level sibling groups. Target depth >= {Config.MIN_TREE_DEPTH} levels (top included).
+   Use sub_groups field recursively. Examples:
+   - QUALIFIED: Science → Physics → Mechanics, Thermodynamics, Electromagnetism (DEEP)
+   - UNQUALIFIED: Science, Art, History, Technology, Medicine, Philosophy, Economics → each with 1-2 sub-concepts (WIDE-SHALLOW)
+2. semantic_label becomes the parent node label.
+3. Leaf nodes go in the innermost group's concept_ids.
+4. Direct items per group (concepts + sub-groups): 2-{Config.MAX_SIBLINGS_PER_NODE}.
 5. Only reference existing IDs: concept_ids must come from [existing nodes + new concepts] IDs."""
 
     def plan(self, concepts: list[dict], current_map: dict) -> list[dict]:
@@ -1083,7 +1261,7 @@ class DeltaGenerationAgent(MindMapSpecialistAgent):
 
         if concepts:
             concept_summary = json.dumps([
-                {'id': c['id'], 'label': c['label'], 'details': c.get('details', [])}
+                {'id': c['id'], 'label': c['label'], 'color': c.get('color', 'var(--node-blue)'), 'details': c.get('details', [])}
                 for c in concepts
             ], ensure_ascii=False)
             extra_parts.append(
@@ -1098,18 +1276,47 @@ class DeltaGenerationAgent(MindMapSpecialistAgent):
         if hierarchy:
             group_summary = json.dumps(hierarchy, ensure_ascii=False)
             extra_parts.append(
-                f"C: 【概念分组参考 - 同一组内的概念语义相关，建议在组织结构时考虑这些分组。"
-                f"你可以自主决定各组内部及组之间的父子从属关系。】\n"
+                f"C: 【概念分组参考 - 含嵌套子分组（sub_groups），请据此创建多级深度树结构】\n"
+                f"规则：每个分组的 semantic_label 应创建为父节点，concept_ids 中的概念作为其子节点。\n"
+                f"若存在 sub_groups，递归创建中间层级节点。\n"
+                f"【深度优先铁律】优先向深层挖掘：对已有父节点，优先在其下创建子节点和孙节点，\n"
+                f"使深度达到 {Config.MIN_TREE_DEPTH} 层以上。每个非叶子节点至少 1 个子节点。\n"
+                f"禁止创建大量顶层节点后只平铺一两个子节点（宽而浅的结构）。\n"
+                f"【连线类型选择】创建 add_links 时，请为每条连线指定 type 字段：\n"
+                f"   solid=标准父子关系, dashed=间接关联, dotted=弱关联,\n"
+                f"   reference=引用/依赖（箭头）, contrast=对比/对立（箭头）。\n"
+                f"   默认 solid。非父子关系优先用 reference 或 contrast。\n"
                 f"{group_summary}\n"
                 f"---\n"
-                f"E: [Concept Grouping Reference - Concepts in the same group are semantically related. "
-                f"Consider these groupings when organizing the hierarchy. "
-                f"You have full autonomy over parent-child relationships within and across groups.]\n"
+                f"E: [Concept Grouping Reference - contains nested sub_groups, create deep tree]\n"
+                f"Rule: Create parent node for each group's semantic_label, concepts in concept_ids as children.\n"
+                f"If sub_groups exist, recursively create intermediate nodes.\n"
+                f"[Depth-First Iron Law] Prioritize digging deeper: for existing parent nodes, prefer creating\n"
+                f"child and grandchild nodes under them. Target depth >= {Config.MIN_TREE_DEPTH} levels.\n"
+                f"Each non-leaf node needs at least 1 child. BANNED: wide-shallow structures with many top-level nodes.\n"
+                f"[Link Type Selection] When creating add_links, specify the type field for each link:\n"
+                f"   solid=standard parent-child, dashed=indirect, dotted=weak,\n"
+                f"   reference=citation/dependency (arrow), contrast=opposition (arrow).\n"
+                f"   Default solid. Non-parent-child relationships prefer reference or contrast.\n"
                 f"{group_summary}\n"
                 f"---\n"
             )
 
         extra_prefix = "".join(extra_parts)
+
+        # C: 结构化概念系统消息 — 作为额外的 system message 注入，与 prompt 文本方式互补
+        #    系统消息比用户 prompt 中的文本具有更高的注意力权重，降低 LLM 遗漏概念的风险
+        # E: Structured concept system message — injected as extra system message to complement prompt text
+        #    System messages have higher attention weight, reducing risk of LLM overlooking concepts
+        structured_msgs: list[str] | None = None
+        if concepts:
+            structured_concept_msg = (
+                "C: 【结构化概念清单 - 你必须为以下每个概念创建节点，不可遗漏】\n"
+                f"{json.dumps(concepts, ensure_ascii=False)}\n"
+                "E: [Structured Concept List - You MUST create a node for each concept below, no omissions]\n"
+                f"{json.dumps(concepts, ensure_ascii=False)}"
+            )
+            structured_msgs = [structured_concept_msg]
 
         # C: 使用父类的 _build_react_prompt（注入前缀）和 _execute_and_merge
         # E: Use parent's _build_react_prompt (with prefix) and _execute_and_merge
@@ -1123,7 +1330,8 @@ class DeltaGenerationAgent(MindMapSpecialistAgent):
         )
 
         try:
-            delta, merged = self._execute_and_merge(prompt, current_map)
+            delta, merged = self._execute_and_merge(prompt, current_map,
+                                                     extra_system_messages=structured_msgs)
             return {"delta": delta, "merged_map": merged}
         except Exception as e:
             logger.error(f"C: [DeltaGeneration] 生成失败: {e}")
@@ -1322,6 +1530,17 @@ class DebugOutputManager:
         }
         self._write_file("02_hierarchy_planning_output.json", output, is_json=True)
 
+    def save_stage2_skipped(self, concepts: list, reason: str = "") -> None:
+        """C: 保存 02_hierarchy_planning_skipped.txt — 阶段2被跳过的标记文件。
+        E: Save 02_hierarchy_planning_skipped.txt — stage 2 skipped marker."""
+        content = (
+            f"Stage 2 (Hierarchy Planning) was SKIPPED.\n"
+            f"Reason: {reason or 'Unknown'}\n"
+            f"Concepts available for planning: {len(concepts)}\n"
+            f"Concepts: {json.dumps([{'id': c['id'], 'label': c.get('label', '')} for c in concepts], ensure_ascii=False, indent=2)}\n"
+        )
+        self._write_file("02_hierarchy_planning_skipped.txt", content)
+
     def save_stage3_input(self, concepts: list, hierarchy: list | None,
                           chat_history: str, current_map: dict) -> None:
         """C: 保存 03_delta_generation_input.txt — 阶段3的输入。
@@ -1403,7 +1622,13 @@ class MindMapPipelineOrchestrator:
         E: Validate concept list structure, filter invalid entries."""
         if not isinstance(concepts, list):
             return []
-        existing_ids = {str(n['id']) for n in current_map.get('nodes', [])}
+        # C: 子树模式: 使用 _full_existing_ids（完整导图的所有节点 ID）进行去重
+        # E: Subtree mode: use _full_existing_ids (all node IDs from full map) for dedup
+        full_ids = current_map.get('_full_existing_ids')
+        existing_ids = set(full_ids) if full_ids else {str(n['id']) for n in current_map.get('nodes', [])}
+        # C: 已知的有效颜色变量（与 schema.NODE_COLOR_SCHEMA 同步的单一事实来源）
+        # E: Known valid color variables (single source of truth synced with schema.NODE_COLOR_SCHEMA)
+        VALID_COLORS = set(NODE_COLOR_SCHEMA.keys())
         valid = []
         for c in concepts:
             if not isinstance(c, dict):
@@ -1419,14 +1644,26 @@ class MindMapPipelineOrchestrator:
                     f"E: [Validate] Concept '{cid}' already exists, skipped"
                 )
                 continue
+            # C: 颜色验证 — 无效/缺失时回退到默认蓝色
+            # E: Color validation — fall back to default blue if invalid/missing
+            color = c.get('color', '')
+            if not color or color not in VALID_COLORS:
+                if color:
+                    logger.warning(
+                        f"C: [Validate] 概念 '{cid}' 颜色无效 '{color}'，回退到 var(--node-blue)"
+                    )
+                    logger.warning(
+                        f"E: [Validate] Concept '{cid}' has invalid color '{color}', falling back to var(--node-blue)"
+                    )
+                c['color'] = 'var(--node-blue)'
             valid.append(c)
         return valid
 
     @staticmethod
     def _validate_hierarchy(groups: list, concepts: list,
                             current_map: dict) -> list:
-        """C: 验证概念分组，确保引用的 ID 都存在。
-        E: Validate concept groups, ensure all referenced IDs exist."""
+        """C: 验证概念分组（含递归子分组），确保引用的 ID 都存在。
+        E: Validate concept groups (including recursive sub_groups), ensure all referenced IDs exist."""
         if not isinstance(groups, list):
             return []
         valid_ids = {str(c['id']) for c in concepts}
@@ -1437,22 +1674,125 @@ class MindMapPipelineOrchestrator:
                 continue
             gid = g.get('group_id', '')
             cids = g.get('concept_ids', [])
-            if not gid or not isinstance(cids, list) or len(cids) < 1:
+            sub_groups = g.get('sub_groups', [])
+            if not gid:
                 continue
+            if not isinstance(cids, list):
+                cids = []
+            if not isinstance(sub_groups, list):
+                sub_groups = []
+            # C: 递归验证子分组 / E: Recursively validate sub_groups
+            if sub_groups:
+                g['sub_groups'] = MindMapPipelineOrchestrator._validate_hierarchy(
+                    sub_groups, concepts, current_map
+                )
             # C: 过滤掉不在 valid_ids 中的概念ID
             # E: Filter out concept IDs not in valid_ids
             valid_cids = [c for c in cids if c in valid_ids]
-            if not valid_cids:
-                logger.warning(
-                    f"C: [Validate] 分组 '{gid}' 无有效概念ID，跳过"
-                )
-                logger.warning(
-                    f"E: [Validate] Group '{gid}' has no valid concept IDs, skipped"
-                )
-                continue
             g['concept_ids'] = valid_cids
-            valid.append(g)
+            # C: 有效条件：有概念ID 或 有子分组 / E: Valid if: has concept IDs OR has sub_groups
+            if valid_cids or g.get('sub_groups'):
+                valid.append(g)
+            else:
+                logger.warning(
+                    f"C: [Validate] 分组 '{gid}' 无有效概念或子分组，跳过"
+                )
+                logger.warning(
+                    f"E: [Validate] Group '{gid}' has no valid concepts or sub-groups, skipped"
+                )
         return valid
+
+    @staticmethod
+    def _validate_delta_safety(delta: dict, current_map: dict) -> list[str]:
+        """C: 检查 delta 操作的安全性 — 孤立引用、循环依赖、无效更新目标。
+        返回发现的问题列表（空列表=安全）。所有检查均为非致命，仅记录警告。
+        E: Check delta operation safety — orphan refs, circular deps, invalid update targets.
+        Returns list of issues found (empty = safe). All checks are non-fatal, warning only."""
+        warnings: list[str] = []
+        existing_ids = {str(n['id']) for n in current_map.get('nodes', [])}
+        new_ids = {str(n['id']) for n in delta.get('add_nodes', [])}
+        all_ids = existing_ids | new_ids
+        all_links = list(delta.get('add_links', []))
+
+        # Check 1: add_links orphan references
+        for link in all_links:
+            src = str(link.get('source', ''))
+            tgt = str(link.get('target', ''))
+            if src not in all_ids:
+                warnings.append(
+                    f"add_link source '{src}' → '{tgt}': source node does not exist"
+                )
+            if tgt not in all_ids:
+                warnings.append(
+                    f"add_link source '{src}' → '{tgt}': target node does not exist"
+                )
+
+        # Check 2: update_nodes invalid targets
+        for u in delta.get('update_nodes', []):
+            uid = str(u.get('id', ''))
+            if uid and uid not in existing_ids:
+                warnings.append(
+                    f"update_nodes target '{uid}' does not exist in current map"
+                )
+
+        # Check 3: circular dependency in add_links (simple cycle detection via DFS)
+        if all_links:
+            # Build adjacency: source -> [targets]
+            adj: dict[str, list[str]] = {}
+            for link in all_links:
+                src = str(link.get('source', ''))
+                tgt = str(link.get('target', ''))
+                if src not in adj:
+                    adj[src] = []
+                adj[src].append(tgt)
+
+            WHITE, GRAY, BLACK = 0, 1, 2
+            color_state: dict[str, int] = {nid: WHITE for nid in all_ids}
+
+            def dfs_cycle(node: str, path: list[str]) -> bool:
+                color_state[node] = GRAY
+                for neighbor in adj.get(node, []):
+                    if color_state.get(neighbor) == GRAY:
+                        cycle_path = ' → '.join(path + [node, neighbor])
+                        warnings.append(f"Circular dependency detected: {cycle_path}")
+                        return True
+                    if color_state.get(neighbor) == WHITE:
+                        if dfs_cycle(neighbor, path + [node]):
+                            return True
+                color_state[node] = BLACK
+                return False
+
+            for nid in list(all_ids):
+                if color_state.get(nid) == WHITE:
+                    dfs_cycle(nid, [])
+
+        return warnings
+
+    @staticmethod
+    def _verify_concept_coverage(concepts: list, merged_map: dict) -> dict:
+        """C: 闭环验证 — 检查阶段1 提取的概念是否被阶段3 的 delta 覆盖。
+        返回 {"covered": int, "total": int, "missing_ids": [...], "coverage_pct": float}
+        E: Closed-loop check — verify stage 1 concepts are covered by stage 3 delta.
+        Returns {"covered": int, "total": int, "missing_ids": [...], "coverage_pct": float}"""
+        if not concepts:
+            return {"covered": 0, "total": 0, "missing_ids": [], "coverage_pct": 1.0}
+        merged_ids = {str(n['id']) for n in merged_map.get('nodes', [])}
+        missing = []
+        covered = 0
+        for c in concepts:
+            cid = str(c.get('id', ''))
+            if cid in merged_ids:
+                covered += 1
+            else:
+                missing.append(cid)
+        total = len(concepts)
+        coverage_pct = covered / total if total > 0 else 1.0
+        return {
+            "covered": covered,
+            "total": total,
+            "missing_ids": missing,
+            "coverage_pct": round(coverage_pct, 3),
+        }
 
     def generate(self, chat_history: str, current_map: dict,
                  session_ts: str | None = None) -> dict:
@@ -1503,6 +1843,10 @@ class MindMapPipelineOrchestrator:
                 "stage1": round(timing["stage1"], 2),
                 "stage2": round(timing["stage2"], 2),
                 "stage3": round(timing["stage3"], 2),
+                "overhead": round(
+                    (datetime.now() - t_start).total_seconds()
+                    - timing["stage1"] - timing["stage2"] - timing["stage3"], 2
+                ),
                 "total": round((datetime.now() - t_start).total_seconds(), 2),
             }
             result["_degradation"] = dict(degradation)
@@ -1512,6 +1856,27 @@ class MindMapPipelineOrchestrator:
         debug.add_log(f"Chat history length: {len(chat_history)} chars")
         debug.add_log(f"Current map nodes: {len(current_map.get('nodes', []))}, links: {len(current_map.get('links', []))}")
         debug.save_environment()
+
+        # C: 子树模式降级辅助 — 将 _full_existing_ids 注入 chat_history
+        #    确保 legacy agent 知道被裁剪的子孙节点，避免创建重复概念
+        # E: Subtree-mode degradation helper — inject _full_existing_ids into chat_history
+        #    Ensures legacy agent knows about pruned descendants, preventing duplicates
+        def _enrich_chat_for_subtree(chat: str, cur_map: dict) -> str:
+            full_ids = cur_map.get('_full_existing_ids')
+            if not full_ids:
+                return chat
+            pruned_ids = set(full_ids) - {str(n['id']) for n in cur_map.get('nodes', [])}
+            if not pruned_ids:
+                return chat
+            return (
+                f"C: 【子树模式 - 以下节点已存在于导图的其他分支中，请勿重复创建】\n"
+                f"已有节点ID（被裁剪）: {json.dumps(sorted(pruned_ids))}\n"
+                f"---\n"
+                f"E: [Subtree Mode - These nodes already exist in other branches, do NOT recreate]\n"
+                f"Existing node IDs (pruned): {json.dumps(sorted(pruned_ids))}\n"
+                f"---\n"
+                + chat
+            )
 
         # C: 如果没有配置概念提取 Agent，直接降级到 legacy
         # E: If concept agent not configured, degrade to legacy directly
@@ -1524,7 +1889,7 @@ class MindMapPipelineOrchestrator:
             logger.info(msg_en)
             debug.add_log(f"[Degrade] {msg}")
             result = self.legacy_agent.generate_map_from_context(
-                chat_history, current_map
+                _enrich_chat_for_subtree(chat_history, current_map), current_map
             )
             debug.save_final_map(result)
             debug.add_log(f"[Pipeline End] Duration: {(datetime.now() - t_start).total_seconds():.2f}s (legacy fallback)")
@@ -1553,7 +1918,7 @@ class MindMapPipelineOrchestrator:
             degradation["stage1_failed"] = True
             degradation["degraded_to_legacy"] = True
             result = self.legacy_agent.generate_map_from_context(
-                chat_history, current_map
+                _enrich_chat_for_subtree(chat_history, current_map), current_map
             )
             return _build_result(result)
 
@@ -1576,7 +1941,7 @@ class MindMapPipelineOrchestrator:
             logger.info(msg_en)
             debug.add_log(f"[Degrade] {msg}")
             result = self.legacy_agent.generate_map_from_context(
-                chat_history, current_map
+                _enrich_chat_for_subtree(chat_history, current_map), current_map
             )
             debug.save_final_map(result)
             debug.add_log(f"[Pipeline End] Duration: {(datetime.now() - t_start).total_seconds():.2f}s (empty concepts → legacy)")
@@ -1610,6 +1975,7 @@ class MindMapPipelineOrchestrator:
                 debug.add_log(f"[Stage 2 ERROR] {msg}")
                 degradation["stage2_failed"] = True
                 hierarchy = None
+                debug.save_stage2_skipped(concepts, f"Stage 2 exception: {e}")
 
             t2_elapsed = (datetime.now() - t2_start).total_seconds()
             timing["stage2"] = t2_elapsed
@@ -1630,6 +1996,7 @@ class MindMapPipelineOrchestrator:
                 "E: [Pipeline] Grouping model not configured → skip stage 2"
             )
             debug.add_log("[Stage 2 Skipped] Grouping agent not configured")
+            debug.save_stage2_skipped(concepts, "HIERARCHY_MODEL not configured")
 
         # ========================
         # C: 阶段3 — Delta 生成
@@ -1653,6 +2020,18 @@ class MindMapPipelineOrchestrator:
             raw_delta = gen_result.get("delta", {})
             final_map = gen_result.get("merged_map", current_map)
 
+            # C: Delta 安全检查 — 检测孤立引用、循环依赖、无效更新目标
+            # E: Delta safety check — detect orphan refs, circular deps, invalid update targets
+            delta_warnings = self._validate_delta_safety(raw_delta, current_map)
+            if delta_warnings:
+                for w in delta_warnings:
+                    logger.warning(f"C: [DeltaSafety] {w}")
+                    logger.warning(f"E: [DeltaSafety] {w}")
+                debug.add_log(
+                    f"[Delta Safety] {len(delta_warnings)} warning(s): " +
+                    "; ".join(delta_warnings)
+                )
+
             t3_elapsed = (datetime.now() - t3_start).total_seconds()
             debug.save_stage3_output(raw_delta, final_map)
             debug.save_final_map(final_map)
@@ -1670,6 +2049,70 @@ class MindMapPipelineOrchestrator:
                 f"[Pipeline Success] Total duration: {total_elapsed:.2f}s"
             )
             debug.flush_logs()
+
+            # C: 闭环验证 — 检查阶段1 概念是否被阶段3 覆盖
+            # E: Closed-loop check — verify stage 1 concepts covered by stage 3
+            coverage = self._verify_concept_coverage(concepts, final_map)
+            if coverage["missing_ids"]:
+                logger.warning(
+                    f"C: [Coverage] 概念覆盖率={coverage['coverage_pct']:.0%} "
+                    f"({coverage['covered']}/{coverage['total']})，"
+                    f"未覆盖: {coverage['missing_ids']}"
+                )
+                logger.warning(
+                    f"E: [Coverage] Concept coverage={coverage['coverage_pct']:.0%} "
+                    f"({coverage['covered']}/{coverage['total']})，"
+                    f"missing: {coverage['missing_ids']}"
+                )
+                debug.add_log(
+                    f"[Concept Coverage] {coverage['covered']}/{coverage['total']} "
+                    f"({coverage['coverage_pct']:.0%}) | missing: {coverage['missing_ids']}"
+                )
+            else:
+                debug.add_log(
+                    f"[Concept Coverage] {coverage['covered']}/{coverage['total']} "
+                    f"({coverage['coverage_pct']:.0%}) — all covered"
+                )
+
+            # C: 深度校验 — 检查生成树是否满足深度优先要求
+            # E: Depth check — verify generated tree meets depth-first requirements
+            if Config.DEPTH_FIRST_ENABLED and final_map.get('nodes'):
+                depth_stats = compute_depth_stats(
+                    final_map.get('nodes', []),
+                    final_map.get('links', [])
+                )
+                debug.add_log(
+                    f"[Depth Check] max_depth={depth_stats['max_depth']}, "
+                    f"avg_depth={depth_stats['avg_depth']}, "
+                    f"depth_dist={depth_stats['depth_distribution']}, "
+                    f"top_level_count={depth_stats['top_level_count']}, "
+                    f"shallow_leaves={depth_stats['shallow_leaves']}"
+                )
+                if depth_stats['max_depth'] < Config.MIN_TREE_DEPTH:
+                    logger.warning(
+                        f"C: [Depth Check] 树最大深度={depth_stats['max_depth']}, "
+                        f"低于目标 {Config.MIN_TREE_DEPTH}. "
+                        f"顶层节点数={depth_stats['top_level_count']}, "
+                        f"深度不足的叶子节点={depth_stats['shallow_leaves']}. "
+                        f"深度分布: {depth_stats['depth_distribution']}"
+                    )
+                    logger.warning(
+                        f"E: [Depth Check] Tree max_depth={depth_stats['max_depth']} "
+                        f"below target {Config.MIN_TREE_DEPTH}. "
+                        f"Top-level nodes={depth_stats['top_level_count']}, "
+                        f"shallow leaves={depth_stats['shallow_leaves']}. "
+                        f"Depth dist: {depth_stats['depth_distribution']}"
+                    )
+                else:
+                    logger.info(
+                        f"C: [Depth Check] 深度达标: max_depth={depth_stats['max_depth']} >= {Config.MIN_TREE_DEPTH}"
+                    )
+                    logger.info(
+                        f"E: [Depth Check] Depth OK: max_depth={depth_stats['max_depth']} >= {Config.MIN_TREE_DEPTH}"
+                    )
+                # C: 将深度统计注入返回结果（不作为强制阻断，仅记录）
+                # E: Inject depth stats into result (non-blocking, informational only)
+                final_map['_depth_stats'] = depth_stats
 
             logger.info(
                 f"C: [Pipeline] 三阶段管线完成，最终节点数={len(final_map.get('nodes', []))}"
@@ -1770,11 +2213,21 @@ def extract_subtree_context(node_id: str, current_map: dict) -> dict:
 
     # Step 5: 组装返回结果
     # E: Assemble return result
+    # C: 保存完整导图的所有节点 ID，供管线去重时使用
+    #    子树模式下 current_map 被裁剪，缺少子孙节点 ID，
+    #    会导致 _validate_concepts 无法检测已存在的子孙节点
+    # E: Save all node IDs from the full map for pipeline dedup
+    #    Subtree mode prunes current_map, missing descendant IDs,
+    #    which causes _validate_concepts to miss existing descendants
+    full_existing_ids = {
+        str(n['id']) for n in current_map.get('nodes', [])
+    }
     result = {
         'nodes': flat_nodes,
         'links': flat_links,
         '_subtree_context': True,
         '_subtree_root_id': node_id,
         '_ancestors': ancestors,
+        '_full_existing_ids': list(full_existing_ids),
     }
     return result

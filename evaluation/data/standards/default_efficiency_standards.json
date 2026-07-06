@@ -1,0 +1,11 @@
+{
+  "standards": [
+    {"stage": "stt",    "p50_target": 30.0, "p95_target": 60.0},
+    {"stage": "concept","p50_target": 5.0,  "p95_target": 10.0},
+    {"stage": "hierarchy","p50_target": 5.0, "p95_target": 10.0},
+    {"stage": "delta",  "p50_target": 5.0,  "p95_target": 10.0},
+    {"stage": "polish", "p50_target": 3.0,  "p95_target": 5.0},
+    {"stage": "map_gen","p50_target": 18.0,"p95_target": 35.0},
+    {"stage": "total",  "p50_target": 48.0, "p95_target": 95.0}
+  ]
+}

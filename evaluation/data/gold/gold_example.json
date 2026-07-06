@@ -1,0 +1,328 @@
+{
+  "__purpose": "金标准导图范例文件",
+  "__purpose_en": "Gold Standard Mind Map Example File",
+  "__description": "本文件展示评估框架所要求的金标准导图数据格式，供开发者和标注者参考。所有注释严格遵循中英双语独立成行规范。",
+  "__description_en": "This file demonstrates the gold standard mind map data format required by the evaluation framework, for developer and annotator reference. All annotations strictly follow the bilingual separate-line convention.",
+
+  "nodes": [
+    {
+      "id": "root",
+      "label": "机器学习基础",
+      "__note": "根节点，代表整个思维导图的中心主题",
+      "__note_en": "Root node, representing the central topic of the entire mind map",
+      "parent_id": null,
+      "metadata": {
+        "depth": 0,
+        "type": "root",
+        "__note": "根节点类型，无父节点",
+        "__note_en": "Root node type, no parent node"
+      }
+    },
+    {
+      "id": "supervised",
+      "label": "监督学习",
+      "__note": "第1层子节点，代表机器学习的三大范式之一",
+      "__note_en": "Level 1 child node, representing one of the three major paradigms of machine learning",
+      "parent_id": "root",
+      "details": [
+        "监督学习使用带标签的训练数据，学习从输入到输出的映射函数",
+        "Supervised learning uses labeled training data to learn a mapping function from input to output"
+      ],
+      "metadata": {
+        "depth": 1,
+        "type": "category"
+      }
+    },
+    {
+      "id": "unsupervised",
+      "label": "无监督学习",
+      "__note": "第1层子节点，处理无标签数据的机器学习范式",
+      "__note_en": "Level 1 child node, a machine learning paradigm for unlabeled data",
+      "parent_id": "root",
+      "details": [
+        "无监督学习从未标注的数据中发现隐藏的模式和结构",
+        "Unsupervised learning discovers hidden patterns and structures from unlabeled data"
+      ],
+      "metadata": {
+        "depth": 1,
+        "type": "category"
+      }
+    },
+    {
+      "id": "reinforcement",
+      "label": "强化学习",
+      "__note": "第1层子节点，通过与环境的交互和奖励信号来学习最优策略",
+      "__note_en": "Level 1 child node, learning optimal policies through interaction with the environment and reward signals",
+      "parent_id": "root",
+      "details": [
+        "强化学习通过智能体与环境的交互，最大化累积奖励",
+        "Reinforcement learning maximizes cumulative rewards through agent-environment interaction"
+      ],
+      "metadata": {
+        "depth": 1,
+        "type": "category"
+      }
+    },
+    {
+      "id": "linear_regression",
+      "label": "线性回归",
+      "__note": "第2层叶子节点，监督学习中的基础回归算法",
+      "__note_en": "Level 2 leaf node, a fundamental regression algorithm in supervised learning",
+      "parent_id": "supervised",
+      "details": [
+        "利用最小二乘法拟合线性模型",
+        "Uses ordinary least squares to fit a linear model",
+        "适用于预测连续值的任务，如房价预测",
+        "Suitable for predicting continuous values, such as house price prediction"
+      ],
+      "metadata": {
+        "depth": 2,
+        "type": "algorithm"
+      }
+    },
+    {
+      "id": "svm",
+      "label": "支持向量机",
+      "__note": "第2层叶子节点，基于最大间隔分类的监督学习算法",
+      "__note_en": "Level 2 leaf node, a supervised learning algorithm based on maximum margin classification",
+      "parent_id": "supervised",
+      "details": [
+        "通过寻找最大间隔超平面来进行分类",
+        "Performs classification by finding the maximum-margin hyperplane",
+        "支持核技巧，可处理非线性分类问题",
+        "Supports kernel trick for handling non-linear classification problems"
+      ],
+      "metadata": {
+        "depth": 2,
+        "type": "algorithm"
+      }
+    },
+    {
+      "id": "decision_tree",
+      "label": "决策树",
+      "__note": "第2层叶子节点，基于树结构的可解释分类与回归模型",
+      "__note_en": "Level 2 leaf node, an interpretable tree-structured model for classification and regression",
+      "parent_id": "supervised",
+      "details": [
+        "通过树状决策规则对数据进行划分",
+        "Partitions data through tree-structured decision rules",
+        "具有良好的可解释性，可直观展示决策路径",
+        "Has good interpretability, can visually display decision paths"
+      ],
+      "metadata": {
+        "depth": 2,
+        "type": "algorithm"
+      }
+    },
+    {
+      "id": "kmeans",
+      "label": "K-Means聚类",
+      "__note": "第2层叶子节点，无监督学习中最常用的聚类算法之一",
+      "__note_en": "Level 2 leaf node, one of the most commonly used clustering algorithms in unsupervised learning",
+      "parent_id": "unsupervised",
+      "details": [
+        "通过迭代优化将数据划分为K个簇",
+        "Partitions data into K clusters through iterative optimization",
+        "使用欧氏距离衡量样本之间的相似度",
+        "Uses Euclidean distance to measure similarity between samples"
+      ],
+      "metadata": {
+        "depth": 2,
+        "type": "algorithm"
+      }
+    },
+    {
+      "id": "pca",
+      "label": "主成分分析",
+      "__note": "第2层叶子节点，无监督学习中的经典降维方法",
+      "__note_en": "Level 2 leaf node, a classic dimensionality reduction method in unsupervised learning",
+      "parent_id": "unsupervised",
+      "details": [
+        "通过线性变换将高维数据映射到低维空间",
+        "Maps high-dimensional data to a lower-dimensional space via linear transformation",
+        "保留数据中方差最大的方向作为主成分",
+        "Preserves the directions of maximum variance as principal components"
+      ],
+      "metadata": {
+        "depth": 2,
+        "type": "algorithm"
+      }
+    },
+    {
+      "id": "q_learning",
+      "label": "Q-Learning",
+      "__note": "第2层叶子节点，强化学习中基于价值的经典算法",
+      "__note_en": "Level 2 leaf node, a classic value-based algorithm in reinforcement learning",
+      "parent_id": "reinforcement",
+      "details": [
+        "通过Q函数估计状态-动作对的价值",
+        "Estimates the value of state-action pairs through the Q-function",
+        "使用贝尔曼方程迭代更新Q值",
+        "Uses the Bellman equation to iteratively update Q-values"
+      ],
+      "metadata": {
+        "depth": 2,
+        "type": "algorithm"
+      }
+    },
+    {
+      "id": "policy_gradient",
+      "label": "策略梯度",
+      "__note": "第2层叶子节点，强化学习中基于策略的优化方法",
+      "__note_en": "Level 2 leaf node, a policy-based optimization method in reinforcement learning",
+      "parent_id": "reinforcement",
+      "details": [
+        "直接对策略函数进行参数化并优化",
+        "Directly parameterizes and optimizes the policy function",
+        "适用于连续动作空间和高维状态空间",
+        "Suitable for continuous action spaces and high-dimensional state spaces"
+      ],
+      "metadata": {
+        "depth": 2,
+        "type": "algorithm"
+      }
+    }
+  ],
+
+  "links": [
+    {"source": "root", "target": "supervised"},
+    {"source": "root", "target": "unsupervised"},
+    {"source": "root", "target": "reinforcement"},
+    {"source": "supervised", "target": "linear_regression"},
+    {"source": "supervised", "target": "svm"},
+    {"source": "supervised", "target": "decision_tree"},
+    {"source": "unsupervised", "target": "kmeans"},
+    {"source": "unsupervised", "target": "pca"},
+    {"source": "reinforcement", "target": "q_learning"},
+    {"source": "reinforcement", "target": "policy_gradient"}
+  ],
+
+  "tree": [
+    {
+      "id": "root",
+      "label": "机器学习基础",
+      "children": [
+        {
+          "id": "supervised",
+          "label": "监督学习",
+          "children": [
+            {"id": "linear_regression", "label": "线性回归"},
+            {"id": "svm", "label": "支持向量机"},
+            {"id": "decision_tree", "label": "决策树"}
+          ]
+        },
+        {
+          "id": "unsupervised",
+          "label": "无监督学习",
+          "children": [
+            {"id": "kmeans", "label": "K-Means聚类"},
+            {"id": "pca", "label": "主成分分析"}
+          ]
+        },
+        {
+          "id": "reinforcement",
+          "label": "强化学习",
+          "children": [
+            {"id": "q_learning", "label": "Q-Learning"},
+            {"id": "policy_gradient", "label": "策略梯度"}
+          ]
+        }
+      ]
+    }
+  ],
+
+  "__notes": {
+    "purpose": "本文件是一个金标准导图（Gold Standard Mind Map）的完整示例，用于展示评估框架所要求的数据格式。开发者可以参照此文件的结构创建自己的金标准数据。",
+    "purpose_en": "This file is a complete example of a Gold Standard Mind Map, demonstrating the data format required by the evaluation framework. Developers can follow this file structure to create their own gold standard data.",
+
+    "field_definitions": {
+      "id": {
+        "__label": "节点唯一标识",
+        "__label_en": "Node unique identifier",
+        "__example": "linear_regression",
+        "__format": "小写字母加下划线，同一文件中唯一",
+        "__format_en": "Lowercase letters with underscores, unique within the same file"
+      },
+      "label": {
+        "__label": "节点文本标签",
+        "__label_en": "Node text label",
+        "__example": "线性回归",
+        "__format": "中文或英文文本，与课程中的概念名称保持一致",
+        "__format_en": "Chinese or English text, consistent with the concept name in the lecture"
+      },
+      "parent_id": {
+        "__label": "父节点ID",
+        "__label_en": "Parent node ID",
+        "__example": "supervised",
+        "__format": "根节点的parent_id为null；子节点的parent_id必须对应一个已存在的节点id",
+        "__format_en": "Root node's parent_id is null; child node's parent_id must reference an existing node id"
+      },
+      "details": {
+        "__label": "节点详情说明",
+        "__label_en": "Node detail descriptions",
+        "__format": "字符串数组，每两个条构成一组中英双语说明。第一行为中文，第二行为对应的英文。可选字段，不必须包含。",
+        "__format_en": "String array. Every two entries form a bilingual pair: first is Chinese, second is English. Optional field, not required."
+      },
+      "__note": {
+        "__label": "中文注释",
+        "__label_en": "Chinese annotation",
+        "__format": "用中文描述该节点的含义、作用或注意事项。仅用于文档说明，评估工具不会解析此字段。",
+        "__format_en": "Describes the node's meaning, purpose, or notes in Chinese. For documentation only, the evaluation tool does not parse this field."
+      },
+      "__note_en": {
+        "__label": "英文注释",
+        "__label_en": "English annotation",
+        "__format": "用英文描述该节点的含义、作用或注意事项。仅用于文档说明，评估工具不会解析此字段。",
+        "__format_en": "Describes the node's meaning, purpose, or notes in English. For documentation only, the evaluation tool does not parse this field."
+      },
+      "metadata": {
+        "__label": "元数据",
+        "__label_en": "Metadata",
+        "__format": "包含depth（层级深度）和type（节点类型：root/category/algorithm）等辅助信息。可选字段。",
+        "__format_en": "Contains auxiliary information such as depth (hierarchy depth) and type (node type: root/category/algorithm). Optional field."
+      },
+      "links": {
+        "__label": "边（父子关系）列表",
+        "__label_en": "Edge (parent-child) list",
+        "__format": "每条边包含source（父节点id）和target（子节点id）。可从节点的parent_id字段自动推导。用于与modify_mind_map输出格式保持一致。",
+        "__format_en": "Each edge contains source (parent id) and target (child id). Can be auto-derived from nodes' parent_id fields. Present for compatibility with modify_mind_map output format."
+      },
+      "tree": {
+        "__label": "G6嵌套树格式",
+        "__label_en": "G6 nested tree format",
+        "__format": "G6前端消费的嵌套树格式，根节点通过children字段递归包含子树。与modify_mind_map输出的tree字段一致。",
+        "__format_en": "G6 frontend nested tree format. Root nodes recursively contain subtrees via children field. Consistent with the tree field in modify_mind_map output."
+      }
+    },
+
+    "creation_guidelines": {
+      "__title": "如何制作金标准导图",
+      "__title_en": "How to Create a Gold Standard Mind Map",
+
+      "step_1": "1. 从课程讲义或逐字稿中提取所有关键概念",
+      "step_1_en": "1. Extract all key concepts from the lecture notes or transcript",
+      "step_2": "2. 确定概念之间的父子层级关系，构建树结构",
+      "step_2_en": "2. Determine the parent-child hierarchical relationships between concepts and build a tree structure",
+      "step_3": "3. 为每个节点分配唯一的id和描述性的label",
+      "step_3_en": "3. Assign a unique id and descriptive label to each node",
+      "step_4": "4. 可选：为重要节点添加details详情说明",
+      "step_4_en": "4. Optional: Add detail descriptions for important nodes",
+      "step_5": "5. 验证树的完整性：根节点存在、所有节点可达、无循环依赖",
+      "step_5_en": "5. Verify tree integrity: root exists, all nodes reachable, no circular dependencies"
+    },
+
+    "common_mistakes": {
+      "__title": "常见标注错误",
+      "__title_en": "Common Labeling Mistakes",
+
+      "mistake_1": "1. 缺少根节点：每个导图必须有且仅有一个根节点（parent_id为null）",
+      "mistake_1_en": "1. Missing root node: each mind map must have exactly one root node (parent_id is null)",
+      "mistake_2": "2. 孤立的节点：某个节点的parent_id指向了不存在的id",
+      "mistake_2_en": "2. Orphaned node: a node's parent_id references a non-existent id",
+      "mistake_3": "3. 标签不一致：同一概念在不同节点中使用不同的命名方式",
+      "mistake_3_en": "3. Inconsistent labels: the same concept uses different naming across nodes",
+      "mistake_4": "4. 层级过深或过浅：一般建议3-5层深度，避免超过7层",
+      "mistake_4_en": "4. Depth too deep or shallow: generally recommend 3-5 levels, avoid exceeding 7 levels"
+    }
+  }
+}

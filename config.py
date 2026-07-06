@@ -108,10 +108,14 @@ class Config:
     )
 
     # C: 阶段2 — 层级规划模型（中等，规划父子节点关系）
+    #    未设置时回退到 LLM_MODEL，使三阶段管线完整运行。
+    #    如需跳过阶段2（两阶段模式），显式设置 HIERARCHY_MODEL="" 或 HIERARCHY_SKIP=true。
     # E: Stage 2 — Hierarchy planning model (medium, plan parent-child relationships)
+    #    Falls back to LLM_MODEL when not set, enabling full 3-stage pipeline.
+    #    To skip stage 2 (2-stage mode), explicitly set HIERARCHY_MODEL="" or HIERARCHY_SKIP=true.
     HIERARCHY_MODEL = (
         os.getenv('HIERARCHY_MODEL')
-        or None  # None = 使用 LLM_MODEL
+        or None  # None = 使用 LLM_MODEL（三阶段模式）
     )
     HIERARCHY_BASE_URL = (
         os.getenv('HIERARCHY_BASE_URL')
@@ -135,6 +139,34 @@ class Config:
     DELTA_API_KEY = (
         os.getenv('DELTA_API_KEY')
         or LLM_API_KEY
+    )
+
+    # ---------------------------------------------------------
+    # C: 低参数 LLM 配置（用于低成本批量任务）
+    #    用途: get_definition 的 LLM 回退 + lookup_dictionary (IPA + 字面含义)
+    #    关闭时（LLM_LIGHT_ENABLED=false）→ 自动回退到 LLM_MODEL
+    # E: Low-parameter LLM config (for low-cost batch tasks)
+    #    Use: get_definition LLM fallback + lookup_dictionary (IPA + literal meaning)
+    #    Disabled (LLM_LIGHT_ENABLED=false) → fallback to LLM_MODEL
+    # ---------------------------------------------------------
+    LLM_LIGHT_MODEL = (
+        os.getenv('LLM_LIGHT_MODEL')
+        or None
+    )
+    LLM_LIGHT_BASE_URL = (
+        os.getenv('LLM_LIGHT_BASE_URL')
+        or LLM_BASE_URL
+    )
+    LLM_LIGHT_API_KEY = (
+        os.getenv('LLM_LIGHT_API_KEY')
+        or LLM_API_KEY
+    )
+    LLM_LIGHT_ENABLED = (
+        os.getenv(
+            'LLM_LIGHT_ENABLED',
+            'true' if LLM_LIGHT_MODEL else 'false',
+        ).lower()
+        in ('true', '1', 'yes')
     )
 
     # C: MCP Server 脚本绝对路径（供 Client spawn 子进程使用）
@@ -176,6 +208,23 @@ class Config:
     )
 
     # ---------------------------------------------------------
+    # C: 深度优先生成策略配置
+    #    DEPTH_FIRST_ENABLED: 启用深度优先策略（为已有节点挖掘子节点优先于创建新顶层节点）
+    #    MIN_TREE_DEPTH: 目标最小深度（根算第1层，目标 >= 3）
+    #    MAX_SIBLINGS_PER_NODE: 每个节点的最大同级子节点数（限制宽度，鼓励深度）
+    # E: Depth-first generation strategy config
+    #    DEPTH_FIRST_ENABLED: Enable depth-first strategy (dig children before creating new top-level nodes)
+    #    MIN_TREE_DEPTH: Target minimum depth (root=level 1, target >= 3)
+    #    MAX_SIBLINGS_PER_NODE: Max sibling nodes per parent (limit width, encourage depth)
+    # ---------------------------------------------------------
+    DEPTH_FIRST_ENABLED = (
+        os.getenv('DEPTH_FIRST_ENABLED', 'true').lower()
+        in ('true', '1', 'yes')
+    )
+    MIN_TREE_DEPTH = int(os.getenv('MIN_TREE_DEPTH', '3'))
+    MAX_SIBLINGS_PER_NODE = int(os.getenv('MAX_SIBLINGS_PER_NODE', '6'))
+
+    # ---------------------------------------------------------
     # C: 词典术语下划线标注配置
     #    ANNOTATION_ENABLED: 是否启用节点术语下划线标注功能
     #    DICT_UNDERLINE_SERVER_SCRIPT: 词典标注 MCP Server 脚本路径
@@ -191,11 +240,33 @@ class Config:
         os.getenv('ANNOTATION_ENABLED', 'true').lower()
         in ('true', '1', 'yes')
     )
+    # C: 任务5 — DICT_UNDERLINE_SERVER_SCRIPT 已废弃（原 dict_underline_server.py 被合并到 mcp_server.py）
+    # E: Task 5 — DICT_UNDERLINE_SERVER_SCRIPT deprecated (dict_underline_server.py merged into mcp_server.py)
     DICT_UNDERLINE_SERVER_SCRIPT = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "dict_underline_server.py"
+        os.path.dirname(os.path.abspath(__file__)), "mcp_server.py"
     )
     WIKIPEDIA_LANGUAGE = os.getenv('WIKIPEDIA_LANGUAGE', 'en')
     WIKIPEDIA_TIMEOUT = int(os.getenv('WIKIPEDIA_TIMEOUT', '5'))
+
+    # ---------------------------------------------------------
+    # C: Wikipedia-API 官方库配置
+    #    WIKIPEDIA_USER_AGENT: User-Agent 标识（Wikipedia 强制要求可识别）
+    #    WIKIPEDIA_RATE_LIMIT: 每秒最大请求数（保守 1.0 防 429）
+    # E: Wikipedia-API official library config
+    #    WIKIPEDIA_USER_AGENT: User-Agent identifier (Wikipedia requires identification)
+    #    WIKIPEDIA_RATE_LIMIT: Max requests per second (conservative 1.0 to avoid 429)
+    # ---------------------------------------------------------
+    WIKIPEDIA_USER_AGENT = (
+        os.getenv('WIKIPEDIA_USER_AGENT')
+        or 'AI-MindMap-Agent/1.0 (https://github.com/user/ai-mindmap-agent)'
+    )
+    WIKIPEDIA_RATE_LIMIT = float(os.getenv('WIKIPEDIA_RATE_LIMIT', '1.0'))
+
+    # ---------------------------------------------------------
+    # C: Free Dictionary API 超时配置
+    # E: Free Dictionary API timeout config
+    # ---------------------------------------------------------
+    FREE_DICT_TIMEOUT = int(os.getenv('FREE_DICT_TIMEOUT', '5'))
 
 # C: 为了兼容 agent.py，我们在类外部定义这个变量
 # E: For compatibility with agent.py, we define this variable outside the class

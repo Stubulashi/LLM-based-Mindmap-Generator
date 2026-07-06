@@ -1,0 +1,11 @@
+Machine Learning Fundamentals Mind Map
+
+Machine learning is a core branch of artificial intelligence, mainly divided into three categories: supervised learning, unsupervised learning, and reinforcement learning.
+
+Supervised learning uses labeled training data and includes classification and regression tasks. Common algorithms include decision trees, support vector machines, and neural networks.
+
+Unsupervised learning deals with unlabeled data, with main tasks including clustering and dimensionality reduction. Frequently used algorithms include K-means and principal component analysis.
+
+Reinforcement learning learns optimal policies through agent-environment interaction to obtain reward signals.
+
+Deep learning is an important subfield of machine learning, using multi-layered neural networks to handle complex tasks. Feature engineering and data preprocessing are crucial for model performance, and cross-validation is used to evaluate model generalization ability.

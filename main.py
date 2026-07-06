@@ -18,9 +18,8 @@ from mcp_client import MCPMindMapClient  # C: MCP Client 封装 / E: MCP Client 
 # C: MCP Client 全局实例（在 lifespan 中启动）
 # E: MCP Client global instance (started in lifespan)
 mcp_client: MCPMindMapClient | None = None
-# C: 词典标注 MCP Client 全局实例
-# E: Dictionary underline MCP Client global instance
-dict_underline_client: MCPMindMapClient | None = None
+# C: 任务5 — dict_underline_client 已删除，全部 MCP Tool 由 mcp_client 统一调度
+# E: Task 5 — dict_underline_client removed, all MCP tools dispatched via mcp_client
 
 # C: 配置日志
 # E: Configure logging
@@ -67,6 +66,19 @@ def _validate_map(result: dict) -> tuple[bool, dict]:
         logger.warning("C: [Validate] modify_mind_map nodes/links 类型错误")
         logger.warning("E: [Validate] modify_mind_map nodes/links wrong type")
         return False, fallback
+    # C: link_type 合法性检查 — 非法值回退到 solid 并记录警告
+    # E: link_type validation — fall back to solid on invalid values
+    VALID_LINK_TYPES = {"solid", "dashed", "dotted", "reference", "contrast"}
+    for link in result.get("links", []):
+        lt = link.get("link_type", "solid")
+        if lt not in VALID_LINK_TYPES:
+            logger.warning(
+                f"C: [Validate] link_type '{lt}' 非法（source={link.get('source')}, target={link.get('target')}），回退到 solid"
+            )
+            logger.warning(
+                f"E: [Validate] Invalid link_type '{lt}' (source={link.get('source')}, target={link.get('target')}), falling back to solid"
+            )
+            link["link_type"] = "solid"
     # C: tree 字段可选（向后兼容），不存在时补空列表
     # E: tree field optional (backward compat), fill empty list if missing
     if "tree" not in result:
@@ -118,7 +130,15 @@ def _validate_annotations(result: dict) -> tuple[bool, dict]:
 def _validate_definition(result: dict) -> tuple[bool, dict]:
     """C: 验证 get_definition 返回。返回 (是否通过, definition_dict)。
     E: Validate get_definition result. Returns (passed, definition_dict)."""
-    fallback = {"definition": "Definition unavailable.", "ipa": "", "literal_meaning": "", "source": "none"}
+    fallback = {
+        "definition": "Definition unavailable.",
+        "wikipedia_definition": None,
+        "wikipedia_url": None,
+        "llm_definition": None,
+        "ipa": "",
+        "literal_meaning": "",
+        "source": "none"
+    }
     if not isinstance(result, dict):
         logger.warning("C: [Validate] get_definition 返回类型错误")
         logger.warning("E: [Validate] get_definition returned wrong type")
@@ -189,7 +209,7 @@ subtree_session_memory: dict[str, list] = {}
 # ---------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global mcp_client, dict_underline_client
+    global mcp_client
     logger.info("C: 正在启动 MCP Client（连接 MCP Server 子进程）...")
     logger.info("E: Starting MCP Client (connecting to MCP Server subprocess)...")
 
@@ -210,45 +230,18 @@ async def lifespan(app: FastAPI):
         logger.info("C: MCP Client 就绪，服务启动完成")
         logger.info("E: MCP Client ready, server startup complete")
 
-        # ---------------------------------------------------------
-        # C: 条件启动词典标注 MCP Client
-        #    由 ANNOTATION_ENABLED 控制是否启动
-        # E: Conditionally start dictionary underline MCP Client
-        #    Controlled by ANNOTATION_ENABLED
-        # ---------------------------------------------------------
-        if Config.ANNOTATION_ENABLED:
-            dict_client = MCPMindMapClient(Config.DICT_UNDERLINE_SERVER_SCRIPT)
-            try:
-                await dict_client.start()
-                dict_underline_client = dict_client
-                logger.info("C: Dict-Underline MCP Client 就绪")
-                logger.info("E: Dict-Underline MCP Client ready")
-            except Exception as e:
-                logger.error(f"C: Dict-Underline MCP Client 启动失败: {e}")
-                logger.error(f"E: Dict-Underline MCP Client startup failed: {e}")
-                dict_underline_client = None
-        else:
-            logger.info("C: ANNOTATION_ENABLED=false → 跳过 Dict-Underline MCP Client 启动")
-            logger.info("E: ANNOTATION_ENABLED=false → skipping Dict-Underline MCP Client")
-            dict_underline_client = None
+        # C: 任务5 — dict_underline_client 启动逻辑已删除
+        #     annotate_terms / get_definition / lookup_dictionary 三个 Tool
+        #     已由 mcp_server.py 单进程提供，由 mcp_client 统一调度
+        # E: Task 5 — dict_underline_client startup removed
+        #     Three tools (annotate_terms / get_definition / lookup_dictionary)
+        #     are now provided by mcp_server.py single process, dispatched via mcp_client
 
         try:
             yield
         finally:
             # C: close() 与 start() 在同一个 lifespan task 中执行
             # E: close() runs in the same lifespan task as start()
-            # C: 先关闭 Dict-Underline Client
-            # E: Close Dict-Underline Client first
-            if dict_underline_client is not None:
-                try:
-                    await dict_underline_client.close()
-                except Exception as e:
-                    logger.error(f"C: 关闭 Dict-Underline MCP Client 异常: {e}")
-                    logger.error(f"E: Error closing Dict-Underline MCP Client: {e}")
-                finally:
-                    dict_underline_client = None
-                    logger.info("C: Dict-Underline MCP Client 已关闭")
-                    logger.info("E: Dict-Underline MCP Client closed")
             try:
                 if mcp_client is not None:
                     await mcp_client.close()
@@ -493,15 +486,24 @@ class AnnotateRequest(BaseModel):
     current_map: Dict[str, Any]
     density_mode: str = "medium"     # "low" | "medium" | "high"
     detail_level: str = "medium"     # "brief" | "medium" | "detailed"
+    language: str = "en"             # "zh" | "en" — 用户输入语言
 
 @app.post("/annotate")
 async def annotate_map(request: AnnotateRequest):
     """C: 纯编排器 — 分析导图节点，标记需要下划线标注的关键术语。
-    E: Pure orchestrator — analyze map nodes, mark key terms for underline annotation."""
-    if dict_underline_client is None:
-        raise HTTPException(status_code=503, detail="C: 标注服务不可用（ANNOTATION_ENABLED=false 或启动失败）\nE: Annotation service unavailable (ANNOTATION_ENABLED=false or startup failed)")
+    任务5: 改用 mcp_client 统一调度（dict_underline_client 已删除）。
+    E: Pure orchestrator — analyze map nodes, mark key terms for underline annotation.
+    Task 5: switched to unified mcp_client (dict_underline_client removed).
+    """
+    if mcp_client is None:
+        raise HTTPException(status_code=503, detail="C: 标注服务不可用（MCP Client 未启动）\nE: Annotation service unavailable (MCP client not started)")
 
     session_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # C: 任务2 — 在 /annotate 请求开始时创建缓存目录
+    # E: Task 2 — create cache dir at /annotate request start
+    cache_dir = os.path.join(Config.DEBUG_OUTPUT_DIR, session_ts, "underline_cache")
+    os.makedirs(cache_dir, exist_ok=True)
 
     logger.info("C: [Orchestrator] 调度 annotate_terms 任务...")
     logger.info("E: [Orchestrator] Dispatching annotate_terms task...")
@@ -511,10 +513,10 @@ async def annotate_map(request: AnnotateRequest):
             "current_map": request.current_map,
             "density_mode": request.density_mode,
             "detail_level": request.detail_level,
+            "user_language": request.language,
             "session_ts": session_ts
         },
         _validate_annotations,
-        client=dict_underline_client
     )
     logger.info("C: [Orchestrator] annotate_terms 完成")
     logger.info("E: [Orchestrator] annotate_terms complete")
@@ -532,9 +534,12 @@ class DefineRequest(BaseModel):
 
 @app.post("/define")
 async def define_term(request: DefineRequest):
-    """C: 纯编排器 — 获取术语定义（Wikipedia优先，LLM回退），含 IPA 和字面含义。
-    E: Pure orchestrator — get term definition (Wikipedia first, LLM fallback), with IPA and literal meaning."""
-    if dict_underline_client is None:
+    """C: 纯编排器 — 获取术语定义。
+    任务5: 改用 mcp_client 统一调度（dict_underline_client 已删除）。
+    E: Pure orchestrator — get term definition.
+    Task 5: switched to unified mcp_client (dict_underline_client removed).
+    """
+    if mcp_client is None:
         raise HTTPException(status_code=503, detail="C: 定义查询服务不可用\nE: Definition lookup service unavailable")
 
     session_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -550,7 +555,6 @@ async def define_term(request: DefineRequest):
             "session_ts": session_ts
         },
         _validate_definition,
-        client=dict_underline_client
     )
     logger.info("C: [Orchestrator] get_definition 完成")
     logger.info("E: [Orchestrator] get_definition complete")

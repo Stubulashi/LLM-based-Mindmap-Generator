@@ -21,3 +21,12 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 uvicorn==0.46.0
 mcp>=1.0.0
+wikipedia-api>=0.7.0
+
+# C: 评估框架依赖（可选，缺失时自动降级）
+# E: Evaluation framework dependencies (optional, auto-degrade when missing)
+nltk>=3.8.0
+rouge-score>=0.1.2
+bert-score>=0.3.13
+jiwer>=3.0.0
+jieba>=0.42.1

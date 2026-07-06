@@ -17,15 +17,16 @@
 ## 目录（Table of Contents）
 
 - [1. 节点标签质量评估 / Node Label Quality Assessment](#1-节点标签质量评估node-label-quality-assessment)
-  - [1.1 标签语义相似度 / Label Semantic Similarity](#11-标签语义相似度label-semantic-similarity)
-  - [1.2 核心概念召回率 / Entity Recall](#12-核心概念召回率entity-recall)
-  - [1.3 重要节点遗漏率 / Miss Rate](#13-重要节点遗漏率miss-rate)
-  - [1.4 多余/无关节点引入率 / Precision & FDR](#14-多余无关节点引入率precision--false-discovery-rate)
+  - [1.1 匈牙利节点对齐 / Hungarian Node Alignment](#11-匈牙利节点对齐hungarian-node-alignment)
+  - [1.2 节点精确率-召回率-F1 / Node Precision-Recall-F1](#12-节点精确率-召回率-f1-node-precision-recall-f1)
+  - [1.3 标签语义相似度 / Label Semantic Similarity](#13-标签语义相似度label-semantic-similarity)
+  - [1.4 核心概念召回率 / Entity Recall](#14-核心概念召回率entity-recall)
 - [2. 层级结构正确率评估 / Hierarchy Structure Accuracy](#2-层级结构正确率评估hierarchy-structure-accuracy)
-  - [2.1 树编辑距离 / Tree Edit Distance (TED)](#21-树编辑距离tree-edit-distance-ted)
-  - [2.2 父子关系准确率 / Parent-Child Accuracy](#22-父子关系准确率parentchild-relationship-accuracy)
-  - [2.3 层级对齐率 / Level Alignment Rate](#23-层级对齐率level-alignment-rate)
-  - [2.4 推荐实现方案对比 / Recommended Approaches](#24-推荐实现方案对比recommended-approaches)
+  - [2.1 边精确率-召回率-F1 / Edge Precision-Recall-F1](#21-边精确率-召回率-f1-edge-precision-recall-f1)
+  - [2.2 无标签依存得分 / Unlabeled Attachment Score](#22-无标签依存得分unlabeled-attachment-score)
+  - [2.3 树编辑距离 / Tree Edit Distance (TED)](#23-树编辑距离tree-edit-distance-ted)
+  - [2.4 父子关系 F1 / Parent-Child F1](#24-父子关系-f1-parent-child-f1)
+  - [2.5 层级对齐率 / Level Alignment Rate](#25-层级对齐率level-alignment-rate)
 - [3. 下游任务测试：开卷问答效能 / Downstream Task: QA Utility](#3-下游任务测试开卷问答效能downstream-task-qa-utility)
   - [3.1 实验设计 / Experimental Design](#31-实验设计experimental-design)
   - [3.2 题型设计原则 / Question Design Principles](#32-题型设计原则question-design-principles)
@@ -37,9 +38,9 @@
 - [5. 多语言适应性与鲁棒性 / Multilingual Adaptability & Robustness](#5-多语言适应性与鲁棒性multilingual-adaptability--robustness)
   - [5.1 多语言输入支持度 / Multilingual Input Support](#51-多语言输入支持度multilingual-input-support)
   - [5.2 噪声环境稳定性 / Noise Robustness](#52-噪声环境稳定性noise-robustness)
-- [6. 人工评估维度 [可选] / Human Evaluation [Optional]](#6-人工评估维度-可选human-evaluation-optional)
+- [6. 人工评估与自动化对齐 / Human Evaluation & Automated Alignment](#6-人工评估与自动化对齐human-evaluation--automated-alignment)
   - [6.1 评分维度与量表 / Scoring Dimensions & Rubric](#61-评分维度与量表scoring-dimensions--rubric)
-  - [6.2 评分表样例 / Sample Scoring Sheet](#62-评分表样例sample-scoring-sheet)
+  - [6.2 自动化-人工相关性分析 / Automated-Human Correlation Analysis](#62-自动化-人工相关性分析automated-human-correlation-analysis)
 - [7. 综合评估汇总 / Summary & Aggregation](#7-综合评估汇总summary--aggregation)
   - [7.1 指标速查表 / Quick Reference](#71-指标速查表quick-reference)
   - [7.2 综合评分公式 / Composite Score [可选]](#72-综合评分公式composite-score可选)
@@ -51,71 +52,145 @@
 
 > **目标 / Goal**：
 >
-> **中文**：独立衡量生成节点标签（label）的语义正确性、完整性以及冗余程度。该维度与层级结构完全解耦，仅关注"节点本身说了什么"。
+> **中文**：独立衡量生成节点标签（label）的语义正确性、完整性以及冗余程度。该维度与层级结构完全解耦，仅关注"节点本身说了什么"。所有节点级指标均以匈牙利匹配为基础，确保对齐的一致性和可复现性。
 >
-> **English**: Independently measure the semantic correctness, completeness, and redundancy of generated node labels. This dimension is entirely decoupled from hierarchy structure and focuses solely on "what the node itself says".
+> **English**: Independently measure the semantic correctness, completeness, and redundancy of generated node labels. This dimension is entirely decoupled from hierarchy structure and focuses solely on "what the node itself says". All node-level metrics build upon Hungarian matching as the shared foundation, ensuring alignment consistency and reproducibility.
 
 ---
 
-### 1.1 标签语义相似度（Label Semantic Similarity）
+### 1.1 匈牙利节点对齐（Hungarian Node Alignment）
+
+> **定位 / Role**：本节是后续所有节点级和边级指标的**共享基础设施**。每个指标（Node-P/R/F1、LabelSim、Edge-P/R/F1、UAS、LAR）均依赖于本节定义的对齐结果。
 
 **方法 / Method**：
 
-使用通用 multilingual embedding 模型（推荐 `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` 或 `text2vec-large-chinese`），将生成节点的 label 与标准标注节点的 label 分别编码为稠密向量，计算余弦相似度（Cosine Similarity），并取宏观平均作为最终得分。
+给定标准标注树 $T_s$（节点集 $V_s = \{v_{s1}, \ldots, v_{sn}\}$，标签集 $L_s$）和生成导图树 $T_g$（节点集 $V_g = \{v_{g1}, \ldots, v_{gm}\}$，标签集 $L_g$），通过以下四步建立最优一一匹配：
 
-**使用通用 multilingual embedding 模型，将生成节点标签与标准标注标签编码为稠密向量，计算余弦相似度并取宏观平均作为最终得分。**
+**1. 嵌入编码（Embedding）**：使用多语言 embedding 模型（推荐 `paraphrase-multilingual-MiniLM-L12-v2` 或 `bge-m3`）将每个节点标签编码为稠密向量：
 
-Use a general multilingual embedding model to encode generated and gold-standard labels into dense vectors, compute pairwise cosine similarity, and take the macro-average as the final score.
+$$
+\mathbf{v}_{si} = \text{embed}(l_{si}), \quad \mathbf{v}_{gj} = \text{embed}(l_{gj})
+$$
+
+**2. 相似度矩阵（Similarity Matrix）**：计算所有标签对之间的余弦相似度，构建矩阵 $S \in [0,1]^{m \times n}$：
+
+$$
+S(i, j) = \frac{\mathbf{v}_{gi} \cdot \mathbf{v}_{sj}}{\|\mathbf{v}_{gi}\| \cdot \|\mathbf{v}_{sj}\|}
+$$
+
+**3. 匈牙利最优指派（Hungarian Optimal Assignment）**：将相似度矩阵转换为成本矩阵 $C(i,j) = 1 - S(i,j)$，调用匈牙利算法（$O(\max(m,n)^3)$）求解全局最优一一匹配，得到匹配对集合 $\mathcal{M}^*$：
+
+$$
+\mathcal{M}^* = \arg\max_{\mathcal{M}} \sum_{(i,j) \in \mathcal{M}} S(i,j)
+$$
+
+其中 $|\mathcal{M}^*| = \min(m, n)$。
+
+**4. 相似度阈值过滤（Threshold Filtering）**：引入相似度阈值 $\tau$（推荐值 **0.70**），丢弃低质量匹配，得到高质量匹配对集合 $\mathcal{M}_\tau$：
+
+$$
+\mathcal{M}_\tau = \{(i,j) \in \mathcal{M}^* \mid S(i,j) \geq \tau\}
+$$
+
+> **阈值设计依据 / Threshold Rationale**：$\tau = 0.70$ 对应 embedding 余弦相似度的经验"语义等价"下限。低于此值通常意味着匹配不可靠（近义词混淆、跨概念误匹配）。被丢弃的匹配对中的生成节点和标准节点分别计入 FP 和 FN（见 §1.2）。
+
+**符号汇总 / Notation Summary**：
+
+| 符号 / Symbol | 含义 / Meaning |
+|---|---|
+| $V_s, L_s$ | 标准树节点集合、标签集合 / Gold node set, label set |
+| $V_g, L_g$ | 生成树节点集合、标签集合 / Generated node set, label set |
+| $S \in [0,1]^{m \times n}$ | 余弦相似度矩阵 / Cosine similarity matrix |
+| $\mathcal{M}^*$ | 匈牙利原始匹配对集合 / Raw Hungarian matching set |
+| $\tau$ | 相似度阈值，推荐 0.70 / Similarity threshold, recommended 0.70 |
+| $\mathcal{M}_\tau$ | 过滤后的高质量匹配对 / Filtered high-quality matching pairs |
+
+**示例输出 / Example Output**：
+
+```text
+Gold labels    (n=5):  ["LLM", "Attention", "Transformer", "Fine-tuning", "RLHF"]
+Generated      (m=6):  ["Large Language Model", "Self-Attention", "Transformer", 
+                         "Fine-tune", "AI is cool", "RLHF"]
+
+Similarity Matrix S (6x5):
+                         LLM     Attn    Trans   FT      RLHF
+Large Language Model     0.94    0.28    0.35    0.22    0.15
+Self-Attention           0.18    0.91    0.42    0.20    0.10
+Transformer              0.31    0.38    0.96    0.25    0.12
+Fine-tune                0.12    0.15    0.18    0.89    0.22
+AI is cool               0.05    0.08    0.06    0.10    0.08
+RLHF                     0.10    0.12    0.14    0.20    0.93
+
+Hungarian M* = {(0,0,s=0.94), (1,1,s=0.91), (2,2,s=0.96), (3,3,s=0.89), (5,4,s=0.93)}
+After tau=0.70 filtering, all 5 pairs retained. "AI is cool" unmatched -> FP candidate.
+```
+
+---
+
+### 1.2 节点精确率-召回率-F1（Node Precision-Recall-F1）
+
+> **目标 / Goal**：基于匈牙利节点对齐与阈值过滤，以混淆矩阵方式衡量生成节点与标准节点的匹配质量——同时惩罚遗漏（召回不足）和冗余（精确率不足）。
+>
+> **English**: Based on Hungarian node alignment with threshold filtering, measure matching quality using confusion-matrix formulation — penalizing both omissions and extraneous additions.
 
 **公式 / Formula**：
 
-设生成节点标签集合 $L_g = \{l_{g1}, l_{g2}, ..., l_{gm}\}$，标准标注标签集合 $L_s = \{l_{s1}, l_{s2}, ..., l_{sn}\}$。
-
-**设生成标签集合为 $L_g$，标准标注标签集合为 $L_s$。**
-
-Let generated labels be $L_g$ and gold-standard labels be $L_s$.
-
-计算步骤如下：
-
-1. **最优匹配对齐（Hungarian Algorithm）**：先对每对 $(l_{gi}, l_{sj})$ 计算余弦相似度得到相似度矩阵 $S \in [0,1]^{m \times n}$，再使用匈牙利算法求解最优一一匹配（将 $m$ 个生成标签对齐到最相似的 $n$ 个标准标签），得到匹配对集合 $\mathcal{M}$。
-
-2. **宏观平均**：
+设 $V_g$ 为生成节点集合（$|V_g| = m$），$V_s$ 为标准节点集合（$|V_s| = n$）：
 
 $$
-\text{LabelSim} = \frac{1}{|\mathcal{M}|} \sum_{(i,j) \in \mathcal{M}} \text{cosine}(\mathbf{v}_{gi}, \mathbf{v}_{sj})
+\text{TP} = |\mathcal{M}_\tau|,\quad \text{FP} = m - \text{TP},\quad \text{FN} = n - \text{TP}
 $$
 
-其中 $\mathbf{v}_{gi} = \text{embed}(l_{gi})$，$\mathbf{v}_{sj} = \text{embed}(l_{sj})$。
+$$
+\text{Node-P} = \frac{\text{TP}}{\text{TP} + \text{FP}},\quad \text{Node-R} = \frac{\text{TP}}{\text{TP} + \text{FN}},\quad \text{Node-F1} = \frac{2 \times \text{Node-P} \times \text{Node-R}}{\text{Node-P} + \text{Node-R}}
+$$
 
-> **注意 / Note**：
+> **注意 / Note**：TP=FP=0 且 FN>0 时定义 P=0；TP=FN=0 且 FP>0 时定义 R=0。
+
+**参考阈值 / Reference Threshold**：
+
+| 指标 / Metric | 优秀 / Excellent | 良好 / Good | 需改进 / Needs Improvement |
+|---|---|---|---|
+| Node-F1 | $\geq 0.85$ | 0.70 – 0.84 | $< 0.70$ |
+| Node-P | $\geq 0.80$ | 0.65 – 0.79 | $< 0.65$ |
+| Node-R | $\geq 0.85$ | 0.70 – 0.84 | $< 0.70$ |
+
+**示例输出 / Example Output**（续 §1.1 示例）：
+
+```text
+|M_τ|=5, m=6, n=5 -> TP=5, FP=1, FN=0
+Node-P=5/6=0.833, Node-R=5/5=1.000, Node-F1=0.909 -> Excellent
+```
+
+---
+
+### 1.3 标签语义相似度（Label Semantic Similarity）
+
+> **目标 / Goal**：在节点已正确匹配（TP）的前提下，衡量匹配标签之间的语义贴近程度。仅关注"匹配上的标签有多相似"。
 >
-> - 若 $m < n$（生成节点少于标准），未匹配的标准标签贡献为 0，降低宏观平均。
->
-> - If $m < n$ (generated nodes fewer than gold-standard), unmatched gold labels contribute 0 to the average, penalizing under-generation.
+> **English**: Given nodes are correctly matched (TP), measure semantic closeness between matched label pairs.
+
+**公式 / Formula**：仅对 $\mathcal{M}_\tau$ 中的 TP 节点对计算余弦相似度的宏观平均：
+
+$$
+\text{LabelSim} = \frac{1}{|\mathcal{M}_\tau|} \sum_{(i,j) \in \mathcal{M}_\tau} S(i,j)
+$$
+
+> **注意 / Note**：当 $|\mathcal{M}_\tau| = 0$ 时定义 LabelSim=0。此指标范围 $[\tau, 1.0]$。
 
 **参考阈值 / Reference Threshold**：
 
 | 等级 / Grade | LabelSim | 说明 / Description |
 |---|---|---|
-| 优秀 / Excellent | $\geq$ 0.80 | 标签语义高度一致 / labels semantically highly consistent |
-| 良好 / Good | 0.65 – 0.79 | 大体一致，少量偏差 / mostly consistent, minor deviations |
-| 需改进 / Needs Improvement | $<$ 0.65 | 语义偏差显著 / significant semantic drift |
+| 优秀 / Excellent | $\geq 0.85$ | 标签语义高度一致 |
+| 良好 / Good | 0.75 – 0.84 | 大体一致，少量偏差 |
+| 需改进 / Needs Improvement | $< 0.75$ | 语义偏差显著 |
 
-**示例输出 / Example Output**：
-
-```text
-Gold labels:    ["Large Language Model", "Attention Mechanism", "Transformer Architecture"]
-Generated:      ["LLM", "Attention", "Transformer"]
-Cosine Matrix:  [[0.92, 0.35, 0.48],
-                 [0.28, 0.96, 0.62],
-                 [0.41, 0.55, 0.94]]
-Optimal Match:  (LLM->Large Language Model, Attention->Attention Mechanism, Transformer->Transformer Architecture)
-LabelSim = (0.92 + 0.96 + 0.94) / 3 = 0.940  -> Excellent
-```
+**示例输出 / Example Output**：`LabelSim = (0.94+0.91+0.96+0.89+0.93)/5 = 0.926` → Excellent
 
 ---
 
-### 1.2 核心概念召回率（Entity Recall）
+### 1.4 核心概念召回率（Entity Recall）
 
 **方法 / Method**：
 
@@ -157,89 +232,93 @@ Entity Recall = 13 / 15 = 0.867  -> Good
 Missed: ["Tool Calling", "Hallucination"]
 ```
 
----
-
-### 1.3 重要节点遗漏率（Miss Rate）
-
-**方法 / Method**：
-
-Entity Recall 的互补指标，直接衡量遗漏程度。从标准标注树中识别未被生成导图覆盖的节点。
-
-**Entity Recall 的互补指标，直接衡量遗漏程度。**
-
-Complementary to Entity Recall; measures omission directly. Identify gold-standard nodes not covered by the generated map.
-
-**公式 / Formula**：
-
-$$
-\text{MissRate} = 1 - \frac{|\text{covered\_labels}|}{|L_s|} = 1 - \text{Label-level Recall}
-$$
-
-> **说明 / Note**：
->
-> - $\text{covered\_labels}$：标准 label $l_s$ 在生成节点集合中能找到相似度 $\geq 0.70$ 的匹配
-> - 推荐使用匈牙利匹配结果判定覆盖关系，比简单阈值匹配更精确
->
-> - $\text{covered\_labels}$: gold labels with a match in generated nodes (cosine $\geq 0.70$).
-> - Using Hungarian matching is recommended for more accurate coverage determination.
-
-**参考阈值 / Reference Threshold**：`MissRate` $\leq 0.20$（即至少覆盖 80% 的标准节点）。
-
----
-
-### 1.4 多余/无关节点引入率（Precision / False Discovery Rate）
-
-**方法 / Method**：
-
-衡量生成导图中"画蛇添足"的程度。对每个生成节点 label，检查其是否能在标准标注集中找到语义相似度 $\geq 0.70$ 的对应项；若不能，则标记为"无关引入"。
-
-**衡量生成导图中"画蛇添足"的程度。对每个生成标签检查是否能在标准集中找到语义相似度匹配。**
-
-For each generated label, check if a semantically similar match (cosine $\geq 0.70$) exists in the gold-standard set. If not, mark it as an extraneous introduction.
-
-**公式 / Formula**：
-
-$$
-\text{Precision} = \frac{|\text{matched\_generated\_labels}|}{|L_g|}
-$$
-
-$$
-\text{FDR (False Discovery Rate)} = 1 - \text{Precision} = \frac{|\text{extraneous\_labels}|}{|L_g|}
-$$
-
-**参考阈值 / Reference Threshold**：`Precision` $\geq 0.75$，即无关引入率 $\leq 25\%$。
-
-**示例输出 / Example Output**：
-
-```text
-Generated labels (|Lg|=12): [LLM, Agent, MCP, ReAct, RAG, "AI is cool", Transformer, ...]
-Matched to gold:            [LLM, Agent, MCP, ReAct, RAG, ..., Transformer]  -> 10 matched
-Extraneous:                 ["AI is cool", "Future of AI"]  -> 2 extraneous
-Precision = 10 / 12 = 0.833  -> Good
-FDR = 2 / 12 = 0.167
-```
-
----
-
 ## 2. 层级结构正确率评估（Hierarchy Structure Accuracy）
 
 > **目标 / Goal**：
 >
-> **中文**：独立衡量父子关系、从属关系的准确性，不与节点标签质量混淆。关注"节点之间的从属关系是否正确"，而非"节点本身是什么"。
+> **中文**：独立衡量父子关系、从属关系的准确性，不与节点标签质量混淆。所有边级指标均依赖于 §1.1 的匈牙利节点对齐 $\mathcal{M}_\tau$，确保标签评估和层级评估使用同一套节点对应关系。
 >
-> **English**: Independently measure parent-child and subordination accuracy, without conflating with label quality. Focus on "whether the subordinate relationships between nodes are correct", not "what the node itself is".
+> **English**: Independently measure parent-child and subordination accuracy. All edge-level metrics depend on the Hungarian node alignment $\mathcal{M}_\tau$ from §1.1, ensuring label and hierarchy evaluations share the same node correspondence.
 
 ---
 
-### 2.1 树编辑距离（Tree Edit Distance, TED）
+### 2.1 边精确率-召回率-F1（Edge Precision-Recall-F1）
+
+> **目标 / Goal**：基于已建立的节点对应关系，衡量生成导图中有向边（父子关系）与标准标注的一致性——同时惩罚缺失边和多余边。
+>
+> **English**: Based on established node correspondences, measure consistency of directed edges between generated and gold maps.
 
 **方法 / Method**：
 
-计算将生成导图树结构 $T_g$ 转换为标准标注树 $T_s$ 所需的最少编辑操作次数（插入节点、删除节点、替换节点标签、变更父子关系）。距离越小，层级结构越接近标准。
+给定标准边集 $E_s$ 和生成边集 $E_g$，利用 §1.1 的节点匹配 $\mathcal{M}_\tau$ 定义映射 $\mu$：$\mu(s) = g$ 当且仅当 $(g, s) \in \mathcal{M}_\tau$。
 
-**计算将生成导图树转换为标准标注树所需的最少编辑操作次数。**
+标准边 $e_s = (s_p, s_c) \in E_s$ 被判定为 TP 当且仅当 $\mu(s_p) \neq \bot \land \mu(s_c) \neq \bot \land (\mu(s_p), \mu(s_c)) \in E_g$。
 
-Compute the minimum number of tree edit operations (insert node, delete node, relabel, change parent) required to transform $T_g$ into $T_s$. Smaller distance = closer hierarchy.
+**公式 / Formula**：
+
+$$
+\text{TP}_\text{edge} = |\{e_s \in E_s \mid \mu(e_s.\text{parent}), \mu(e_s.\text{child}) \text{ both mapped and form edge in } E_g\}|
+$$
+
+$$
+\text{FN}_\text{edge} = |E_s| - \text{TP}_\text{edge},\quad \text{FP}_\text{edge} = |E_g| - \text{TP}_\text{edge}
+$$
+
+$$
+\text{Edge-P} = \frac{\text{TP}_\text{edge}}{|E_g|},\quad \text{Edge-R} = \frac{\text{TP}_\text{edge}}{|E_s|},\quad \text{Edge-F1} = \frac{2 \times \text{Edge-P} \times \text{Edge-R}}{\text{Edge-P} + \text{Edge-R}}
+$$
+
+> **边界情况**：$|E_s|=0$ 时定义 Edge-R=1.0；$|E_g|=0$ 时定义 Edge-P=1.0。
+
+**参考阈值 / Reference Threshold**：Edge-F1 $\geq 0.80$ 为优秀，0.65–0.79 为良好。
+
+**示例输出 / Example Output**：
+
+```text
+Gold edges (5): (LLM,Attn), (LLM,Trans), (LLM,FT), (Trans,Enc), (Trans,Dec)
+Gen edges  (6): above 5 + extra (LLM,RLHF)
+TP=5, FN=0, FP=1 -> Edge-P=5/6=0.833, Edge-R=5/5=1.000, Edge-F1=0.909 -> Excellent
+```
+
+---
+
+### 2.2 无标签依存得分（Unlabeled Attachment Score, UAS）
+
+> **目标 / Goal**：借鉴依存句法分析领域经典指标 UAS（Jurafsky & Martin, 2023, Ch.19），以节点为视角衡量"每个生成节点的父节点是否正确"。
+>
+> **English**: Adapted from dependency parsing (Jurafsky & Martin, 2023), node-centric metric for correct parent assignment.
+
+**方法 / Method**：
+
+对 $\mathcal{M}_\tau$ 中每个匹配的标准节点 $s$，检查其生成对应节点的父节点是否等于其标准父节点的（匹配后）对应节点：
+
+$$
+\text{UAS} = \frac{|\{s \in V_s \mid \mu(s) \neq \bot \land \text{parent}_g(\mu(s)) = \mu(\text{parent}_s(s))\}|}{|\mathcal{M}_\tau|}
+$$
+
+根节点特殊处理：$s$ 为根且 $\mu(s)$ 为根时直接判定正确。
+
+> **与 Edge-R 对比**：Edge-R 以边为单位（分母 $|E_s|$），UAS 以节点为单位（分母 $|\mathcal{M}_\tau|$）。UAS 对标签失败的容忍度更好——仅计算已匹配节点。
+
+**参考阈值 / Reference Threshold**：UAS $\geq 0.85$ 为优秀，0.70–0.84 为良好。
+
+**示例输出 / Example Output**：
+
+```text
+7 matched nodes: RLHF placed under LLM instead of Fine-tuning -> UAS=6/7=0.857 -> Excellent
+```
+
+---
+
+### 2.3 树编辑距离（Tree Edit Distance, TED）
+
+> **目标 / Goal**：
+>
+> **中文**：最小编辑操作框架（Zhang-Shasha 算法）将生成树和标准树之间的整体结构差异量化为一个单一距离分数。nTED 是该距离经节点数归一化后的版本，使不同规模的树可比。
+>
+> **English**: The minimum edit operation framework (Zhang-Shasha algorithm) quantifies the overall structural difference between the generated and gold trees as a single distance score. nTED is the node-count-normalized version, making trees of different sizes comparable.
+
+**方法 / Method**：计算将 $T_g$ 转换为 $T_s$ 所需的最少编辑操作次数（插入节点、删除节点、重标记标签、变更父节点）。使用 Zhang-Shasha 算法（$O(|T_g| \times |T_s| \times \text{depth}^2)$）或 APTED 算法（$O(|T_g| \times |T_s|)$）。
 
 **公式 / Formula**：
 
@@ -247,82 +326,53 @@ $$
 \text{nTED} = \frac{\text{TED}(T_g, T_s)}{\max(|T_g|, |T_s|)}
 $$
 
-> **符号说明 / Notation**：
->
-> - $|T|$ 为树的节点数。归一化后使不同规模的树可比。
->
-> - $|T|$ is the number of nodes in tree T. Normalization makes trees of different sizes comparable.
+> **注意 / Note**：TED 对树规模和编辑代价敏感。使用 nTED 代替原始 TED 使不同大小树之间的分数可比。当节点数量悬殊时（如 $|T_g| \gg |T_s|$），nTED 可能因分母过大而低估结构差异，建议配合 Edge-P/R/F1 和 UAS 综合判断。
 
-**参考阈值 / Reference Threshold**：`nTED` $\leq 0.25$
+**参考阈值 / Reference Threshold**：nTED $\leq 0.25$
 
-**实现建议 / Implementation**：推荐使用 `zss`（Zhang-Shasha 算法）或 `apted` Python 库。
+**实现建议 / Implementation**：推荐 `zss`（Zhang-Shasha）或 `apted`（APTED）Python 库。
 
 ---
 
-### 2.2 父子关系准确率（Parent-Child Relationship Accuracy）
+### 2.4 父子关系 F1（Parent-Child F1）
 
-**方法 / Method**：
+> **目标 / Goal**：
+>
+> **中文**：基于语义标签相似度直接比对父子对——不依赖匈牙利节点对齐。与 §2.1 的 Edge-F1 互补：Edge-F1 基于对齐后的节点映射，PC-F1 基于标签本身。
+>
+> **English**: Direct parent-child pair comparison based on semantic label similarity — independent of Hungarian node alignment. Complements Edge-F1 (§2.1): Edge-F1 uses alignment-based node mapping, PC-F1 uses label-based matching.
 
-将标准标注中的父子节点对 $(p_s, c_s)$ 与生成导图中的父子节点对 $(p_g, c_g)$ 进行匹配。一对父子关系被判定为"正确"，当且仅当父节点和子节点的 label 均能在对方集合中找到语义匹配。
+> **注意**：与 Edge-F1 (§2.1) 的差异——PC-F1 通过语义相似度判定父/子标签是否匹配（余弦 $\geq \tau$），Edge-F1 通过匈牙利节点映射判定边是否存在。两者结果越接近，说明节点对齐（§1.1）的质量越高。
 
-**将标准标注中的父子节点对与生成导图中的父子节点对进行匹配。**
-
-A parent-child pair is judged "correct" iff both the parent and child labels can be semantically matched across the gold and generated maps.
+**方法 / Method**：将标准标注中的父子节点对 $(p_s, c_s)$ 与生成导图中的父子节点对 $(p_g, c_g)$ 进行匹配。一对父子关系被判定为"正确"，当且仅当父节点和子节点的 label 均能在对方集合中找到语义匹配（余弦相似度 $\geq \tau$）。
 
 **公式 / Formula**：
 
 $$
-\text{PCA} = \frac{|\text{correct\_parent\_child\_pairs}|}{|\text{gold\_parent\_child\_pairs}|}
+\text{PCA} = \frac{|\text{correct\_parent\_child\_pairs}|}{|\text{gold\_parent\_child\_pairs}|},\quad \text{PC-Precision} = \frac{|\text{correct\_parent\_child\_pairs}|}{|\text{generated\_parent\_child\_pairs}|},\quad \text{PC-F1} = \frac{2 \times \text{PCA} \times \text{PC-Precision}}{\text{PCA} + \text{PC-Precision}}
 $$
 
-$$
-\text{PC-Precision} = \frac{|\text{correct\_parent\_child\_pairs}|}{|\text{generated\_parent\_child\_pairs}|}
-$$
-
-$$
-\text{PC-F1} = \frac{2 \times \text{PCA} \times \text{PC-Precision}}{\text{PCA} + \text{PC-Precision}}
-$$
-
-**参考阈值 / Reference Threshold**：`PC-F1` $\geq 0.75$
+**参考阈值 / Reference Threshold**：PC-F1 $\geq 0.75$
 
 ---
 
-### 2.3 层级对齐率（Level Alignment Rate）
+### 2.5 层级对齐率（Level Alignment Rate, LAR）
 
-**方法 / Method**：
+> **目标 / Goal**：
+>
+> **中文**：衡量已匹配节点在树中的层级深度是否一致。高的 LAR 意味着生成导图与标准标注不仅在节点和边上匹配，还保持了每层概念抽象程度的正确性。
+>
+> **English**: Measures whether matched nodes share the same tree depth. High LAR indicates that the generated map preserves the correct level of abstraction for each concept relative to the gold standard.
 
-统计生成节点与标准节点层级深度一致的比例。节点的层级深度定义为其到根节点的最短路径长度。通过匈牙利匹配先对齐节点，再比较匹配对的层级深度。
-
-**统计生成节点与标准节点层级深度一致的比例。**
-
-Count the proportion of generated nodes whose depth (shortest path to root) matches their aligned gold-standard counterpart.
+**方法 / Method**：节点的层级深度定义为从根到该节点的最短路径长度（根深度 = 0）。通过 §1.1 的匈牙利匹配 $\mathcal{M}_\tau$ 对齐节点后，对每个匹配对比较两者的深度。
 
 **公式 / Formula**：
 
 $$
-\text{LAR} = \frac{|\{(g, s) \in \mathcal{M} \mid \text{depth}(g) = \text{depth}(s)\}|}{|\mathcal{M}|}
+\text{LAR} = \frac{|\{(g, s) \in \mathcal{M}_\tau \mid \text{depth}(g) = \text{depth}(s)\}|}{|\mathcal{M}_\tau|}
 $$
 
-其中 $\mathcal{M}$ 为匈牙利匹配得到的节点对集合。
-
-**参考阈值 / Reference Threshold**：`LAR` $\geq 0.70$
-
----
-
-### 2.4 推荐实现方案对比（Recommended Approaches）
-
-| 维度 | 方案 A：TED + PC Accuracy | 方案 B：Embedding 子树匹配 |
-|---|---|---|
-| **核心思路** | 经典树编辑距离 + 父子对精确比对 | 节点嵌入向量与层级特征拼接后进行结构对齐 |
-| **优点** | 精确、可解释、有成熟理论体系；适合论文严格评估 | 计算速度快（$O(n^2)$ vs TED 指数级最坏）；大规模导图友好 |
-| **缺点** | 大型树（$>100$ 节点）TED 开销大，需剪枝优化 | 依赖 embedding 质量；可解释性较弱 |
-| **适用场景** | 正式评估报告、论文核心指标 | 快速迭代评估、A/B 测试 |
-| **推荐库** | `zss`, `apted` | `sentence-transformers` + 自写匹配逻辑 |
-
-**推荐策略 / Recommended Strategy**：
-
-- **正式论文**：方案 A 作为主指标，方案 B 作为辅助验证
-- **工程迭代**：方案 B 用于日常回归测试
+**参考阈值 / Reference Threshold**：LAR $\geq 0.70$
 
 ---
 
@@ -565,9 +615,9 @@ $$
 
 每组分别计算：
 
-- Entity Recall（1.2 节）
-- Label Semantic Similarity（1.1 节）
-- PC-F1（2.2 节）
+- Entity Recall（§1.4）
+- LabelSim（§1.3）
+- PC-F1（§2.4）
 
 > **参考阈值 / Reference Threshold**：
 >
@@ -618,13 +668,13 @@ Noise Level (p)  | WER    | Entity Recall | PC-F1  | Recall Drop |
 
 ---
 
-## 6. 人工评估维度 [可选]（Human Evaluation [Optional]）
+## 6. 人工评估与自动化对齐（Human Evaluation & Automated Alignment）
 
 > **目标 / Goal**：
 >
-> **中文**：补充自动化指标无法覆盖的主观体验维度，包括可读性、布局合理性和教学实用性。
+> **中文**：补充自动化指标无法覆盖的主观体验维度（可读性、布局合理性、教学实用性），并通过自动化-人工相关性分析验证自动化指标是否有意义——即自动化高分是否对应人类评估者认为的"好导图"。
 >
-> **English**: Supplement automated metrics with subjective experience dimensions including readability, layout reasonableness, and pedagogical utility.
+> **English**: Supplement automated metrics with subjective experience dimensions, and validate that automated metrics are meaningful through correlation analysis — i.e., whether high automated scores correspond to maps that humans consider "good".
 
 ---
 
@@ -640,27 +690,64 @@ Noise Level (p)  | WER    | Entity Recall | PC-F1  | Recall Drop |
 | **教学实用性** / Pedagogical Utility | 作为复习资料的使用意愿？ / Willingness to use as review material? | 不会使用——缺乏组织 / Won't use—lack of organization | 非常愿意——结构清晰 / Very willing—clear structure |
 | **层级直觉性** / Hierarchy Intuitiveness | 父子从属关系是否符合直觉？ / Do parent-child relationships follow intuition? | 大量反直觉或不合理 / Mostly counter-intuitive or unreasonable | 完全符合认知 / Fully aligned with cognition |
 
+**评分者间一致性 / Inter-rater Reliability**：计算 ICC(3,k) 或 Kendall's W，目标 $\geq 0.70$。
+
 ---
 
-### 6.2 评分表样例（Sample Scoring Sheet）
+### 6.2 自动化-人工相关性分析（Automated-Human Correlation Analysis）
+
+> **目标 / Goal**：验证自动化指标是否能够替代或近似人工评估。若关键自动化指标与人工评分达到强相关（Pearson $r \geq 0.70$），则证明自动化指标具有效标效度（criterion validity）。
+>
+> **English**: Validate whether automated metrics can substitute human evaluation. If key metrics achieve strong correlation (Pearson $r \geq 0.70$), they demonstrate criterion validity.
+
+**方法 / Method**：
+
+**1. 样本选择**：至少选取 30 个导图样本（覆盖优秀、良好、需改进各约 1/3），同时进行自动化和人工评估。
+
+**2. 指标配对**：
+
+| 自动化指标 / Automated Metric | 对应人工维度 / Human Dimension | 预期相关性理由 / Rationale |
+|---|---|---|
+| Node-F1 (§1.2) | 可读性 / Readability | 节点匹配质量直接影响标签可读性 |
+| Node-F1 + Entity Recall (§1.4) | 信息密度 / Information Density | 概念覆盖度影响信息完整性感知 |
+| Edge-F1 (§2.1) + UAS (§2.2) | 层级直觉性 / Hierarchy Intuitiveness | 边级指标直接影响层级合理性感观 |
+| LabelSim (§1.3) | 可读性 / Readability | 标签语义质量影响阅读流畅性 |
+
+**3. 相关性计算**：
+
+Pearson 积差相关系数（衡量线性关系）：
+
+$$
+r(\mathbf{a}, \mathbf{h}) = \frac{\sum (a_i - \bar{a})(h_i - \bar{h})}{\sqrt{\sum (a_i - \bar{a})^2} \cdot \sqrt{\sum (h_i - \bar{h})^2}}
+$$
+
+Spearman 等级相关系数（衡量单调关系，对异常值更鲁棒）：
+
+$$
+\rho = 1 - \frac{6 \sum d_i^2}{n(n^2 - 1)},\quad d_i = \text{rank}(a_i) - \text{rank}(h_i)
+$$
+
+**4. 效度判定标准**：
+
+| 相关强度 | $r$ 或 $\rho$ 范围 | 结论 |
+|---|---|---|
+| 强 / Strong | $\geq 0.70$ | 自动化指标有效，可替代人工评估 |
+| 中等 / Moderate | 0.40 – 0.69 | 自动化指标部分有效，需结合人工评估 |
+| 弱 / Weak | $< 0.40$ | 自动化指标需重新设计或补充 |
+
+> **目标阈值**：核心指标（Node-F1、Edge-F1）的 Pearson $r \geq 0.70$ 是自动化评估体系被认可的最低条件。
+
+**示例输出 / Example Output**：
 
 ```text
-Evaluator ID: E03
-Map ID: lecture_07_MCP_deep_dive
-Date: 2026-06-22
-
-Dimension             Score (1-5)   Comments
-────────────────────────────────────────────────────────
-Readability           4             标签简洁，偶有缩写不明确
-Layout                3             部分三级节点拥挤，建议增加间距
-Information Density   4             核心概念覆盖全面
-Pedagogical Utility   5             非常适合期中复习使用
-Hierarchy Intuit.     4             大部分从属关系合理，1处值得商榷
-
-Overall (mean): 4.0 / 5.0
+Sample: n=36 maps (12 Excellent, 12 Good, 12 Needs Improvement)
+  Pairing                          Pearson r   Spearman ρ   Verdict
+  Node-F1 vs Readability           0.82 **     0.79 **      Strong (valid)
+  Edge-F1 vs Hierarchy Intuit.     0.78 **     0.74 **      Strong (valid)
+  UAS vs Hierarchy Intuit.         0.81 **     0.77 **      Strong (valid)
+  LabelSim vs Readability          0.65 *      0.60 *       Moderate
+** p < 0.001, * p < 0.01
 ```
-
-**评分者间一致性 / Inter-rater Reliability**：计算 ICC(3,k) 或 Kendall's W，目标 $\geq 0.70$。
 
 ---
 
@@ -670,30 +757,30 @@ Overall (mean): 4.0 / 5.0
 
 | # | 维度 / Dimension | 指标 / Metric | 公式（简写）/ Formula | 优秀阈值 / Threshold | 必须/可选 / Required/Optional |
 |---|---|---|---|---|---|
-| 1.1 | 标签质量 / Label Quality | LabelSim | cosine macro-avg | $\geq 0.80$ | **必须 / Required** |
-| 1.2 | 标签质量 / Label Quality | Entity Recall | hits / $|E_s|$ | $\geq 0.90$ | **必须 / Required** |
-| 1.3 | 标签质量 / Label Quality | Miss Rate | $1 -$ Recall | $\leq 0.20$ | 建议 / Suggested |
-| 1.4 | 标签质量 / Label Quality | Precision | matched / $|L_g|$ | $\geq 0.75$ | **必须 / Required** |
-| 2.1 | 层级结构 / Hierarchy | nTED | TED / $\max(|T_g|,|T_s|)$ | $\leq 0.25$ | **必须 / Required** |
-| 2.2 | 层级结构 / Hierarchy | PC-F1 | $2\times$PCA$\times$PCP/(PCA+PCP) | $\geq 0.75$ | **必须 / Required** |
-| 2.3 | 层级结构 / Hierarchy | LAR | depth-match / $|\mathcal{M}|$ | $\geq 0.70$ | 建议 / Suggested |
+| 1.1 | 标签质量 / Label Quality | Node-F1 | $2$PR$/($P$+$R$)$ | $\geq 0.85$ | **必须 / Required** |
+| 1.2 | 标签质量 / Label Quality | Node-P | TP $/ m$ | $\geq 0.80$ | **必须 / Required** |
+| 1.3 | 标签质量 / Label Quality | Node-R | TP $/ n$ | $\geq 0.85$ | **必须 / Required** |
+| 1.4 | 标签质量 / Label Quality | LabelSim | mean cosine over $\mathcal{M}_\tau$ | $\geq 0.85$ | **必须 / Required** |
+| 1.5 | 标签质量 / Label Quality | Entity Recall | hits $/ |E_s|$ | $\geq 0.90$ | **必须 / Required** |
+| 2.1 | 层级结构 / Hierarchy | Edge-F1 | $2$PR$/($P$+$R$)$ (edge-based) | $\geq 0.80$ | **必须 / Required** |
+| 2.2 | 层级结构 / Hierarchy | UAS | correct-parent $/ |\mathcal{M}_\tau|$ | $\geq 0.85$ | **必须 / Required** |
+| 2.3 | 层级结构 / Hierarchy | nTED | TED $/ \max(|T_g|,|T_s|)$ | $\leq 0.25$ | **必须 / Required** |
+| 2.4 | 层级结构 / Hierarchy | PC-F1 | $2\times$PCA$\times$PCP$/$ (PCA$+$PCP) | $\geq 0.75$ | 建议 / Suggested |
+| 2.5 | 层级结构 / Hierarchy | LAR | depth-match $/ |\mathcal{M}_\tau|$ | $\geq 0.70$ | 建议 / Suggested |
 | 3 | 下游QA / Downstream QA | QA-Score | $0.3$BLEU$+0.4$ROUGE$+0.3$BERTScore | $\geq$ 90% of control | 建议 / Suggested |
 | 4.1 | 效率 / Efficiency | $T_{total}$ P50 | $\Sigma\ t_{stage}$ | $\leq$ 30s (real-time) | **必须 / Required** |
 | 4.2 | STT质量 / STT Quality | WER | $(S+D+I)/N$ | $\leq 0.15$ | **必须 / Required** |
-| 4.2 | STT质量 / STT Quality | KTRR | matched / $|K_s|$ | $\geq 0.90$ | 建议 / Suggested |
+| 4.2 | STT质量 / STT Quality | KTRR | matched $/ |K_s|$ | $\geq 0.90$ | 建议 / Suggested |
 | 5.1 | 多语言 / Multilingual | $\Delta$Recall | $\max_{recall} - \min_{recall}$ | $\leq 0.15$ | 建议 / Suggested |
 | 5.2 | 鲁棒性 / Robustness | Recall Drop | baseline $-$ recall$_{noisy}$ | $\leq 10\%$ | 建议 / Suggested |
-| 6 | 人工 / Human | Overall Mean | mean(all dims) | $\geq 4.0/5.0$ | 可选 / Optional |
+| 6.2 | 对齐效度 / Alignment Validity | Pearson $r$ | Node-F1 vs Human Readability | $\geq 0.70$ | **必须 / Required** |
+| 6 | 人工 / Human | Overall Mean | mean(all dims) | $\geq 4.0/5.0$ | **必须 / Required** |
 
 > **表注 / Table Notes**：
 >
 > - "必须 / Required"指标为论文核心评估项，建议在所有实验中报告
 > - "建议 / Suggested"指标可提升评估完整性，资源受限时可省略
-> - "可选 / Optional"指标适用于有用户调研条件的场景
->
-> - "Required" metrics are core evaluation items for papers and should be reported in all experiments.
-> - "Suggested" metrics enhance evaluation completeness and may be omitted under resource constraints.
-> - "Optional" metrics apply to scenarios with user research conditions.
+> - §6 人工评估从"可选"提升为"必须"——至少需要 30 个样本的相关性分析以验证自动化指标效度
 
 ---
 
@@ -702,7 +789,7 @@ Overall (mean): 4.0 / 5.0
 若需将多维指标聚合为单一分数用于排行榜或模型选型：
 
 $$
-\text{Composite} = 0.25 \times \text{LabelSim} + 0.20 \times \text{EntityRecall} + 0.10 \times \text{Precision} + 0.20 \times (1 - \text{nTED}) + 0.15 \times \text{PC-F1} + 0.10 \times \text{QA-Relative}
+\text{Composite} = 0.20 \times \text{Node-F1} + 0.15 \times \text{Edge-F1} + 0.10 \times \text{LabelSim} + 0.10 \times \text{EntityRecall} + 0.15 \times (1 - \text{nTED}) + 0.10 \times \text{UAS} + 0.10 \times \text{PC-F1} + 0.10 \times \text{QA-Relative}
 $$
 
 其中 $\text{QA-Relative} = \text{QA-Score}_{\text{实验组}} / \text{QA-Score}_{\text{对照组}}$，衡量相对于基线的下游任务保留率。
@@ -734,14 +821,17 @@ Where $\text{QA-Relative} = \text{QA-Score}_{\text{experimental}} / \text{QA-Sco
 ## 1. Node Label Quality / 节点标签质量
 | Metric / 指标          | Value / 值 | Threshold / 阈值 | Status / 状态 |
 |-----------------|-------|-----------|--------|
-| LabelSim        | 0.XX  | ≥ 0.80    | PASS/FAIL |
+| Node-F1         | 0.XX  | ≥ 0.85    | PASS/FAIL |
+| Node-P          | 0.XX  | ≥ 0.80    | PASS/FAIL |
+| Node-R          | 0.XX  | ≥ 0.85    | PASS/FAIL |
+| LabelSim        | 0.XX  | ≥ 0.85    | PASS/FAIL |
 | Entity Recall   | 0.XX  | ≥ 0.90    | PASS/FAIL |
-| Precision       | 0.XX  | ≥ 0.75    | PASS/FAIL |
-| Miss Rate       | 0.XX  | ≤ 0.20    | PASS/FAIL |
 
 ## 2. Hierarchy Accuracy / 层级结构正确率
-| Metric / 指标          | Value / 值 | Threshold / 阈값 | Status / 状态 |
+| Metric / 指标          | Value / 值 | Threshold / 阈值 | Status / 状态 |
 |-----------------|-------|-----------|--------|
+| Edge-F1         | 0.XX  | ≥ 0.80    | PASS/FAIL |
+| UAS             | 0.XX  | ≥ 0.85    | PASS/FAIL |
 | nTED            | 0.XX  | ≤ 0.25    | PASS/FAIL |
 | PC-F1           | 0.XX  | ≥ 0.75    | PASS/FAIL |
 
@@ -752,7 +842,7 @@ Where $\text{QA-Relative} = \text{QA-Score}_{\text{experimental}} / \text{QA-Sco
 | Experiment (Map) / 实验组 | 0.XX     | X,XXX      | 0.XX     |
 
 ## 4. Efficiency & STT / 效率与语音转录
-| Metric / 指标          | Value / 值 | Threshold / 阈값 | Status / 状态 |
+| Metric / 指标          | Value / 值 | Threshold / 阈值 | Status / 状态 |
 |-----------------|-------|-----------|--------|
 | T_total P50     | XX.Xs | ≤ 30s     | PASS/FAIL |
 | WER             | 0.XX  | ≤ 0.15    | PASS/FAIL |
@@ -763,11 +853,148 @@ Where $\text{QA-Relative} = \text{QA-Score}_{\text{experimental}} / \text{QA-Sco
 |-----------------|------|------|-------|-------|
 | Entity Recall   | 0.XX | 0.XX | 0.XX  | 0.XX  |
 
-## 6. Overall / 综合评分
+## 6. Human Alignment / 人工对齐效度
+| Metric / 指标                          | Value / 值 | Threshold / 阈值 | Status / 状态 |
+|-------------------------------|-------|-----------|--------|
+| Pearson r (Node-F1 vs Readability) | 0.XX  | ≥ 0.70    | PASS/FAIL |
+
+## 7. Overall / 综合评分
 Composite Score / 综合评分: 0.XX / 1.00
 ```
 
 ---
+
+## 8. 实现建议（Implementation Notes）
+
+> **目标 / Goal**：
+>
+> **中文**：本节提供评估指标的具体实现指引，确保不同评估者独立实现时能得到一致的结果。所有代码示例使用 Python 标准库和常见开源包。
+>
+> **English**: This section provides concrete implementation guidance for the evaluation metrics, ensuring consistent results across independent implementations. All code examples use Python standard library and common open-source packages.
+
+---
+
+### 8.1 Embedding 模型选择（Embedding Model Selection）
+
+推荐的多语言 sentence-transformer 模型（按优先级排序）：
+
+| 模型 / Model | 维度 / Dim | 语言 / Langs | 推荐阈值 $\tau$ / Rec. $\tau$ |
+|---|---|---|---|
+| `paraphrase-multilingual-MiniLM-L12-v2` | 384 | 50+ | **0.70** |
+| `intfloat/multilingual-e5-small` | 384 | 100+ | 0.65 |
+| `intfloat/multilingual-e5-base` | 768 | 100+ | 0.65 |
+| `BAAI/bge-m3` | 1024 | 100+ | 0.65 |
+| `text2vec-large-chinese` | 1024 | zh | 0.72 |
+
+> **注意 / Note**：$\tau$ 值因模型而异——嵌入维度越高、模型越大，同类概念的余弦相似度通常越高，阈值可相应降低。建议在至少 50 个标注样本上做 grid search（$\tau \in \{0.60, 0.65, 0.70, 0.75\}$），选使人工-自动化相关性最大的值。
+
+**Python 实现 / Python Implementation**：
+
+```python
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+generated_labels = [n['label'] for n in generated_nodes]
+gold_labels = [n['label'] for n in gold_nodes]
+
+emb_gen = model.encode(generated_labels)
+emb_gold = model.encode(gold_labels)
+```
+
+---
+
+### 8.2 匈牙利匹配（Hungarian Matching）
+
+使用 `scipy.optimize.linear_sum_assignment` 实现最优匹配。相似度矩阵 $S$ 需转换为成本矩阵 $C(i,j) = 1 - S(i,j)$：
+
+```python
+import numpy as np
+from scipy.optimize import linear_sum_assignment
+
+# S: (m x n) cosine similarity matrix
+cost_matrix = 1.0 - S
+row_idx, col_idx = linear_sum_assignment(cost_matrix)
+
+# Build matching pairs M* = {(row_idx[k], col_idx[k], S[row_idx[k], col_idx[k]])}
+matching = list(zip(row_idx, col_idx, S[row_idx, col_idx]))
+
+# Apply threshold tau
+tau = 0.70
+M_tau = [(g, s, sim) for g, s, sim in matching if sim >= tau]
+
+# Compute TP, FP, FN
+tp = len(M_tau)
+fp = m - tp
+fn = n - tp
+
+node_p = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+node_r = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+node_f1 = 2 * node_p * node_r / (node_p + node_r) if (node_p + node_r) > 0 else 0.0
+```
+
+---
+
+### 8.3 UAS 计算（UAS Computation）
+
+基于节点映射 $\mu$（由 $\mathcal{M}_\tau$ 构建）计算每对匹配节点的父节点是否正确：
+
+```python
+# Build node mapping mu: gold_id -> generated_id
+mu = {gold_id: gen_id for gen_id, gold_id, _ in M_tau}
+
+# Build parent maps for both trees
+gold_parent = {child: parent for parent, child in gold_edges}
+gen_parent = {child: parent for parent, child in gen_edges}
+
+correct = 0
+total = 0
+for gold_id, gen_id in mu.items():
+    total += 1
+    g_parent = gold_parent.get(gold_id)  # None if root
+    gen_parent_node = gen_parent.get(gen_id)
+    
+    if g_parent is None and gen_parent_node is None:
+        # Both are roots
+        correct += 1
+    elif g_parent is not None and gen_parent_node is not None:
+        # Check if gen_parent matches mu(g_parent)
+        expected_gen_parent = mu.get(g_parent)
+        if expected_gen_parent == gen_parent_node:
+            correct += 1
+
+uas = correct / total if total > 0 else 1.0
+```
+
+---
+
+### 8.4 相关性分析（Correlation Analysis）
+
+使用 `scipy.stats` 计算 Pearson 和 Spearman 相关系数：
+
+```python
+from scipy.stats import pearsonr, spearmanr
+
+# a: automated metric scores (list of floats, n >= 30)
+# h: human scores (list of floats, same length)
+r, r_pval = pearsonr(a, h)
+rho, rho_pval = spearmanr(a, h)
+
+print(f"Pearson r={r:.3f} (p={r_pval:.4f}), Spearman rho={rho:.3f} (p={rho_pval:.4f})")
+```
+
+> **注意 / Note**：$n \geq 30$ 是 Pearson/Spearman 达到合理统计功效的标准最小样本量。p 值 $< 0.05$ 表示相关性在统计上显著。
+
+---
+
+### 8.5 端到端评估管线建议（End-to-End Assessment Pipeline）
+
+建议按以下顺序收集数据并计算指标：
+
+1. **标准标注准备**：为 30+ 个讲座标注标准导图 JSON（`gold_{tree, nodes, links}`）
+2. **自动化指标计算**：对每个生成导图，执行 §8.1–8.3 的代码，生成 Node-F1/Edge-F1/UAS 等
+3. **人工评估**：5+ 名评估者按 §6.1 量表评分，汇总各维度均分
+4. **相关性分析**：执行 §8.4 的代码，确认 Pearson r $\geq 0.70$
+5. **报告生成**：填写 §7.3 模板
 
 > **版本记录 / Revision History**
 >
@@ -777,6 +1004,8 @@ Composite Score / 综合评分: 0.XX / 1.00
 > | v1.1 | 2026-06-22 | 结构优化：全文公式统一为 `$...$` / `$$...$$` 语法；新增目录(TOC)；添加 `---` 分隔线；提升 4.2.x 为 `####` 标题 |
 > | v1.2 | 2026-06-22 | 视觉优化：目录改为中英双语条目；目标/参数说明使用引用块强调；并列步骤重构为有序/无序列表；表格内容精简对齐；3.1 实验设计改用表格呈现 |
 > | v1.3 | 2026-06-22 | 语言级别对等修正：中文与英文具有同等地位；移除"中文为正文，英文为对照注释"等不当表述；将所有英文斜体注释改为独立完整的中英文并列表述 |
+> | v1.4 | 2026-06-29 | 重构评估框架：新增 §1.1 匈牙利节点对齐作为共享基础设施；新增 §1.2 Node-P/R/F1（TP/FP/FN 混淆矩阵框架）；新增 §2.1 Edge-P/R/F1；新增 §2.2 UAS（无标签依存得分，参考 Jurafsky & Martin, 2023）；新增 §6.2 自动化-人工相关性分析（Pearson r / Spearman ρ）；§6 从可选升级为必须；§7.1 速查表新增 Node-F1/Edge-F1/UAS/Pearson r 四项指标 |
+| v1.5 | 2026-06-29 | 增强自解释性与可复现性：修复 §5.1 交叉引用编号（旧版编号更新为新版 §1.3/§1.4/§2.4）；统一 §2.3–§2.5 模板格式，补全目标/方法/注意块；替换 §7.3 报告模板为新指标体系；新增 §8 实现建议附录（含 embedding 选型表、匈牙利匹配/UAS/相关性分析的完整 Python 代码） |
 >
 > | Version | Date | Changes |
 > |---|---|---|
@@ -784,3 +1013,5 @@ Composite Score / 综合评分: 0.XX / 1.00
 > | v1.1 | 2026-06-22 | Structure optimization: unified formulas; added TOC; added separators; promoted subsections. |
 > | v1.2 | 2026-06-22 | Visual optimization: bilingual TOC entries; blockquotes; streamlined tables. |
 > | v1.3 | 2026-06-22 | Language parity correction: Chinese and English have equal status; removed "Chinese is main text, English serves as annotation"; converted all English italic notes to standalone parallel bilingual content. |
+> | v1.4 | 2026-06-29 | Evaluation framework restructure: added §1.1 Hungarian Node Alignment as shared infrastructure; added §1.2 Node-P/R/F1 (TP/FP/FN confusion matrix framework); added §2.1 Edge-P/R/F1; added §2.2 UAS (adapted from Jurafsky & Martin, 2023); added §6.2 Automated-Human Correlation Analysis; §6 upgraded from Optional to Required; §7.1 quick reference added 4 new metrics. |
+> | v1.5 | 2026-06-29 | Enhanced self-explanation & reproducibility: fixed §5.1 cross-references; unified §2.3–§2.5 template format; replaced §7.3 report template with new metric suite; added §8 Implementation Notes appendix with full Python code for Hungarian matching, UAS computation, and correlation analysis. |

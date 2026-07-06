@@ -1,0 +1,22 @@
+{
+  "concepts": [
+    "Machine Learning",
+    "Supervised Learning",
+    "Unsupervised Learning",
+    "Reinforcement Learning",
+    "Neural Network",
+    "Deep Learning",
+    "Decision Tree",
+    "Support Vector Machine",
+    "Cluster Analysis",
+    "Principal Component Analysis",
+    "Overfitting",
+    "Cross Validation",
+    "Gradient Descent",
+    "Loss Function",
+    "Feature Engineering"
+  ],
+  "__purpose": "Essential Concepts Set (Es) for Entity Recall evaluation",
+  "__purpose_en": "Essential Concepts Set (Es) for Entity Recall evaluation",
+  "__format_notes": "Please include 10-30 key terms"
+}

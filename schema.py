@@ -54,3 +54,22 @@ class TreeMapData(BaseModel):
 
 # C: 向后兼容 / E: Backward compatibility
 MindMapData = TreeMapData
+
+# =========================================================
+# C: 节点颜色映射表 — 前后端共享的单一事实来源
+#    前端 index.html 的 CSS_COLOR_MAP 必须与此表保持同步
+#    后端 mindmap_agent.py 的 VALID_COLORS 必须与此表的 keys 保持同步
+# E: Node color schema — single source of truth shared by frontend and backend
+#    Frontend CSS_COLOR_MAP in index.html MUST stay in sync with this table
+#    Backend VALID_COLORS in mindmap_agent.py MUST stay in sync with keys
+# =========================================================
+NODE_COLOR_SCHEMA: dict[str, str] = {
+    'var(--node-blue)':   '#e8f0fe',
+    'var(--node-green)':  '#e6f4ea',
+    'var(--node-yellow)': '#fef7e0',
+    'var(--node-red)':    '#fce8e6',
+    'var(--node-purple)': '#f3e8fd',
+    'var(--node-orange)': '#fef3e0',
+    'var(--node-teal)':   '#e0f7f4',
+    'var(--node-pink)':   '#fde8f0',
+}

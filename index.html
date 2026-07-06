@@ -115,28 +115,127 @@
             overflow: hidden;
             text-overflow: ellipsis;
             box-sizing: border-box;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
         }
-        /* C: 定义弹窗样式 */
+        /* C: 定义弹窗样式 — position: fixed 确保相对 viewport 定位，不受父容器 relative+overflow 影响 */
         .definition-popup {
-            position: absolute;
+            position: fixed;
             background: white;
             box-shadow: 0 20px 60px rgba(0,0,0,0.15);
             border-radius: 1rem;
             border: 1px solid #e5e7eb;
-            z-index: 50;
+            z-index: 60;
             padding: 1.25rem;
-            max-width: 320px;
+            max-width: 380px;
+            max-height: 60vh;
+            overflow-y: auto;
             pointer-events: auto;
         }
-        .definition-popup .fixed-info {
+        .cache-hit-tag {
+            font-size: 0.7rem;
+            color: #10b981;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        .definition-popup .def-section {
             margin-bottom: 0.75rem;
             padding-bottom: 0.75rem;
             border-bottom: 1px solid #f3f4f6;
+        }
+        .definition-popup .def-section:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
         }
         .definition-popup .source-tag {
             font-size: 0.7rem;
             color: #9ca3af;
             margin-top: 0.5rem;
+        }
+        /* C: 详情面板分类标题（加粗+emoji） */
+        .detail-header {
+            display: block;
+            font-size: 1.05em;
+            margin-bottom: 0.25rem;
+        }
+        .detail-header strong {
+            font-weight: 700;
+        }
+        /* C: 边类型图例 / E: Edge type legend */
+        .edge-legend {
+            position: fixed;
+            z-index: 50;
+            background: rgba(255,255,255,0.95);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border: 1px solid #e5e7eb;
+            padding: 12px 16px;
+            min-width: 160px;
+            pointer-events: auto;
+            user-select: none;
+        }
+        .edge-legend-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: move;
+            user-select: none;
+        }
+        .edge-legend-close {
+            cursor: pointer;
+            color: #9ca3af;
+            font-size: 1rem;
+            line-height: 1;
+        }
+        .edge-legend-close:hover {
+            color: #6b7280;
+        }
+        .edge-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            font-size: 0.8rem;
+            color: #4b5563;
+        }
+        .edge-legend-swatch {
+            display: flex;
+            align-items: center;
+            width: 36px;
+            height: 12px;
+            flex-shrink: 0;
+        }
+        .edge-legend-swatch svg {
+            width: 36px;
+            height: 12px;
+        }
+        .edge-legend-label {
+            flex: 1;
+        }
+        .edge-legend-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 49;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 0.75rem;
+            color: #6b7280;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            pointer-events: auto;
+        }
+        .edge-legend-toggle:hover {
+            background: #f9fafb;
         }
     </style>
 </head>
@@ -332,38 +431,11 @@
                 </div>
                 <div class="p-5 overflow-y-auto">
                     <ul class="space-y-3">
-                        <li v-for="(p, detailIdx) in activeNode.details" class="flex items-start gap-3 text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                            <span class="text-blue-500 mt-0.5">•</span> <span v-html="renderAnnotatedText(p, activeNode.id, detailIdx)"></span>
+                        <li v-for="(p, detailIdx) in activeNode.details" class="text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                            <span v-html="renderDetailWithHeader(p, activeNode.id, detailIdx)"></span>
                         </li>
                     </ul>
                 </div>
-            </div>
-        </transition>
-
-        <!-- C: 术语定义弹窗 / E: Term definition popup -->
-        <transition name="fade">
-            <div v-if="definitionPopup" class="definition-popup" :style="{left: Math.min(definitionPopup.x, window.innerWidth - 340) + 'px', top: Math.min(definitionPopup.y, window.innerHeight - 280) + 'px'}">
-                <div class="flex justify-between items-start mb-3">
-                    <h3 class="font-bold text-lg text-gray-800">{{ definitionPopup.term }}</h3>
-                    <button @click="closeDefinition" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
-                </div>
-                <div v-if="definitionPopup.loading" class="text-gray-400 text-sm py-2">Loading definition...</div>
-                <template v-else>
-                    <!-- C: 固定信息层: IPA + 字面含义（不受 detail_level 影响） -->
-                    <!-- E: Fixed info layer: IPA + literal meaning (NOT affected by detail_level) -->
-                    <div class="fixed-info">
-                        <div v-if="definitionPopup.ipa" class="text-sm text-gray-600 mb-1">
-                            <span class="font-medium text-gray-500">IPA:</span> /{{ definitionPopup.ipa }}/
-                        </div>
-                        <div v-if="definitionPopup.literal_meaning" class="text-sm text-gray-600">
-                            <span class="font-medium text-gray-500">字面义:</span> {{ definitionPopup.literal_meaning }}
-                        </div>
-                    </div>
-                    <!-- C: 定义正文 -->
-                    <!-- E: Definition text -->
-                    <div class="text-sm text-gray-700 leading-relaxed">{{ definitionPopup.definition }}</div>
-                    <div class="source-tag">Source: {{ definitionPopup.source }}</div>
-                </template>
             </div>
         </transition>
 
@@ -460,9 +532,9 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">标注密度 (Annotation Density)</label>
                         <div class="flex bg-gray-100 rounded-xl p-1">
-                            <button @click="annotationDensity = 'low'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'low'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">少 (Low)</button>
-                            <button @click="annotationDensity = 'medium'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'medium'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">中 (Med)</button>
-                            <button @click="annotationDensity = 'high'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'high'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">多 (High)</button>
+                            <button @click="annotationDensity = 'low'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'low'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ settings.language === 'zh' ? '少' : 'Low' }}</button>
+                            <button @click="annotationDensity = 'medium'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'medium'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ settings.language === 'zh' ? '中' : 'Medium' }}</button>
+                            <button @click="annotationDensity = 'high'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'high'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ settings.language === 'zh' ? '多' : 'High' }}</button>
                         </div>
                     </div>
 
@@ -470,9 +542,9 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">定义详细度 (Definition Detail)</label>
                         <div class="flex bg-gray-100 rounded-xl p-1">
-                            <button @click="annotationDetail = 'brief'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'brief'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">简要 (Brief)</button>
-                            <button @click="annotationDetail = 'medium'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'medium'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">中等 (Med)</button>
-                            <button @click="annotationDetail = 'detailed'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'detailed'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">详细 (Full)</button>
+                            <button @click="annotationDetail = 'brief'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'brief'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ settings.language === 'zh' ? '简要' : 'Brief' }}</button>
+                            <button @click="annotationDetail = 'medium'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'medium'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ settings.language === 'zh' ? '中等' : 'Medium' }}</button>
+                            <button @click="annotationDetail = 'detailed'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'detailed'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ settings.language === 'zh' ? '详细' : 'Detailed' }}</button>
                         </div>
                     </div>
 
@@ -512,6 +584,97 @@
             </div>
         </div>
     </transition>
+
+    <!-- C: 术语定义弹窗 / E: Term definition popup -->
+    <!-- C: 使用 position: fixed 定位，相对于 viewport，解决之前在 #canvas-container 内坐标系偏移问题 -->
+    <!-- E: Uses position: fixed, relative to viewport, fixing coordinate offset when inside #canvas-container -->
+    <transition name="fade">
+      <div v-if="definitionPopup" class="definition-popup" :style="{left: definitionPopup.x + 'px', top: definitionPopup.y + 'px'}" @mousedown.stop>
+        <div class="flex justify-between items-start mb-3" style="cursor:move;user-select:none" @mousedown.stop="startDragPopup">
+          <h3 class="font-bold text-lg text-gray-800">{{ definitionPopup.term }}</h3>
+          <button @click="closeDefinition" class="text-gray-400 hover:text-gray-600 text-lg leading-none" @mousedown.stop>&times;</button>
+        </div>
+        <div v-if="definitionPopup.loading" class="text-gray-400 text-sm py-2">Loading definition...</div>
+        <template v-else>
+          <!-- C: 📖 Wikipedia 定义 / E: 📖 Wikipedia definition -->
+          <div v-if="definitionPopup.wikipedia_definition" class="def-section">
+            <span class="detail-header">📖 <strong>Wikipedia 定义</strong></span>
+            <div class="text-sm text-gray-700 leading-relaxed" v-html="renderAnnotatedDefinition(truncatedWikiDefinition)"></div>
+            <div v-if="wikiDefinitionIsTruncated" class="mt-2 flex items-center gap-2">
+              <span class="text-xs text-gray-400">{{ wikiDefinitionFullLength }} 字符</span>
+              <a v-if="definitionPopup.wikipedia_url" :href="definitionPopup.wikipedia_url" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:underline font-medium">查看完整条目 →</a>
+            </div>
+            <a v-else-if="definitionPopup.wikipedia_url" :href="definitionPopup.wikipedia_url" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:underline mt-1 inline-block">{{ definitionPopup.wikipedia_url }}</a>
+          </div>
+          <!-- C: 🤖 LLM 定义 / E: 🤖 LLM definition -->
+          <div v-if="definitionPopup.llm_definition" class="def-section">
+            <span class="detail-header">🤖 <strong>LLM 模型定义</strong></span>
+            <div class="text-sm text-gray-700 leading-relaxed" v-html="renderAnnotatedDefinition(definitionPopup.llm_definition)"></div>
+          </div>
+          <!-- C: 🔊 发音 / E: Pronunciation (language-aware) -->
+          <div v-if="definitionPopup.ipa || definitionPopup.pinyin || definitionPopup.romanization" class="def-section">
+            <span class="detail-header">🔊 <strong>发音</strong></span>
+            <!-- C: 中文 → 拼音 / E: Chinese → Pinyin -->
+            <div v-if="definitionPopup.pinyin" class="text-sm text-gray-700 mb-1">
+              <span class="text-xs text-gray-400">拼音:</span> {{ definitionPopup.pinyin }}
+            </div>
+            <!-- C: 非拉丁 → 罗马化 / E: Non-Latin → Romanization -->
+            <div v-if="definitionPopup.romanization" class="text-sm text-gray-700 mb-1">
+              <span class="text-xs text-gray-400">转写:</span> {{ definitionPopup.romanization }}
+            </div>
+            <!-- C: IPA 严式 / E: IPA narrow -->
+            <div v-if="definitionPopup.ipa_narrow" class="text-sm text-gray-700 mb-1">
+              <span class="text-xs text-gray-400">严式 IPA:</span> /{{ definitionPopup.ipa_narrow }}/
+            </div>
+            <!-- C: IPA 宽式 / E: IPA broad -->
+            <div v-if="definitionPopup.ipa_broad" class="text-sm text-gray-700 mb-1">
+              <span class="text-xs text-gray-400">宽式 IPA:</span> /{{ definitionPopup.ipa_broad }}/
+            </div>
+            <!-- C: 回退：仅显示单 IPA / E: Fallback: single IPA only -->
+            <div v-if="definitionPopup.ipa && !definitionPopup.ipa_narrow && !definitionPopup.ipa_broad && !definitionPopup.pinyin && !definitionPopup.romanization" class="text-sm text-gray-700">
+              /{{ definitionPopup.ipa }}/
+            </div>
+          </div>
+          <!-- C: 📝 字面含义 / E: 📝 Literal meaning -->
+          <div v-if="definitionPopup.literal_meaning" class="def-section">
+            <span class="detail-header">📝 <strong>字面含义</strong></span>
+            <div class="text-sm text-gray-700">{{ definitionPopup.literal_meaning }}</div>
+          </div>
+          <!-- C: 无任何数据时显示 / E: Show when no data available -->
+          <div v-if="!definitionPopup.wikipedia_definition && !definitionPopup.llm_definition && !definitionPopup.ipa && !definitionPopup.literal_meaning" class="text-sm text-gray-400 py-2">No definition available.</div>
+          <div class="source-tag">Source: {{ definitionPopup.source }}<span v-if="definitionPopup.from_cache" class="cache-hit-tag">(cache hit)</span></div>
+        </template>
+      </div>
+    </transition>
+
+    <!-- C: 边类型图例 / E: Edge type legend -->
+    <div v-if="showEdgeLegend" class="edge-legend" :style="{left: edgeLegendPos.x + 'px', top: edgeLegendPos.y + 'px'}" @mousedown.stop>
+      <div class="edge-legend-header" @mousedown.stop="startDragEdgeLegend">
+        <span>📐 线段类型</span>
+        <span class="edge-legend-close" @click="showEdgeLegend = false">&times;</span>
+      </div>
+      <div v-for="item in edgeLegendItems" :key="item.type" class="edge-legend-item">
+        <div class="edge-legend-swatch">
+          <svg viewBox="0 0 36 12">
+            <line x1="2" y1="6" x2="34" y2="6"
+              :stroke="item.color"
+              stroke-width="2"
+              :stroke-dasharray="item.dash.join(',')"
+              :marker-end="item.arrow ? 'url(#legend-arrow-' + item.type + ')' : ''" />
+            <defs v-if="item.arrow">
+              <marker :id="'legend-arrow-' + item.type" viewBox="0 0 10 10" refX="10" refY="5"
+                markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" :fill="item.color" />
+              </marker>
+            </defs>
+          </svg>
+        </div>
+        <span class="edge-legend-label">{{ item.label }}</span>
+      </div>
+    </div>
+    <button v-else class="edge-legend-toggle" @click="showEdgeLegend = true">
+      📐 图例
+    </button>
 
 </div>
 
@@ -610,6 +773,62 @@
             const annotationDensity = ref('medium');
             const annotationDetail = ref('medium');
             const definitionPopup = ref(null);
+            // C: 任务2 — 术语定义本地缓存（term → {wikipedia_definition, ...}）
+            //     供 showDefinition 优先读取，避免重复调用 /define
+            // E: Task 2 — local cache for term definitions (term → {wikipedia_definition, ...})
+            //     Used by showDefinition to avoid repeated /define calls
+            const annotationCache = ref({});
+            // C: 检测到的用户输入语言
+            // E: Detected user input language
+            const detectedUserLanguage = ref('en');
+
+            // C: 边类型图例 / E: Edge type legend
+            const showEdgeLegend = ref(true);
+            const edgeLegendItems = [
+                { type: 'solid', color: '#3b82f6', label: '默认连线', dash: [], arrow: false },
+                { type: 'dashed', color: '#94a3b8', label: '关联关系', dash: [6, 4], arrow: false },
+                { type: 'dotted', color: '#a78bfa', label: '弱关联', dash: [2, 4], arrow: false },
+                { type: 'reference', color: '#10b981', label: '引用关系', dash: [], arrow: true },
+                { type: 'contrast', color: '#f59e0b', label: '对比关系', dash: [], arrow: true },
+            ];
+            // C: 边类型图例初始位置 — 顶部右侧，避开底部操作按钮
+            // E: Edge legend initial position — top-right, away from bottom controls
+            const edgeLegendPos = reactive({ x: window.innerWidth - 210, y: 80 });
+
+            // C: Wikipedia 定义截断 — 弹窗中只显示前 2-3 句或 ~300 字符
+            // E: Wikipedia definition truncation — show first 2-3 sentences or ~300 chars in popup
+            const MAX_WIKI_CHARS = 300;
+            const truncateWikipediaDefinition = (text) => {
+                if (!text) return { short: '', isTruncated: false };
+                // C: 按句号分割取前 3 句
+                // E: Split by period, take first 3 sentences
+                const sentences = text.split(/(?<=[.!?])\s+/);
+                let short = sentences.slice(0, 3).join(' ');
+                // C: 如果前 3 句仍超过上限，按字符截断到词边界
+                // E: If first 3 sentences still exceed limit, truncate at word boundary
+                if (short.length > MAX_WIKI_CHARS) {
+                    short = short.slice(0, MAX_WIKI_CHARS);
+                    const lastSpace = short.lastIndexOf(' ');
+                    if (lastSpace > MAX_WIKI_CHARS * 0.7) short = short.slice(0, lastSpace);
+                    short += '…';
+                }
+                const isTruncated = short.length < text.length;
+                return { short, isTruncated };
+            };
+            // C: 弹窗中使用的截断后 Wikipedia 定义 / E: Truncated Wikipedia definition for popup
+            const truncatedWikiDefinition = computed(() => {
+                const full = definitionPopup.value?.wikipedia_definition;
+                if (!full) return '';
+                return truncateWikipediaDefinition(full).short;
+            });
+            const wikiDefinitionIsTruncated = computed(() => {
+                const full = definitionPopup.value?.wikipedia_definition;
+                if (!full) return false;
+                return truncateWikipediaDefinition(full).isTruncated;
+            });
+            const wikiDefinitionFullLength = computed(() => {
+                return definitionPopup.value?.wikipedia_definition?.length || 0;
+            });
 
             const userInput = ref('')
             const chatHistory = ref([{ role: 'system', text: locales['en'].sysReady }])
@@ -939,6 +1158,9 @@
                 'var(--node-yellow)': '#fef7e0',
                 'var(--node-red)':    '#fce8e6',
                 'var(--node-purple)': '#f3e8fd',
+                'var(--node-orange)': '#fef3e0',
+                'var(--node-teal)':   '#e0f7f4',
+                'var(--node-pink)':   '#fde8f0',
             }
             const resolveColor = (c) => CSS_COLOR_MAP[c] || c || '#e8f0fe'
 
@@ -996,15 +1218,16 @@
                         behaviors: ['drag-canvas', 'zoom-canvas', 'collapse-expand', 'drag-element'],
                         node: {
                             type: (d) => {
-                                // C: 有 label 标注的节点使用 HTML 渲染以支持下划线
-                                // E: Nodes with label annotations use HTML rendering for underlines
+                                // C: 虚拟根节点用 rect，其余统一用 html 避免类型切换导致渲染异常
+                                // E: Virtual root uses rect, all others use html to avoid type-switching rendering issues
                                 if (d._isVirtual) return 'rect';
-                                const nodeAnn = annotations.value[d.id];
-                                if (nodeAnn && nodeAnn.some(a => a.source === 'label')) return 'html';
-                                return 'rect';
+                                return 'html';
                             },
                             style: {
                                 size: (d) => {
+                                    // C: 虚拟根节点尺寸为 0，不占可视空间
+                                    // E: Virtual root node size 0, occupies no visual space
+                                    if (d._isVirtual) return [0, 0];
                                     const labelLen = (d.label || '').length
                                     const w = Math.max(120, labelLen * 14 + 40)
                                     return [w, 50]
@@ -1096,22 +1319,25 @@
                         _g6log('collapse:after', nodeId, 'synced')
                     })
 
-                    // C: 拖拽结束 → 捕获坐标（供后续 userPositioned 处理）
-                    // E: Drag end → capture coordinates (for userPositioned handling)
+                    // C: 拖拽结束 → 捕获坐标并通过完整管道重绘（dagre 重新计算边路由）
+                    // E: Drag end → capture coords and redraw via full pipeline (dagre recalculates edge routing)
                     graph.on('drag-end', (evt) => {
                         const nodeId = evt.item?.id
                         if (!nodeId || nodeId === '__virtual_root__') return
                         const model = evt.item?.getModel()
                         if (model) {
                             _g6log('drag-end', nodeId, 'pos=', model.x?.toFixed(0), model.y?.toFixed(0))
-                            // C: 标记 userPositioned（用于 schema.x/y 回传）
-                            // E: Mark userPositioned (for schema.x/y round-trip)
+                            // C: 标记 userPositioned（用于 schema.x/y 回传，_setG6Data 会保留这些坐标）
+                            // E: Mark userPositioned (for schema.x/y round-trip, _setG6Data preserves these coords)
                             const found = findNodeInTree(treeRoots.value, nodeId)
                             if (found) {
                                 found.userPositioned = true
                                 found.x = model.x
                                 found.y = model.y
                             }
+                            // C: 通过 _setG6Data 触发 dagre 重布局，使边路由跟随新位置
+                            // E: Trigger dagre re-layout via _setG6Data so edge routing follows new positions
+                            _setG6Data()
                         }
                     })
                     _g6log('事件监听器已注册')
@@ -1135,21 +1361,81 @@
                 _setG6Data()
             }
 
+            // C: prompt/alert 等阻塞式对话框后强制恢复 G6 渲染
+            // E: Force G6 render recovery after blocking dialogs like prompt/alert
+            const recoverG6AfterPrompt = () => {
+                if (!graph) return;
+                // C: 检查 Canvas 上下文是否有效（尝试获取上下文，无效则重建）
+                // E: Check if Canvas context is valid (try to get context, rebuild if invalid)
+                const canvasEl = document.querySelector('#g6-container canvas');
+                if (canvasEl) {
+                    try {
+                        const ctx = canvasEl.getContext('2d');
+                        if (!ctx) {
+                            _g6warn('Canvas 上下文丢失，重建 G6 实例')
+                            graph.destroy();
+                            graph = null;
+                            nextTick(() => {
+                                initG6();
+                                updateG6Data();
+                            });
+                            return;
+                        }
+                    } catch (e) {
+                        _g6warn('Canvas 上下文检查失败，重建 G6:', e)
+                        try { graph.destroy(); } catch (_) {}
+                        graph = null;
+                        nextTick(() => {
+                            initG6();
+                            updateG6Data();
+                        });
+                        return;
+                    }
+                }
+                // C: 上下文正常 → 直接重渲染
+                // E: Context OK → re-render directly
+                nextTick(() => updateG6Data());
+            };
+
             const _setG6Data = () => {
                 if (!graph) { _g6warn('_setG6Data: graph 为空，跳过'); return }
                 if (!treeRoots.value || !treeRoots.value.length) {
                     _g6warn('_setG6Data: treeRoots 为空或长度为0，清空图')
-                    graph.setData({ nodes: [], edges: [] })
-                    graph.render()
+                    try {
+                        graph.setData({ nodes: [], edges: [] })
+                        graph.render()
+                    } catch (e) {
+                        _g6err('_setG6Data 清空渲染失败，重建 G6:', e)
+                        graph = null
+                        nextTick(() => { initG6(); updateG6Data(); })
+                    }
                     return
                 }
                 // C: 深拷贝以避免 G6 修改响应式数据 / E: Deep copy to prevent G6 from mutating reactive data
                 const rawData = JSON.parse(JSON.stringify(treeRoots.value))
+
+                // C: 递归收集 userPositioned 节点的坐标
+                // E: Recursively collect coordinates of userPositioned nodes
+                const collectUserPositionedCoords = (node, map = {}) => {
+                    if (!node) return map
+                    if (node.userPositioned && typeof node.x === 'number' && typeof node.y === 'number') {
+                        map[node.id] = { x: node.x, y: node.y }
+                    }
+                    if (node.children) {
+                        for (const child of node.children) {
+                            collectUserPositionedCoords(child, map)
+                        }
+                    }
+                    return map
+                }
+
                 const rootData = rawData[0]
                 _g6log('_setG6Data: 根节点 id=', rootData?.id, 'label=', rootData?.label, 'children=', rootData?.children?.length)
                 if (!rootData) {
                     _g6warn('_setG6Data: rootData 为空')
-                    graph.setData({ nodes: [], edges: [] })
+                    try { graph.setData({ nodes: [], edges: [] }); graph.render(); } catch (e) {
+                        _g6err('_setG6Data 空数据渲染失败:', e)
+                    }
                 } else {
                     // C: dagre 是图布局，需要 flat {nodes, edges} 格式，不能直接消费嵌套树
                     //    使用 G6.treeToGraphData() 将嵌套树转为 flat 图数据
@@ -1157,10 +1443,46 @@
                     //    Use G6.treeToGraphData() to convert nested tree to flat graph data
                     const graphData = G6.treeToGraphData(rootData)
                     _g6log('_setG6Data: treeToGraphData → nodes=', graphData.nodes?.length, 'edges=', graphData.edges?.length)
-                    graph.setData(graphData)
+                    // C: 预先收集 userPositioned 节点坐标（用于布局后恢复）
+                    // E: Pre-collect userPositioned node coords (for post-layout restoration)
+                    const positionedNodes = collectUserPositionedCoords(rawData[0])
+                    try {
+                        // C: 第一遍 — dagre 布局（计算所有节点和边路由）
+                        // E: Pass 1 — dagre layout (calculate all node positions and edge routing)
+                        graph.setData(graphData)
+                        graph.render()
+                        // C: 第二遍 — 恢复 userPositioned 节点坐标（dagre 会覆盖所有位置）
+                        // E: Pass 2 — restore userPositioned node coords (dagre overrides all positions)
+                        if (Object.keys(positionedNodes).length > 0) {
+                            const nodeData = graph.getNodeData()
+                            let hasOverrides = false
+                            for (const nd of nodeData) {
+                                const pos = positionedNodes[nd.id]
+                                if (pos) {
+                                    nd.x = pos.x
+                                    nd.y = pos.y
+                                    hasOverrides = true
+                                }
+                            }
+                            if (hasOverrides) {
+                                graph.setData({ nodes: nodeData, edges: graph.getEdgeData() })
+                                graph.render()
+                                _g6log('_setG6Data: 恢复', Object.keys(positionedNodes).length, '个 userPositioned 节点坐标')
+                            }
+                        }
+                        _g6log('_setG6Data: graph.render() 完成')
+                    } catch (e) {
+                        // C: Canvas 上下文丢失 → 销毁并重建 G6
+                        // E: Canvas context lost → destroy and rebuild G6
+                        _g6err('_setG6Data 渲染失败（Canvas 上下文可能丢失），重建 G6:', e)
+                        try { graph.destroy(); } catch (_) {}
+                        graph = null
+                        nextTick(() => {
+                            initG6();
+                            updateG6Data();
+                        })
+                    }
                 }
-                graph.render()
-                _g6log('_setG6Data: graph.render() 完成')
             }
 
             // C: 手动 G6 测试函数 — 在浏览器控制台运行 __g6Test() 验证 G6 本身能否工作
@@ -1240,7 +1562,11 @@
             };
 
             // C: 渲染带标注下划线的文本
+            //    使用 cursor-based 构建法：在原始文本上按索引切割，非术语部分进行 HTML 转义。
+            //    避免旧版先 escapeHtml 全文再使用原始索引导致的字符偏移 bug。
             // E: Render text with annotated term underlines
+            //    Uses cursor-based approach: splits raw text by indices, HTML-escapes only non-term parts.
+            //    Fixes old bug where full-text escapeHtml before index-based slicing caused offset.
             const renderAnnotatedText = (text, nodeId, detailIdx) => {
                 const nodeAnn = annotations.value[nodeId];
                 if (!nodeAnn || nodeAnn.length === 0) return escapeHtml(text);
@@ -1248,41 +1574,147 @@
                     a => a.source === 'details' && a.detail_index === detailIdx
                 );
                 if (detailAnnotations.length === 0) return escapeHtml(text);
-                let result = escapeHtml(text);
-                // C: 按 char_start 降序排列避免偏移问题
-                // E: Sort by char_start descending to avoid offset issues
-                detailAnnotations.sort((a, b) => b.char_start - a.char_start);
+                // C: 按 char_start 升序排列，逐段构建
+                // E: Sort by char_start ascending for sequential build
+                detailAnnotations.sort((a, b) => a.char_start - b.char_start);
+                let result = '';
+                let cursor = 0;
                 for (const ann of detailAnnotations) {
-                    const term = escapeHtml(text.substring(ann.char_start, ann.char_end));
-                    result = result.substring(0, ann.char_start) +
-                        `<span class="anno-term" data-term="${term}" data-node="${nodeId}">${term}</span>` +
-                        result.substring(ann.char_end);
+                    const rawTerm = text.substring(ann.char_start, ann.char_end);
+                    // C: 转义前面的非术语部分
+                    // E: Escape preceding non-term portion
+                    result += escapeHtml(text.substring(cursor, ann.char_start));
+                    // C: 术语 span：data-term 存储原始术语（与 annotationCache 键一致），显示内容进行 HTML 转义
+                    //    属性值中的引号需转义为 &quot; 避免破坏 HTML
+                    // E: Term span: data-term stores raw term (matches annotationCache keys), display content HTML-escaped
+                    //    Quote chars in attribute are escaped to &quot; to avoid breaking HTML
+                    const safeTerm = rawTerm.replace(/"/g, '&quot;');
+                    result += `<span class="anno-term" data-term="${safeTerm}" data-node="${nodeId}">${escapeHtml(rawTerm)}</span>`;
+                    cursor = ann.char_end;
                 }
+                result += escapeHtml(text.substring(cursor));
                 return result;
+            };
+
+            // C: 渲染定义弹窗中带下划线的术语
+            //    修复: 使用单次正则（所有术语 OR 组合）一次性替换，避免 for 循环中
+            //    前一轮生成的 HTML 属性被后一轮正则匹配到（如 data-node="node_X" 被 /node/ 匹配）。
+            //    data-term 存储原始术语（与 annotationCache 键一致），仅对属性值中的引号做安全转义
+            // E: Render definition popup text with underlined terms
+            //    Fix: single regex (all terms OR-ed) replaces in one pass, preventing HTML attributes
+            //    from a prior iteration being matched by a subsequent regex (e.g. data-node="node_X" matched by /node/).
+            //    data-term stores raw term (matches annotationCache keys), only quote chars escaped for attribute safety
+            const renderAnnotatedDefinition = (definitionText) => {
+                if (!definitionText) return '';
+                const escapedText = escapeHtml(definitionText);
+                // C: 收集所有已标注的术语（去重）
+                // E: Collect all unique annotated terms
+                const allTerms = [];
+                for (const [nodeId, nodeAnnotations] of Object.entries(annotations.value)) {
+                    for (const ann of nodeAnnotations) {
+                        if (!allTerms.find(t => t.term === ann.term)) {
+                            allTerms.push({ term: ann.term, nodeId });
+                        }
+                    }
+                }
+                if (allTerms.length === 0) return escapedText;
+                // C: 按长度降序排列，确保长术语优先匹配（如 "Machine Learning" 优先于 "Machine"）
+                // E: Sort by length descending, longer terms match first (e.g. "Machine Learning" before "Machine")
+                allTerms.sort((a, b) => b.term.length - a.term.length);
+                // C: 构建单次正则：所有术语的转义版本用 | 连接
+                // E: Build single regex: escaped versions of all terms joined by |
+                const escapedPatterns = allTerms.map(t => escapeHtml(t.term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                const combinedRegex = new RegExp(escapedPatterns.join('|'), 'gi');
+                // C: 构建小写查找表：小写转义术语 → {term, nodeId}
+                // E: Build lowercase lookup: lowercase escaped term → {term, nodeId}
+                const termLookup = {};
+                for (const t of allTerms) {
+                    termLookup[escapeHtml(t.term).toLowerCase()] = t;
+                }
+                // C: 单次替换 — JS String.replace 全局正则一次性扫描原文，不会对替换结果二次匹配
+                // E: Single-pass replace — JS String.replace with global regex scans original once, no re-matching on output
+                return escapedText.replace(combinedRegex, (match) => {
+                    const entry = termLookup[match.toLowerCase()];
+                    if (entry) {
+                        const attrSafe = entry.term.replace(/"/g, '&quot;');
+                        return `<span class="anno-term" data-term="${attrSafe}" data-node="${entry.nodeId}">${match}</span>`;
+                    }
+                    return match;
+                });
+            };
+
+            // C: 渲染详情条目，前缀标题加粗+emoji
+            // E: Render detail entry with bold+emoji prefix header
+            const renderDetailWithHeader = (text, nodeId, detailIdx) => {
+                const PREFIX_PATTERNS = [
+                    // C: 中文前缀 / E: Chinese prefixes
+                    { pattern: /^(定义[：:]\s*)/, emoji: '📖' },
+                    { pattern: /^(关键点[：:]\s*)/, emoji: '🔑' },
+                    { pattern: /^(用户原文[：:]\s*)/, emoji: '💬' },
+                    { pattern: /^(上下文[：:]\s*)/, emoji: '🌐' },
+                    { pattern: /^(举例[：:]\s*)/, emoji: '📝' },
+                    { pattern: /^(解释[：:]\s*)/, emoji: '💡' },
+                    // C: 英文前缀 / E: English prefixes
+                    { pattern: /^(Definition[：:]\s*)/i, emoji: '📖' },
+                    { pattern: /^(Key\s*Point[：:]\s*)/i, emoji: '🔑' },
+                    { pattern: /^(User\s*(?:Quote|Input)[：:]\s*)/i, emoji: '💬' },
+                    { pattern: /^(Context[：:]\s*)/i, emoji: '🌐' },
+                    { pattern: /^(Example[：:]\s*)/i, emoji: '📝' },
+                    { pattern: /^(Explanation[：:]\s*)/i, emoji: '💡' },
+                ];
+
+                for (const { pattern, emoji } of PREFIX_PATTERNS) {
+                    const match = text.match(pattern);
+                    if (match) {
+                        const prefix = match[1].trim();
+                        const content = text.slice(match[1].length);
+                        return `<span class="detail-header">${emoji} <strong>${escapeHtml(prefix)}</strong></span>` +
+                            renderAnnotatedText(content, nodeId, detailIdx);
+                    }
+                }
+                // C: 无前缀匹配 → 正常渲染
+                // E: No prefix match → normal rendering
+                return renderAnnotatedText(text, nodeId, detailIdx);
             };
 
             // C: 生成带下划线的节点标签 HTML
             // E: Generate annotated node label HTML
             const annotatedLabelHTML = (d) => {
+                if (d._isVirtual) return null;
                 const nodeAnn = annotations.value[d.id];
-                if (!nodeAnn || nodeAnn.length === 0) return null;
-                const labelAnnotations = nodeAnn.filter(a => a.source === 'label');
                 let label = d.label || '';
-                if (labelAnnotations.length === 0) return `<div class="g6-node-label">${escapeHtml(label)}</div>`;
-                // C: 按 char_start 降序排列
-                // E: Sort by char_start descending
-                labelAnnotations.sort((a, b) => b.char_start - a.char_start);
-                for (const ann of labelAnnotations) {
-                    const term = escapeHtml(label.substring(ann.char_start, ann.char_end));
-                    label = label.substring(0, ann.char_start) +
-                        `<span class="anno-term" data-term="${term}" data-node="${d.id}">${term}</span>` +
-                        label.substring(ann.char_end);
+                const bgColor = resolveColor(d.color);
+                let hasAnnotation = false;
+                if (nodeAnn && nodeAnn.length > 0) {
+                    const labelAnnotations = nodeAnn.filter(a => a.source === 'label');
+                    if (labelAnnotations.length > 0) {
+                        hasAnnotation = true;
+                        // C: 按 char_start 降序排列
+                        // E: Sort by char_start descending
+                        labelAnnotations.sort((a, b) => b.char_start - a.char_start);
+                        for (const ann of labelAnnotations) {
+                            const rawTerm = label.substring(ann.char_start, ann.char_end);
+                            // C: data-term 使用原始术语（与 annotationCache 键一致），引号转义为 &quot;
+                            // E: data-term uses raw term (matches annotationCache keys), quotes escaped to &quot;
+                            const attrSafeTerm = rawTerm.replace(/"/g, '&quot;');
+                            label = label.substring(0, ann.char_start) +
+                                `<span class="anno-term" data-term="${attrSafeTerm}" data-node="${d.id}">${escapeHtml(rawTerm)}</span>` +
+                                label.substring(ann.char_end);
+                        }
+                    }
                 }
-                return `<div class="g6-node-label">${label}</div>`;
+                // C: 有标注时 label 已含 HTML span，不再 escape
+                // E: When annotated, label already contains HTML spans, don't escape again
+                const labelHtml = hasAnnotation ? label : escapeHtml(label);
+                // C: 始终返回有效 HTML，并用 inline style 设置背景色（G6 HTML节点不继承 fill）
+                // E: Always return valid HTML with inline background (G6 HTML nodes don't inherit fill)
+                return `<div class="g6-node-label" style="background-color:${bgColor};">${labelHtml}</div>`;
             };
 
             // C: 触发术语标注
+            //    任务2: 接收后端预取缓存 prefetched_cache
             // E: Trigger term annotation
+            //    Task 2: receive backend prefetched cache
             const triggerAnnotation = async () => {
                 try {
                     const response = await fetch('/annotate', {
@@ -1291,7 +1723,8 @@
                         body: JSON.stringify({
                             current_map: { nodes: nodes.value, links: links.value },
                             density_mode: annotationDensity.value,
-                            detail_level: annotationDetail.value
+                            detail_level: annotationDetail.value,
+                            language: detectedUserLanguage.value
                         })
                     });
                     if (!response.ok) {
@@ -1301,12 +1734,19 @@
                     const data = await response.json();
                     if (data.annotations) {
                         annotations.value = data.annotations;
+                        // C: 任务2 — 注入预取缓存到前端响应式对象
+                        // E: Task 2 — inject prefetched cache to frontend reactive object
+                        if (data.prefetched_cache) {
+                            annotationCache.value = data.prefetched_cache;
+                            _g6log(`prefetched_cache: ${Object.keys(data.prefetched_cache).length} terms`);
+                        }
                         nextTick(() => updateG6Data());
                     }
                     const nodeCount = Object.keys(data.annotations || {}).length;
+                    const termCount = Object.keys(data.prefetched_cache || {}).length;
                     chatHistory.value.push({
                         role: 'system',
-                        text: `[Annotation] ${nodeCount} nodes annotated (density: ${annotationDensity.value}).`
+                        text: `[Annotation] ${nodeCount} nodes, ${termCount} terms cached (density: ${annotationDensity.value}).`
                     });
                 } catch (err) {
                     chatHistory.value.push({ role: 'system', text: `Annotation failed: ${err.message}` });
@@ -1315,14 +1755,65 @@
             };
 
             // C: 显示术语定义弹窗
+            //    任务1: 坐标偏移避免遮挡术语 (+12, +18)
+            //    任务2: 优先读 annotationCache 缓存，命中后标记 from_cache=true
+            //    修复: position:fixed 确保相对于 viewport 定位（不再受 canvas 容器影响）
             // E: Show term definition popup
+            //    Task 1: offset coords to avoid covering the term (+12, +18)
+            //    Task 2: prefer annotationCache, mark from_cache=true on hit
+            //    Fix: position:fixed ensures viewport-relative positioning (no longer affected by canvas container)
             const showDefinition = async (term, x, y) => {
+                _g6log('[DefPopup] showDefinition 被调用', { term, x, y, cacheKeys: Object.keys(annotationCache.value || {}) });
                 // C: 避免重复点击已打开的弹窗
                 // E: Avoid re-clicking already open popup
                 if (definitionPopup.value && definitionPopup.value.term === term && !definitionPopup.value.loading) {
+                    _g6log('[DefPopup] 忽略重复点击，弹窗已打开:', term);
                     return;
                 }
-                definitionPopup.value = { term, definition: '', ipa: '', literal_meaning: '', source: '', x, y, loading: true };
+                // C: 坐标偏移，避免弹窗压住术语本身；并约束在 viewport 内
+                //    边界计算放在 JS 层而非 Vue 模板层，因为 Vue 3 模板中 window 无法直接访问
+                // E: Offset to avoid covering the term; clamp within viewport
+                //    Boundaries computed in JS, not Vue template, because window is inaccessible in Vue 3 templates
+                const popupX = Math.min((x || 0) + 12, window.innerWidth - 380);
+                // C: 动态预估弹窗高度（与 CSS max-height: 60vh + padding 一致）
+                // E: Dynamic estimated popup height (consistent with CSS max-height: 60vh + padding)
+                const estimatedHeight = window.innerHeight * 0.6 + 60;
+                let popupY = (y || 0) + 18;
+                // C: 如果弹窗底部超出视口，则向上弹出（弹窗底部对齐术语位置上方）
+                // E: If popup bottom exceeds viewport, flip upward (popup bottom aligns above term)
+                if (popupY + estimatedHeight > window.innerHeight) {
+                    popupY = Math.max(10, (y || 0) - estimatedHeight + 10);
+                }
+
+                // C: 任务2 — 优先从本地缓存读取
+                // E: Task 2 — prefer local cache
+                const cached = annotationCache.value && annotationCache.value[term];
+                if (cached) {
+                    _g6log('[DefPopup] ✅ 缓存命中:', term, { source: cached.source, hasWiki: !!cached.wikipedia_definition, hasLLM: !!cached.llm_definition });
+                    definitionPopup.value = {
+                        term, x: popupX, y: popupY, loading: false,
+                        wikipedia_definition: cached.wikipedia_definition || null,
+                        wikipedia_url: cached.wikipedia_url || null,
+                        llm_definition: cached.llm_definition || null,
+                        ipa: cached.ipa || '',
+                        ipa_narrow: cached.ipa_narrow || '',
+                        ipa_broad: cached.ipa_broad || '',
+                        literal_meaning: cached.literal_meaning || '',
+                        pinyin: cached.pinyin || '',
+                        romanization: cached.romanization || '',
+                        source: cached.source || 'cache',
+                        from_cache: true,
+                    };
+                    return;
+                }
+
+                _g6log('[DefPopup] 🔍 缓存未命中，发起 /define API 请求:', term);
+                definitionPopup.value = {
+                    term, x: popupX, y: popupY, loading: true,
+                    wikipedia_definition: null, wikipedia_url: null,
+                    llm_definition: null, ipa: '', ipa_narrow: '', ipa_broad: '',
+                    literal_meaning: '', pinyin: '', romanization: '', source: ''
+                };
                 try {
                     const response = await fetch('/define', {
                         method: 'POST',
@@ -1330,22 +1821,59 @@
                         body: JSON.stringify({
                             term: term,
                             detail_level: annotationDetail.value,
-                            language: 'en'
+                            language: detectedUserLanguage.value
                         })
                     });
                     const data = await response.json();
+                    _g6log('[DefPopup] ✅ API 返回:', {
+                        term,
+                        source: data.source,
+                        hasWiki: !!data.wikipedia_definition,
+                        hasLLM: !!data.llm_definition,
+                        hasIPA: !!data.ipa,
+                        wikiUrl: data.wikipedia_url,
+                        pinyin: data.pinyin,
+                        romanization: data.romanization,
+                        definitionLen: (data.wikipedia_definition || data.llm_definition || '').length
+                    });
                     definitionPopup.value = {
-                        term, x, y, loading: false,
-                        definition: data.definition || 'Definition unavailable.',
+                        term, x: popupX, y: popupY, loading: false,
+                        wikipedia_definition: data.wikipedia_definition || null,
+                        wikipedia_url: data.wikipedia_url || null,
+                        llm_definition: data.llm_definition || null,
                         ipa: data.ipa || '',
+                        ipa_narrow: data.ipa_narrow || '',
+                        ipa_broad: data.ipa_broad || '',
                         literal_meaning: data.literal_meaning || '',
-                        source: data.source || 'unknown'
+                        pinyin: data.pinyin || '',
+                        romanization: data.romanization || '',
+                        source: data.source || 'unknown',
+                        from_cache: false,
                     };
+                    // C: 任务2 — 写回本地缓存供下次使用
+                    // E: Task 2 — write back to local cache for next time
+                    if (!annotationCache.value) annotationCache.value = {};
+                    annotationCache.value[term] = {
+                        wikipedia_definition: data.wikipedia_definition || null,
+                        wikipedia_url: data.wikipedia_url || null,
+                        llm_definition: data.llm_definition || null,
+                        ipa: data.ipa || '',
+                        ipa_narrow: data.ipa_narrow || '',
+                        ipa_broad: data.ipa_broad || '',
+                        literal_meaning: data.literal_meaning || '',
+                        pinyin: data.pinyin || '',
+                        romanization: data.romanization || '',
+                        source: data.source || 'unknown',
+                    };
+                    _g6log('[DefPopup] 📝 已写回缓存:', term);
                 } catch (err) {
+                    _g6err('[DefPopup] ❌ API 请求失败:', term, err.message);
                     definitionPopup.value = {
-                        term, x, y, loading: false,
-                        definition: 'Failed to load definition.',
-                        ipa: '', literal_meaning: '', source: 'error'
+                        term, x: popupX, y: popupY, loading: false,
+                        wikipedia_definition: null, wikipedia_url: null,
+                        llm_definition: 'Failed to load definition.',
+                        ipa: '', literal_meaning: '', source: 'error',
+                        from_cache: false,
                     };
                 }
             };
@@ -1354,6 +1882,61 @@
             // E: Close definition popup
             const closeDefinition = () => {
                 definitionPopup.value = null;
+            };
+
+            // C: 弹窗拖动功能
+            // E: Popup drag functionality
+            let dragState = null;
+            const startDragPopup = (e) => {
+                if (!definitionPopup.value || e.button !== 0) return;
+                dragState = {
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    popupX: definitionPopup.value.x,
+                    popupY: definitionPopup.value.y,
+                };
+                document.addEventListener('mousemove', onDragPopup);
+                document.addEventListener('mouseup', stopDragPopup);
+            };
+            const onDragPopup = (e) => {
+                if (!dragState || !definitionPopup.value) return;
+                const dx = e.clientX - dragState.startX;
+                const dy = e.clientY - dragState.startY;
+                const newX = Math.max(0, Math.min(dragState.popupX + dx, window.innerWidth - 400));
+                const newY = Math.max(0, Math.min(dragState.popupY + dy, window.innerHeight - 100));
+                definitionPopup.value.x = newX;
+                definitionPopup.value.y = newY;
+            };
+            const stopDragPopup = () => {
+                dragState = null;
+                document.removeEventListener('mousemove', onDragPopup);
+                document.removeEventListener('mouseup', stopDragPopup);
+            };
+
+            // C: 边类型图例拖拽功能 / E: Edge legend drag functionality
+            let edgeLegendDragState = null;
+            const startDragEdgeLegend = (e) => {
+                if (e.button !== 0) return;
+                edgeLegendDragState = {
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    popupX: edgeLegendPos.x,
+                    popupY: edgeLegendPos.y,
+                };
+                document.addEventListener('mousemove', onDragEdgeLegend);
+                document.addEventListener('mouseup', stopDragEdgeLegend);
+            };
+            const onDragEdgeLegend = (e) => {
+                if (!edgeLegendDragState) return;
+                const dx = e.clientX - edgeLegendDragState.startX;
+                const dy = e.clientY - edgeLegendDragState.startY;
+                edgeLegendPos.x = Math.max(0, Math.min(edgeLegendDragState.popupX + dx, window.innerWidth - 200));
+                edgeLegendPos.y = Math.max(0, Math.min(edgeLegendDragState.popupY + dy, window.innerHeight - 120));
+            };
+            const stopDragEdgeLegend = () => {
+                edgeLegendDragState = null;
+                document.removeEventListener('mousemove', onDragEdgeLegend);
+                document.removeEventListener('mouseup', stopDragEdgeLegend);
             };
 
             const sendMessage = async () => {
@@ -1383,6 +1966,12 @@
                 
                 chatHistory.value.push({ role: 'user', text: text });
                 userInput.value = '';
+                // C: 首次用户消息时检测语言
+                // E: Detect language on first user message
+                if (chatHistory.value.filter(m => m.role === 'user').length === 1) {
+                    const hasCJK = /[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff]/.test(text);
+                    detectedUserLanguage.value = hasCJK ? 'zh' : 'en';
+                }
                 if (settings.autoScroll) scrollChat();
 
                 try {
@@ -1475,20 +2064,31 @@
                         }
                     }
                 })
-                // C: 委托点击事件 — 处理下划线术语点击
-                // E: Delegate click events — handle annotated term clicks
-                const g6Container = document.getElementById('g6-container');
-                if (g6Container) {
-                    g6Container.addEventListener('click', (e) => {
-                        const annoEl = e.target.closest('.anno-term');
-                        if (!annoEl) return;
+                // C: 委托点击事件 — 处理下划线术语点击（任务1 Bug 修复）
+                //    使用 document 级别 capture 阶段 + e.target.closest('.anno-term') 精准拦截。
+                //    原因：G6 v5 HTML 节点把 HTML 渲染到内部 foreignObject，
+                //    不在 #g6-container 子树内，原委托无法接收事件。
+                // E: Delegate click events — handle annotated term clicks (Task 1 Bug fix)
+                //    Use document-level capture phase + e.target.closest('.anno-term') for precision.
+                //    Reason: G6 v5 HTML nodes render HTML into internal foreignObject,
+                //    NOT inside #g6-container subtree, original delegation can't receive events.
+                const handleAnnoTermClick = (e) => {
+                    const annoEl = e.target?.closest?.('.anno-term');
+                    if (!annoEl) return;
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const term = annoEl.dataset.term;
+                    if (!term) return;
+                    showDefinition(term, e.clientX, e.clientY);
+                };
+                document.addEventListener('click', handleAnnoTermClick, true);
+                // C: pointerdown 同步拦截，避免 G6 mousedown 提前消耗事件
+                // E: pointerdown sync intercept to prevent G6 mousedown from consuming events
+                document.addEventListener('pointerdown', (e) => {
+                    if (e.target?.closest?.('.anno-term')) {
                         e.stopPropagation();
-                        const term = annoEl.dataset.term;
-                        if (term) {
-                            showDefinition(term, e.clientX, e.clientY);
-                        }
-                    });
-                }
+                    }
+                }, true);
             };
             
             onMounted(() => onMountedWithG6());
@@ -1528,10 +2128,21 @@
                     subtreeRootId.value = null;
                     chatHistory.value.push({ role: 'system', text: 'Canvas has been cleared manually.' });
                     if (graph) {
-                        graph.setData({ nodes: [], edges: [] })
-                        graph.render()
+                        try {
+                            graph.setData({ nodes: [], edges: [] })
+                            graph.render()
+                        } catch (e) {
+                            _g6err('clearAllNodes 渲染失败，重建 G6:', e)
+                            try { graph.destroy(); } catch (_) {}
+                            graph = null
+                            nextTick(() => initG6())
+                        }
                     }
                     if (settings.autoScroll) scrollChat();
+                } else {
+                    // C: 用户取消 → 恢复可能因 confirm() 丢失的 Canvas 上下文
+                    // E: User cancelled → recover Canvas context possibly lost by confirm()
+                    recoverG6AfterPrompt();
                 }
             };
 
@@ -1566,6 +2177,11 @@
             const saveCurrentMap = async () => {
                 const mapData = { nodes: nodes.value, links: links.value };
                 const name = prompt('Map name:', `mindmap_${new Date().toISOString().slice(0,10)}`);
+                // C: prompt() 是阻塞式对话框，可能导致 Canvas 上下文丢失。
+                //    无论用户确认或取消，都强制恢复 G6 渲染。
+                // E: prompt() is a blocking dialog that may cause Canvas context loss.
+                //    Force G6 render recovery regardless of confirm or cancel.
+                recoverG6AfterPrompt();
                 if (!name) return;
                 try {
                     const response = await fetch('/save_map', {
@@ -1598,7 +2214,15 @@
             // C: --- 加载指定导图 ---
             // E: --- Load specific map ---
             const loadMapById = async (mapId) => {
-                if (!confirm(t('confirmLoad'))) return;
+                if (!confirm(t('confirmLoad'))) {
+                    // C: 用户取消 → 恢复可能因 confirm() 丢失的 Canvas 上下文
+                    // E: User cancelled → recover Canvas context possibly lost by confirm()
+                    recoverG6AfterPrompt();
+                    return;
+                }
+                // C: 用户确认 → 也先恢复上下文再加载
+                // E: User confirmed → recover context first then load
+                recoverG6AfterPrompt();
                 try {
                     const response = await fetch(`/load_map?map_id=${mapId}`);
                     const data = await response.json();
@@ -1659,9 +2283,16 @@
                 // C: 词典标注相关
                 // E: Dictionary annotation related
                 annotations, annotationDensity, annotationDetail,
-                definitionPopup,
+                annotationCache,
+                definitionPopup, detectedUserLanguage,
                 triggerAnnotation, renderAnnotatedText,
-                showDefinition, closeDefinition
+                renderAnnotatedDefinition, renderDetailWithHeader,
+                showDefinition, closeDefinition, startDragPopup,
+                showEdgeLegend, edgeLegendItems, edgeLegendPos,
+                startDragEdgeLegend,
+                // C: Wikipedia 定义截断相关
+                // E: Wikipedia definition truncation helpers
+                truncatedWikiDefinition, wikiDefinitionIsTruncated, wikiDefinitionFullLength
             }
         }
     }).mount('#app')

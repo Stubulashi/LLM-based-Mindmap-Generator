@@ -1,0 +1,49 @@
+{
+  "__purpose": "核心概念集合 Es — 用于 Entity Recall (Evaluation_Schema.md §1.4)",
+  "__purpose_en": "Essential Concepts Set Es — for Entity Recall (Evaluation_Schema.md §1.4)",
+  "__source": "从金标准导图 gold_example.json 的节点 label 中提取",
+  "__source_en": "Extracted from gold standard mind map gold_example.json node labels",
+  "__description": "本文件是与 evaluation/data/gold/gold_example.json 配对的核心概念集合。评估 Entity Recall 时，框架使用此列表中的概念检查生成导图是否覆盖了所有关键概念。",
+  "__description_en": "This file is the essential concepts set paired with evaluation/data/gold/gold_example.json. When evaluating Entity Recall, the framework uses this list to check whether the generated map covers all key concepts.",
+
+  "concepts": [
+    "机器学习基础",
+    "机器学习",
+    "Machine Learning",
+    "监督学习",
+    "Supervised Learning",
+    "无监督学习",
+    "Unsupervised Learning",
+    "强化学习",
+    "Reinforcement Learning",
+    "线性回归",
+    "Linear Regression",
+    "支持向量机",
+    "SVM",
+    "Support Vector Machine",
+    "决策树",
+    "Decision Tree",
+    "K-Means聚类",
+    "K-Means",
+    "K-Means Clustering",
+    "主成分分析",
+    "PCA",
+    "Principal Component Analysis",
+    "Q-Learning",
+    "策略梯度",
+    "Policy Gradient"
+  ],
+
+  "__format_notes": {
+    "rule_1": "每个条目应为一个独立的概念术语，不包含标点符号或额外说明",
+    "rule_1_en": "Each entry should be a standalone concept term, without punctuation or extra explanation",
+    "rule_2": "同义词可并列列出（如 SVM 和 Support Vector Machine），框架会自动匹配",
+    "rule_2_en": "Synonyms can be listed together (e.g., SVM and Support Vector Machine), the framework will auto-match",
+    "rule_3": "建议包含中英文双语的术语，以覆盖不同语言的生成导图",
+    "rule_3_en": "It is recommended to include bilingual terms (Chinese + English) to cover generated maps in different languages",
+    "rule_4": "概念总数建议在 10-30 个之间，太少的列表无法有效评估召回率",
+    "rule_4_en": "Recommended total: 10-30 concepts. Too few will not effectively evaluate recall rate",
+    "rule_5": "文件名命名规则：与金标准导图配对的前缀名 + _concepts.json",
+    "rule_5_en": "File naming: your_gold_prefix_concepts.json (paired with the gold standard map)"
+  }
+}
