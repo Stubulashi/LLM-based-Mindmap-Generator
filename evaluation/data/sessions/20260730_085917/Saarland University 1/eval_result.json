@@ -1,0 +1,57 @@
+{
+  "label": {
+    "node_precision": 0.4286,
+    "node_recall": 1.0,
+    "node_f1": 0.6,
+    "label_sim": 0.8482,
+    "entity_recall": 1.0,
+    "tp": 3,
+    "fp": 4,
+    "fn": 0,
+    "entity_hits": [
+      "Word Gender",
+      "Explanation part",
+      "E-dictionaries - Outline Encyclopedia"
+    ],
+    "entity_misses": [],
+    "entity_total": 3,
+    "matches": [
+      {
+        "gold_label": "Explanation part",
+        "gen_label": "Explanation part",
+        "similarity": 1.0
+      },
+      {
+        "gold_label": "E-dictionaries - Outline Encyclopedia",
+        "gen_label": "Electronic dictionaries",
+        "similarity": 0.7289
+      },
+      {
+        "gold_label": "Word Gender",
+        "gen_label": "Gender info",
+        "similarity": 0.8157
+      }
+    ],
+    "threshold": 0.7,
+    "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+    "gold_count": 3,
+    "gen_count": 7
+  },
+  "hierarchy": {
+    "edge_precision": 0.0,
+    "edge_recall": 0.0,
+    "edge_f1": 0.0,
+    "edge_tp": 0,
+    "edge_fp": 5,
+    "edge_fn": 2,
+    "uas": 0.0,
+    "nted": 0.2857,
+    "raw_ted": 2.0,
+    "pc_precision": 1.0,
+    "pc_recall": 0.0,
+    "pc_f1": 0.0,
+    "pc_tp": 0,
+    "lar": 0.3333
+  },
+  "timing_snapshots": []
+}

@@ -1,0 +1,168 @@
+{
+  "tree": [
+    {
+      "id": "node_app_interface_rating",
+      "label": "Interface Rating",
+      "color": "var(--node-green)",
+      "details": [
+        "用户评分: 8/10",
+        "关键点: 功能容易找到",
+        "关键点: 界面直观无需预先学习",
+        "关键点: 设计清晰明了"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_function_accessibility",
+          "label": "Function Accessibility",
+          "color": "var(--node-blue)",
+          "details": [
+            "关键点: 所有功能很容易找到",
+            "关键点: 无需学习即可使用",
+            "关键点: 直观易用"
+          ],
+          "parent_id": "node_app_interface_rating",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_design_clarity",
+          "label": "Design Clarity",
+          "color": "var(--node-blue)",
+          "details": [
+            "关键点: 设计非常清晰",
+            "关键点: 不令人困惑"
+          ],
+          "parent_id": "node_app_interface_rating",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_login_interface",
+          "label": "Login Interface",
+          "color": "var(--node-red)",
+          "details": [
+            "用户原文: 登录界面有些细节需要改进",
+            "关键点: 需要改进的细节但未影响整体评分"
+          ],
+          "parent_id": "node_app_interface_rating",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_app_interface_rating",
+      "label": "Interface Rating",
+      "color": "var(--node-green)",
+      "details": [
+        "用户评分: 8/10",
+        "关键点: 功能容易找到",
+        "关键点: 界面直观无需预先学习",
+        "关键点: 设计清晰明了"
+      ]
+    },
+    {
+      "id": "node_function_accessibility",
+      "label": "Function Accessibility",
+      "color": "var(--node-blue)",
+      "details": [
+        "关键点: 所有功能很容易找到",
+        "关键点: 无需学习即可使用",
+        "关键点: 直观易用"
+      ]
+    },
+    {
+      "id": "node_design_clarity",
+      "label": "Design Clarity",
+      "color": "var(--node-blue)",
+      "details": [
+        "关键点: 设计非常清晰",
+        "关键点: 不令人困惑"
+      ]
+    },
+    {
+      "id": "node_login_interface",
+      "label": "Login Interface",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: 登录界面有些细节需要改进",
+        "关键点: 需要改进的细节但未影响整体评分"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_app_interface_rating",
+      "target": "node_function_accessibility",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_interface_rating",
+      "target": "node_design_clarity",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_interface_rating",
+      "target": "node_login_interface",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 4
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 4,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.29,
+    "stage2": 0.0,
+    "stage3": 2.49,
+    "overhead": 0.01,
+    "total": 4.79
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

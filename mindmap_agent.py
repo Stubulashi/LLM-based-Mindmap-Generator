@@ -597,7 +597,8 @@ class _BaseAgent:
                 ],
                 tools=tools,
                 tool_choice={"type": "function", "function": {"name": tool_choice_name}},
-                max_tokens=max_tokens
+                max_tokens=max_tokens,
+                temperature=0.0,
             )
 
         response = _do_call()
@@ -626,7 +627,8 @@ class _BaseAgent:
                     ],
                     tools=tools,
                     tool_choice={"type": "function", "function": {"name": tool_choice_name}},
-                    max_tokens=max_tokens
+                    max_tokens=max_tokens,
+                    temperature=0.0,
                 )
 
         # C: 二次检查 / E: Double-check
@@ -693,7 +695,8 @@ class _BaseAgent:
                         ],
                         tools=tools,
                         tool_choice={"type": "function", "function": {"name": tool_choice_name}},
-                        max_tokens=max_tokens
+                        max_tokens=max_tokens,
+                        temperature=0.0,
                     )
 
                     if not response.choices[0].message.tool_calls:
@@ -802,11 +805,13 @@ Your task is to make incremental modifications to the current mind map based on 
 C: 【核心铁律 - 必须严格遵守】
 1. 绝对服从用户：【用户说】的内容具有绝对的权威。即使用户的逻辑是荒诞的、无厘头的或违反常理的，你也必须严格按照用户的概念拓扑直接建图。
 2. 严禁生成"元节点（Meta-nodes）"：绝对不要将 AI 的逻辑分析、说教或总结画进导图。画布只用来呈现用户指定的客观概念。
+3. 【严禁添加虚构节点】不得创建用户输入中未明确出现的节点。只提取用户原文中实际存在的概念，不要补充、扩展或联想任何额外词汇。
 {depth_rule_cn}
 {rule4_cn}
 E: [Core Iron Laws - Must Strictly Follow]
 1. Absolute obedience to the user: the content of [User Says] has absolute authority. Even if the user's logic is absurd, nonsensical, or violates common sense, you must strictly build the map according to the user's conceptual topology.
 2. Strictly prohibit generating meta-nodes: never draw AI's logical analysis, preaching, or summaries into the mind map. The canvas is only for presenting objective concepts specified by the user.
+3. [NO FABRICATED NODES] Do NOT create nodes that do not explicitly appear in the user's input. Only extract concepts that actually exist in the source text. Do not supplement, expand, or associate any additional terms.
 {depth_rule_en}
 {rule4_en}
 
@@ -828,21 +833,27 @@ Step 2 (REASON): Compare with recent conversation and reason about what needs to
 Step 3 (ACT): Call the modify_mind_map tool, only passing the incremental delta, do not rebuild the entire map.
 
 C: 【原子化标签规则 - 必须严格遵守】
-1. 节点 label 必须是精简的核心名词或短语，最多 2 个词。
+1. 节点 label 必须是精简的核心名词或短语（一般≤3词）。
+   含连字符(-)、斜杠(/)、破折号(—)、括号的复合短语必须作为完整标签保留，不限词数。
+   例如 "E-dictionaries - Outline Encyclopedia" 必须是一个完整的节点标签，不得拆分。
 2. 严禁使用完整句子作为 label！例如：
    -错误：'chicken has rabbies'
    - 正确：label='Rabies', details=['Discussed that chickens can have rabbies']
    - 错误：'I am a cat that likes fish'
    - 正确：label='Cat', details=['Likes fish', 'Self-identifies as a cat']
-3. 所有解释性、描述性、逻辑性内容必须放入 details 数组。
+3. 【严禁拆分】含特殊字符(-/—/括号)的复合短语必须保持完整，不得拆分为多个节点。
+4. 所有解释性、描述性、逻辑性内容必须放入 details 数组。
 E: [Atomic Label Rules - Must Strictly Follow]
-1. Node labels must be concise core nouns or phrases, at most 2 words.
+1. Node labels must be concise core nouns or phrases (generally ≤3 words).
+   Compound phrases with hyphens(-), slashes(/), dashes(—), or parentheses MUST be preserved as complete labels.
+   E.g., "E-dictionaries - Outline Encyclopedia" must be ONE complete node label, never split.
 2. Strictly prohibit using full sentences as labels! Examples:
    - Wrong: 'chicken has rabbies'
    - Correct: label='Rabies', details=['Discussed that chickens can have rabbies']
    - Wrong: 'I am a cat that likes fish'
    - Correct: label='Cat', details=['Likes fish', 'Self-identifies as a cat']
-3. All explanatory, descriptive, and logical content must be placed in the details array.
+3. [NO SPLITTING] Compound phrases with special chars (-/—/parens) MUST stay intact, never split into multiple nodes.
+4. All explanatory, descriptive, and logical content must be placed in the details array.
 
 C: 【常规绘图规则 — 深度优先策略（核心）】
 4. 【深度优先铁律】必须采用深度优先策略：优先为已有节点挖掘子节点，将已有分支向下延伸，而不是创建大量同层级的顶层节点。树的深度优先于宽度。
@@ -1037,20 +1048,27 @@ E: You are a professional concept extractor. Your task: extract core concepts me
 
 C: 【核心铁律 - 必须严格遵守】
 {rule1_cn}
-2. 原子化标签：每个概念的 label 必须是精简的核心名词或短语（≤2词）。
+2. 原子化标签：每个概念的 label 必须是精简的核心名词或短语（一般≤3词，含连字符/斜杠/括号的复合短语不限词数）。
    - 错误：'I think machine learning is important'
    - 正确：label='Machine Learning', details=['User emphasized its importance']
+   - 含特殊字符的复合短语示例：'E-dictionaries - Outline Encyclopedia' 必须是一个完整节点
 3. 所有解释性、描述性内容必须放入 details 数组。
 4. 不要重复：如果某个概念已经存在于当前导图中，不要再次提取。
 5. 语言一致性：所有 label 和 details 必须与用户输入语言完全一致。
+6. 【严禁拆分】包含连字符(-)、斜杠(/)、破折号(—)、括号的复合短语必须作为单个完整节点提取。
+   例如 "E-dictionaries - Outline Encyclopedia" 必须是一个节点，不得拆分为 "E-dictionaries" 和 "Outline Encyclopedia"。
+7. 【严禁添加】不得提取用户输入中未明确出现的词汇或概念。只能提取用户原文中实际存在的词语。
 E: [Core Iron Laws - Must Strictly Follow]
 {rule1_en}
-2. Atomic labels: each concept label must be a concise core noun or phrase (≤2 words).
+2. Atomic labels: each concept label must be a concise core noun or phrase (generally ≤3 words, compound phrases with hyphens/slashes/parentheses have no word limit).
    - Wrong: 'I think machine learning is important'
    - Correct: label='Machine Learning', details=['User emphasized its importance']
 3. All explanatory and descriptive content must be placed in the details array.
 4. No duplicates: if a concept already exists in the current mind map, do not extract it again.
-5. Language consistency: all labels and details must match the user's input language exactly."""
+5. Language consistency: all labels and details must match the user's input language exactly.
+6. [NO SPLITTING] Compound phrases with hyphens(-), slashes(/), dashes(—), or parentheses MUST be extracted as a single complete node.
+   E.g., "E-dictionaries - Outline Encyclopedia" must be ONE node, NOT split into "E-dictionaries" and "Outline Encyclopedia".
+7. [NO FABRICATION] Do NOT extract words or concepts not explicitly present in the user's input. Only extract terms that actually appear in the source text."""
 
     def extract(self, chat_history: str, current_map: dict) -> list[dict]:
         """C: 从对话中提取概念列表。

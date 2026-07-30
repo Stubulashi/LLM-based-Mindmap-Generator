@@ -1,0 +1,71 @@
+{
+  "nodes": [
+    {
+      "id": "n0",
+      "label": "Feedback",
+      "parent_id": null
+    },
+    {
+      "id": "n1",
+      "label": "overwhelming Interface",
+      "parent_id": "n0"
+    },
+    {
+      "id": "n1_1",
+      "label": "too many options",
+      "parent_id": "n1"
+    },
+    {
+      "id": "n2",
+      "label": "Navigation difficulty",
+      "parent_id": "n0"
+    },
+    {
+      "id": "n2_1",
+      "label": "dictionary entities",
+      "parent_id": "n2"
+    },
+    {
+      "id": "n2_2",
+      "label": "Progress Report",
+      "parent_id": "n2"
+    },
+    {
+      "id": "n3",
+      "label": "Potential",
+      "parent_id": "n0"
+    }
+  ],
+  "links": [
+    {"source": "n0", "target": "n1"},
+    {"source": "n1", "target": "n1_1"},
+    {"source": "n0", "target": "n2"},
+    {"source": "n2", "target": "n2_1"},
+    {"source": "n2", "target": "n2_2"},
+    {"source": "n0", "target": "n3"}
+  ],
+  "tree": [
+    {
+      "id": "n0",
+      "label": "Feedback",
+      "children": [
+        {
+          "id": "n1",
+          "label": "overwhelming Interface",
+          "children": [
+            {"id": "n1_1", "label": "too many options"}
+          ]
+        },
+        {
+          "id": "n2",
+          "label": "Navigation difficulty",
+          "children": [
+            {"id": "n2_1", "label": "dictionary entities"},
+            {"id": "n2_2", "label": "Progress Report"}
+          ]
+        },
+        {"id": "n3", "label": "Potential"}
+      ]
+    }
+  ]
+}

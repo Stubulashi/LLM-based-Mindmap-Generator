@@ -1,0 +1,191 @@
+{
+  "tree": [
+    {
+      "id": "node_ai_daily_learning",
+      "label": "AI Daily Learning Activities",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户建议: 为应用添加AI功能以优化日常学习流程"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_quiz_activities",
+          "label": "Quiz Activities",
+          "color": "var(--node-blue)",
+          "details": [],
+          "parent_id": "node_ai_daily_learning",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_ai_daily_quiz",
+              "label": "AI Daily Quiz",
+              "color": "var(--node-blue)",
+              "details": [
+                "用户建议: AI生成的每日测验功能",
+                "目的1: 帮助复习昨天学习的内容",
+                "目的2: 生成可用于明天的题目"
+              ],
+              "parent_id": "node_quiz_activities",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_daily_review",
+                  "label": "Daily Review",
+                  "color": "var(--node-green)",
+                  "details": [
+                    "用户需求: 复习昨日所学内容",
+                    "与AI Daily Quiz功能关联"
+                  ],
+                  "parent_id": "node_review_activities",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "reference"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_review_activities",
+          "label": "Review Activities",
+          "color": "var(--node-green)",
+          "details": [],
+          "parent_id": "node_ai_daily_learning",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_ai_daily_learning",
+      "label": "AI Daily Learning Activities",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户建议: 为应用添加AI功能以优化日常学习流程"
+      ]
+    },
+    {
+      "id": "node_quiz_activities",
+      "label": "Quiz Activities",
+      "color": "var(--node-blue)",
+      "details": []
+    },
+    {
+      "id": "node_review_activities",
+      "label": "Review Activities",
+      "color": "var(--node-green)",
+      "details": []
+    },
+    {
+      "id": "node_ai_daily_quiz",
+      "label": "AI Daily Quiz",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户建议: AI生成的每日测验功能",
+        "目的1: 帮助复习昨天学习的内容",
+        "目的2: 生成可用于明天的题目"
+      ]
+    },
+    {
+      "id": "node_daily_review",
+      "label": "Daily Review",
+      "color": "var(--node-green)",
+      "details": [
+        "用户需求: 复习昨日所学内容",
+        "与AI Daily Quiz功能关联"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_ai_daily_learning",
+      "target": "node_quiz_activities",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_daily_learning",
+      "target": "node_review_activities",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_quiz_activities",
+      "target": "node_ai_daily_quiz",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_review_activities",
+      "target": "node_daily_review",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_daily_quiz",
+      "target": "node_daily_review",
+      "link_type": "reference"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 5
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 5,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 1.55,
+    "stage2": 1.65,
+    "stage3": 2.82,
+    "overhead": 0.01,
+    "total": 6.02
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

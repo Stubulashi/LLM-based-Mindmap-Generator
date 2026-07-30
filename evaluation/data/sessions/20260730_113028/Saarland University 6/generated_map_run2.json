@@ -1,0 +1,230 @@
+{
+  "tree": [
+    {
+      "id": "node_app_interface",
+      "label": "App Interface",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户评分: 8/10",
+        "关键点: 功能容易找到",
+        "关键点: 非常直观，无需预先学习即可使用",
+        "关键点: 设计清晰明了"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_rating",
+          "label": "Rating",
+          "color": "var(--node-yellow)",
+          "details": [
+            "用户评分: 8/10"
+          ],
+          "parent_id": "node_app_interface",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_ease_of_use",
+          "label": "Ease of Use",
+          "color": "var(--node-green)",
+          "details": [
+            "关键点: 功能容易找到",
+            "关键点: 无需预先学习即可使用"
+          ],
+          "parent_id": "node_app_interface",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_intuitiveness",
+          "label": "Intuitiveness",
+          "color": "var(--node-green)",
+          "details": [
+            "用户原文: 界面非常直观，完全不令人困惑",
+            "关键点: 用户无需预先学习即可找到所需功能"
+          ],
+          "parent_id": "node_app_interface",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_clear_design",
+          "label": "Clear Design",
+          "color": "var(--node-green)",
+          "details": [
+            "用户原文: 设计清晰明了"
+          ],
+          "parent_id": "node_app_interface",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_login_interface",
+          "label": "Login Interface",
+          "color": "var(--node-red)",
+          "details": [
+            "用户原文: 有一些细节需要改进",
+            "关键点: 需要提升的细节不影响整体正面评价"
+          ],
+          "parent_id": "node_app_interface",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_app_interface",
+      "label": "App Interface",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户评分: 8/10",
+        "关键点: 功能容易找到",
+        "关键点: 非常直观，无需预先学习即可使用",
+        "关键点: 设计清晰明了"
+      ]
+    },
+    {
+      "id": "node_login_interface",
+      "label": "Login Interface",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: 有一些细节需要改进",
+        "关键点: 需要提升的细节不影响整体正面评价"
+      ]
+    },
+    {
+      "id": "node_intuitiveness",
+      "label": "Intuitiveness",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: 界面非常直观，完全不令人困惑",
+        "关键点: 用户无需预先学习即可找到所需功能"
+      ]
+    },
+    {
+      "id": "node_rating",
+      "label": "Rating",
+      "color": "var(--node-yellow)",
+      "details": [
+        "用户评分: 8/10"
+      ]
+    },
+    {
+      "id": "node_ease_of_use",
+      "label": "Ease of Use",
+      "color": "var(--node-green)",
+      "details": [
+        "关键点: 功能容易找到",
+        "关键点: 无需预先学习即可使用"
+      ]
+    },
+    {
+      "id": "node_clear_design",
+      "label": "Clear Design",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: 设计清晰明了"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_app_interface",
+      "target": "node_rating",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_interface",
+      "target": "node_ease_of_use",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_interface",
+      "target": "node_intuitiveness",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_interface",
+      "target": "node_clear_design",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_interface",
+      "target": "node_login_interface",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 6
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 6,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.07,
+    "stage2": 0.0,
+    "stage3": 3.2,
+    "overhead": 0.01,
+    "total": 5.28
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

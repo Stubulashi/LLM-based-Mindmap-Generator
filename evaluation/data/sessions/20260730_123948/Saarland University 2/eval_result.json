@@ -1,0 +1,56 @@
+{
+  "label": {
+    "node_precision": 0.43714000000000003,
+    "node_recall": 0.7,
+    "node_f1": 0.52828,
+    "label_sim": 0.82508,
+    "entity_recall": 0.7,
+    "tp": 2.8,
+    "fp": 3.6,
+    "fn": 1.2,
+    "entity_hits": [
+      "AI Instruction",
+      "learning Experience"
+    ],
+    "entity_misses": [
+      "Efficiency",
+      "personalization"
+    ],
+    "entity_total": 4.0,
+    "matches": [
+      {
+        "gold_label": "AI Instruction",
+        "gen_label": "AI辅助学习",
+        "similarity": 0.9164
+      },
+      {
+        "gold_label": "learning Experience",
+        "gen_label": "学习方法",
+        "similarity": 0.8886
+      }
+    ],
+    "threshold": 0.7,
+    "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+    "gold_count": 4.0,
+    "gen_count": 6.4
+  },
+  "hierarchy": {
+    "edge_precision": 0.2,
+    "edge_recall": 0.0,
+    "edge_f1": 0.0,
+    "edge_tp": 0.0,
+    "edge_fp": 4.0,
+    "edge_fn": 3.0,
+    "uas": 0.15,
+    "nted": 0.6742800000000001,
+    "raw_ted": 4.0,
+    "pc_precision": 1.0,
+    "pc_recall": 0.0,
+    "pc_f1": 0.0,
+    "pc_tp": 0.0,
+    "lar": 0.4
+  },
+  "timing_snapshots": [],
+  "__repeat_count": 5,
+  "__successful_runs": 5
+}

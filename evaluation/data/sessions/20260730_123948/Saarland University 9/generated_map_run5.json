@@ -1,0 +1,272 @@
+{
+  "tree": [
+    {
+      "id": "node_app_review",
+      "label": "App Review",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: Overall experience using the app",
+        "上下文: User shared both positive and negative aspects about the app"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_positive_aspects",
+          "label": "Positive Aspects",
+          "color": "var(--node-green)",
+          "details": [
+            "上下文: Highlights of what the user liked about the app"
+          ],
+          "parent_id": "node_app_review",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_app_potential",
+              "label": "App Potential",
+              "color": "var(--node-green)",
+              "details": [
+                "用户原文: The app has a lot of potential",
+                "关键点: User acknowledges the app's promising capabilities"
+              ],
+              "parent_id": "node_positive_aspects",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_useful_features",
+              "label": "Useful Features",
+              "color": "var(--node-green)",
+              "details": [
+                "用户原文: It offers some really useful features",
+                "关键点: User appreciates the functionality provided"
+              ],
+              "parent_id": "node_positive_aspects",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_negative_aspects",
+          "label": "Negative Aspects",
+          "color": "var(--node-red)",
+          "details": [
+            "上下文: Issues the user encountered with the app"
+          ],
+          "parent_id": "node_app_review",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_overwhelming_interface",
+              "label": "Overwhelming Interface",
+              "color": "var(--node-red)",
+              "details": [
+                "用户原文: The interface could sometimes feel a bit overwhelming",
+                "关键点: Too many options or icons on a single page",
+                "关键点: Made navigation difficult"
+              ],
+              "parent_id": "node_negative_aspects",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_navigation_issues",
+                  "label": "Navigation Issues",
+                  "color": "var(--node-red)",
+                  "details": [
+                    "用户原文: It took me a while to figure out how to navigate certain sections",
+                    "关键点: Difficulty accessing saved dictionary entries",
+                    "关键点: Difficulty accessing progress app reports"
+                  ],
+                  "parent_id": "node_negative_aspects",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "dashed"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_app_review",
+      "label": "App Review",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: Overall experience using the app",
+        "上下文: User shared both positive and negative aspects about the app"
+      ]
+    },
+    {
+      "id": "node_positive_aspects",
+      "label": "Positive Aspects",
+      "color": "var(--node-green)",
+      "details": [
+        "上下文: Highlights of what the user liked about the app"
+      ]
+    },
+    {
+      "id": "node_negative_aspects",
+      "label": "Negative Aspects",
+      "color": "var(--node-red)",
+      "details": [
+        "上下文: Issues the user encountered with the app"
+      ]
+    },
+    {
+      "id": "node_app_potential",
+      "label": "App Potential",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: The app has a lot of potential",
+        "关键点: User acknowledges the app's promising capabilities"
+      ]
+    },
+    {
+      "id": "node_useful_features",
+      "label": "Useful Features",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: It offers some really useful features",
+        "关键点: User appreciates the functionality provided"
+      ]
+    },
+    {
+      "id": "node_overwhelming_interface",
+      "label": "Overwhelming Interface",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: The interface could sometimes feel a bit overwhelming",
+        "关键点: Too many options or icons on a single page",
+        "关键点: Made navigation difficult"
+      ]
+    },
+    {
+      "id": "node_navigation_issues",
+      "label": "Navigation Issues",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: It took me a while to figure out how to navigate certain sections",
+        "关键点: Difficulty accessing saved dictionary entries",
+        "关键点: Difficulty accessing progress app reports"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_app_review",
+      "target": "node_positive_aspects",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_review",
+      "target": "node_negative_aspects",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_positive_aspects",
+      "target": "node_app_potential",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_positive_aspects",
+      "target": "node_useful_features",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_negative_aspects",
+      "target": "node_overwhelming_interface",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_negative_aspects",
+      "target": "node_navigation_issues",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_overwhelming_interface",
+      "target": "node_navigation_issues",
+      "link_type": "dashed"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 7
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 7,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.44,
+    "stage2": 1.65,
+    "stage3": 4.09,
+    "overhead": 0.01,
+    "total": 8.18
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

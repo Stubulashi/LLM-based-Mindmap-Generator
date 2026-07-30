@@ -1,0 +1,169 @@
+{
+  "tree": [
+    {
+      "id": "node_root",
+      "label": "AI-powered study assistant",
+      "color": "var(--node-red)",
+      "details": [
+        "背景: 用户软件体验访谈中的反馈",
+        "用户原文: I must say this feature is very powerful"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_ai_extracting_knowledge_points",
+          "label": "AI extracting knowledge points",
+          "color": "var(--node-blue)",
+          "details": [
+            "定义: AI从文本中自动提取知识点并添加到词典的功能",
+            "关键点: 减少手动标记单词的工作量",
+            "关键点: 能根据用户学习方式和知识水平调整标记",
+            "关键点: 帮助用户更专注地学习单词和文本"
+          ],
+          "parent_id": "node_root",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_focus_on_words_text",
+              "label": "Focus on words and text",
+              "color": "var(--node-green)",
+              "details": [
+                "关键点: AI处理标记工作后，用户可以更专注于单词和文本本身",
+                "关键点: 有助于提升学习效果"
+              ],
+              "parent_id": "node_ai_extracting_knowledge_points",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_efficient_study_review",
+          "label": "Efficient study and review",
+          "color": "var(--node-green)",
+          "details": [
+            "定义: 通过AI辅助实现的高效学习和复习",
+            "关键点: AI自动标记用户可能不熟悉的词汇",
+            "关键点: 提高学习感受和知识水平"
+          ],
+          "parent_id": "node_root",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_ai_extracting_knowledge_points",
+      "label": "AI extracting knowledge points",
+      "color": "var(--node-blue)",
+      "details": [
+        "定义: AI从文本中自动提取知识点并添加到词典的功能",
+        "关键点: 减少手动标记单词的工作量",
+        "关键点: 能根据用户学习方式和知识水平调整标记",
+        "关键点: 帮助用户更专注地学习单词和文本"
+      ]
+    },
+    {
+      "id": "node_efficient_study_review",
+      "label": "Efficient study and review",
+      "color": "var(--node-green)",
+      "details": [
+        "定义: 通过AI辅助实现的高效学习和复习",
+        "关键点: AI自动标记用户可能不熟悉的词汇",
+        "关键点: 提高学习感受和知识水平"
+      ]
+    },
+    {
+      "id": "node_focus_on_words_text",
+      "label": "Focus on words and text",
+      "color": "var(--node-green)",
+      "details": [
+        "关键点: AI处理标记工作后，用户可以更专注于单词和文本本身",
+        "关键点: 有助于提升学习效果"
+      ]
+    },
+    {
+      "id": "node_root",
+      "label": "AI-powered study assistant",
+      "color": "var(--node-red)",
+      "details": [
+        "背景: 用户软件体验访谈中的反馈",
+        "用户原文: I must say this feature is very powerful"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_root",
+      "target": "node_ai_extracting_knowledge_points",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_root",
+      "target": "node_efficient_study_review",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_extracting_knowledge_points",
+      "target": "node_focus_on_words_text",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 4
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 4,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.7,
+    "stage2": 0.0,
+    "stage3": 2.91,
+    "overhead": 0.01,
+    "total": 5.61
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

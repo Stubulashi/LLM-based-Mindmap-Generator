@@ -1,0 +1,238 @@
+{
+  "tree": [
+    {
+      "id": "node_learning_systems",
+      "label": "Learning Systems",
+      "color": "var(--node-blue)",
+      "details": [
+        "上下文: Root concept grouping for study tools and methods discussed"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_study_methods",
+          "label": "Study Methods",
+          "color": "var(--node-green)",
+          "details": [
+            "上下文: Sub-group for approaches to studying"
+          ],
+          "parent_id": "node_learning_systems",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_ai_enhanced",
+              "label": "AI-Enhanced Learning",
+              "color": "var(--node-blue)",
+              "details": [
+                "上下文: Methods using AI to improve study efficiency"
+              ],
+              "parent_id": "node_study_methods",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_ai_knowledge_extraction",
+                  "label": "AI Knowledge Extraction",
+                  "color": "var(--node-blue)",
+                  "details": [
+                    "用户原文: This feature is very powerful",
+                    "用户原文: AI can do it very efficiently",
+                    "用户原文: It can adjust my way of studying and my knowledge standard",
+                    "关键点: Automatically marks unfamiliar words without manual effort",
+                    "关键点: Adapts to user's knowledge level"
+                  ],
+                  "parent_id": "node_ai_enhanced",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                },
+                {
+                  "id": "node_efficient_study",
+                  "label": "Efficient Study",
+                  "color": "var(--node-green)",
+                  "details": [
+                    "用户原文: Helps me study and review efficiently",
+                    "用户原文: Helps me focus more on the word and the text",
+                    "关键点: Reduces self-work for marking words",
+                    "关键点: Improves learning feeling"
+                  ],
+                  "parent_id": "node_ai_enhanced",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                },
+                {
+                  "id": "node_knowledge_standard",
+                  "label": "Knowledge Standard",
+                  "color": "var(--node-red)",
+                  "details": [
+                    "用户原文: Improves my knowledge standard",
+                    "用户原文: Adjusts according to my knowledge standard",
+                    "关键点: AI adapts marking to user's familiarity level"
+                  ],
+                  "parent_id": "node_ai_enhanced",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_learning_systems",
+      "label": "Learning Systems",
+      "color": "var(--node-blue)",
+      "details": [
+        "上下文: Root concept grouping for study tools and methods discussed"
+      ]
+    },
+    {
+      "id": "node_study_methods",
+      "label": "Study Methods",
+      "color": "var(--node-green)",
+      "details": [
+        "上下文: Sub-group for approaches to studying"
+      ]
+    },
+    {
+      "id": "node_ai_enhanced",
+      "label": "AI-Enhanced Learning",
+      "color": "var(--node-blue)",
+      "details": [
+        "上下文: Methods using AI to improve study efficiency"
+      ]
+    },
+    {
+      "id": "node_ai_knowledge_extraction",
+      "label": "AI Knowledge Extraction",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: This feature is very powerful",
+        "用户原文: AI can do it very efficiently",
+        "用户原文: It can adjust my way of studying and my knowledge standard",
+        "关键点: Automatically marks unfamiliar words without manual effort",
+        "关键点: Adapts to user's knowledge level"
+      ]
+    },
+    {
+      "id": "node_efficient_study",
+      "label": "Efficient Study",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: Helps me study and review efficiently",
+        "用户原文: Helps me focus more on the word and the text",
+        "关键点: Reduces self-work for marking words",
+        "关键点: Improves learning feeling"
+      ]
+    },
+    {
+      "id": "node_knowledge_standard",
+      "label": "Knowledge Standard",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: Improves my knowledge standard",
+        "用户原文: Adjusts according to my knowledge standard",
+        "关键点: AI adapts marking to user's familiarity level"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_learning_systems",
+      "target": "node_study_methods",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_study_methods",
+      "target": "node_ai_enhanced",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_enhanced",
+      "target": "node_ai_knowledge_extraction",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_enhanced",
+      "target": "node_efficient_study",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_enhanced",
+      "target": "node_knowledge_standard",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 6
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 6,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.78,
+    "stage2": 1.65,
+    "stage3": 4.12,
+    "overhead": 0.01,
+    "total": 8.55
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

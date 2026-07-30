@@ -1,0 +1,163 @@
+{
+  "tree": [
+    {
+      "id": "node_artificial_intelligence",
+      "label": "Artificial Intelligence",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: AI可以生成报告，指出可以改进答案的地方",
+        "用户原文: AI能够分析日常使用和测验中的真实知识水平",
+        "关键点: 能够发现用户在学习初期可能忽略或未注意的知识点"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_progress_reports",
+          "label": "Progress Reports",
+          "color": "var(--node-blue)",
+          "details": [
+            "用户原文: 认为这个功能非常清晰且有用",
+            "关键点: Quiz features的进度报告"
+          ],
+          "parent_id": "node_artificial_intelligence",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_knowledge_analysis",
+          "label": "Knowledge Analysis",
+          "color": "var(--node-blue)",
+          "details": [
+            "用户原文: AI基于日常使用和测验分析真实知识",
+            "关键点: 结合日常使用和测验的组合方式能反映学习效果和改进空间"
+          ],
+          "parent_id": "node_artificial_intelligence",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_test_limitation",
+              "label": "Test Limitation",
+              "color": "var(--node-red)",
+              "details": [
+                "用户原文: 考试不能真实反映我的水平"
+              ],
+              "parent_id": "node_knowledge_analysis",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "contrast"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_progress_reports",
+      "label": "Progress Reports",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: 认为这个功能非常清晰且有用",
+        "关键点: Quiz features的进度报告"
+      ]
+    },
+    {
+      "id": "node_artificial_intelligence",
+      "label": "Artificial Intelligence",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: AI可以生成报告，指出可以改进答案的地方",
+        "用户原文: AI能够分析日常使用和测验中的真实知识水平",
+        "关键点: 能够发现用户在学习初期可能忽略或未注意的知识点"
+      ]
+    },
+    {
+      "id": "node_test_limitation",
+      "label": "Test Limitation",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: 考试不能真实反映我的水平"
+      ]
+    },
+    {
+      "id": "node_knowledge_analysis",
+      "label": "Knowledge Analysis",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: AI基于日常使用和测验分析真实知识",
+        "关键点: 结合日常使用和测验的组合方式能反映学习效果和改进空间"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_artificial_intelligence",
+      "target": "node_progress_reports",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_artificial_intelligence",
+      "target": "node_knowledge_analysis",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_knowledge_analysis",
+      "target": "node_test_limitation",
+      "link_type": "contrast"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 4
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 4,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.8,
+    "stage2": 0.0,
+    "stage3": 2.66,
+    "overhead": 0.01,
+    "total": 5.46
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

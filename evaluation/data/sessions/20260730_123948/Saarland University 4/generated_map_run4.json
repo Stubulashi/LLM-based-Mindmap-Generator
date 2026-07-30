@@ -1,0 +1,116 @@
+{
+  "tree": [
+    {
+      "id": "__virtual_root__",
+      "label": "",
+      "color": "transparent",
+      "details": [],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_edtech",
+          "label": "Educational Technology",
+          "color": "var(--node-red)",
+          "details": [],
+          "parent_id": null,
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": true,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false
+        },
+        {
+          "id": "node_ai_applications",
+          "label": "AI in Education",
+          "color": "var(--node-green)",
+          "details": [],
+          "parent_id": null,
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": true,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false
+        },
+        {
+          "id": "node_artificial_intelligence",
+          "label": "Artificial Intelligence",
+          "color": "var(--node-green)",
+          "details": [
+            "User: AI can analyze my real knowledge based on daily usage and quiz results.",
+            "User: AI can identify improvement areas and missed points during earlier learning."
+          ],
+          "parent_id": null,
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": true,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false
+        }
+      ],
+      "_isVirtual": true,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_edtech",
+      "label": "Educational Technology",
+      "color": "var(--node-red)",
+      "details": []
+    },
+    {
+      "id": "node_ai_applications",
+      "label": "AI in Education",
+      "color": "var(--node-green)",
+      "details": []
+    },
+    {
+      "id": "node_artificial_intelligence",
+      "label": "Artificial Intelligence",
+      "color": "var(--node-green)",
+      "details": [
+        "User: AI can analyze my real knowledge based on daily usage and quiz results.",
+        "User: AI can identify improvement areas and missed points during earlier learning."
+      ]
+    }
+  ],
+  "links": [],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 3
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 3,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.32,
+    "stage2": 1.84,
+    "stage3": 3.28,
+    "overhead": 0.02,
+    "total": 7.45
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

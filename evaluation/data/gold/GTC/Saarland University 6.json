@@ -1,0 +1,40 @@
+{
+  "nodes": [
+    {
+      "id": "n0",
+      "label": "App Interface",
+      "parent_id": null
+    },
+    {
+      "id": "n1",
+      "label": "High usability",
+      "parent_id": "n0"
+    },
+    {
+      "id": "n2",
+      "label": "Intuitive Design",
+      "parent_id": "n0"
+    },
+    {
+      "id": "n3",
+      "label": "Login Interface",
+      "parent_id": "n0"
+    }
+  ],
+  "links": [
+    {"source": "n0", "target": "n1"},
+    {"source": "n0", "target": "n2"},
+    {"source": "n0", "target": "n3"}
+  ],
+  "tree": [
+    {
+      "id": "n0",
+      "label": "App Interface",
+      "children": [
+        {"id": "n1", "label": "High usability"},
+        {"id": "n2", "label": "Intuitive Design"},
+        {"id": "n3", "label": "Login Interface"}
+      ]
+    }
+  ]
+}

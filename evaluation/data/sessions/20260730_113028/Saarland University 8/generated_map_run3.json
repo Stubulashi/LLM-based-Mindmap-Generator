@@ -1,0 +1,130 @@
+{
+  "tree": [
+    {
+      "id": "node_ai_daily_quiz",
+      "label": "AI-generated Daily Quiz",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: AI-generated daily quiz",
+        "功能: 帮助复习昨日所学内容",
+        "功能: 生成可用于明天的题目"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_review_learned",
+          "label": "Review Learned",
+          "color": "var(--node-green)",
+          "details": [
+            "用户原文: review the things I've learned yesterday",
+            "目的: 巩固昨日所学知识"
+          ],
+          "parent_id": "node_ai_daily_quiz",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_generate_questions",
+          "label": "Generate Questions",
+          "color": "var(--node-green)",
+          "details": [
+            "用户原文: generate some questions that I may use tomorrow",
+            "目的: 为明日学习做准备"
+          ],
+          "parent_id": "node_ai_daily_quiz",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_ai_daily_quiz",
+      "label": "AI-generated Daily Quiz",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: AI-generated daily quiz",
+        "功能: 帮助复习昨日所学内容",
+        "功能: 生成可用于明天的题目"
+      ]
+    },
+    {
+      "id": "node_review_learned",
+      "label": "Review Learned",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: review the things I've learned yesterday",
+        "目的: 巩固昨日所学知识"
+      ]
+    },
+    {
+      "id": "node_generate_questions",
+      "label": "Generate Questions",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: generate some questions that I may use tomorrow",
+        "目的: 为明日学习做准备"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_ai_daily_quiz",
+      "target": "node_review_learned",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_daily_quiz",
+      "target": "node_generate_questions",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 3
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 3,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.09,
+    "stage2": 0.0,
+    "stage3": 1.91,
+    "overhead": 0.01,
+    "total": 4.01
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

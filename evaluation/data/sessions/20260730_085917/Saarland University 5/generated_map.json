@@ -1,0 +1,200 @@
+{
+  "tree": [
+    {
+      "id": "node_app_features",
+      "label": "App Features",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: 讨论应用程序中激励学习的功能"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_personal_dictionary",
+          "label": "Personal Dictionary",
+          "color": "var(--node-green)",
+          "details": [
+            "用户原文: 可以将单词添加到自己的词典中",
+            "关键点: 可以随时复习添加的单词"
+          ],
+          "parent_id": "node_app_features",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_starring_function",
+          "label": "Starring Function",
+          "color": "var(--node-blue)",
+          "details": [
+            "用户原文: 实现了星标功能，可以给单词加黄色星星",
+            "关键点: 可以标记困难或常用的单词",
+            "关键点: 提高对特定单词的关注度",
+            "关键点: 使学习更高效"
+          ],
+          "parent_id": "node_app_features",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_time_tracking",
+          "label": "Time Tracking",
+          "color": "var(--node-blue)",
+          "details": [
+            "用户原文: 计算在网站上花费的时间",
+            "关键点: 帮助用户设定每日学习目标，如每天学习两小时",
+            "关键点: 对比刷抖音，提高学习自律性"
+          ],
+          "parent_id": "node_app_features",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_daily_slogan",
+          "label": "Daily Slogan",
+          "color": "var(--node-green)",
+          "details": [
+            "用户原文: 显示每日标语鼓励继续学习",
+            "关键点: 激励用户坚持不懈"
+          ],
+          "parent_id": "node_app_features",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_app_features",
+      "label": "App Features",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: 讨论应用程序中激励学习的功能"
+      ]
+    },
+    {
+      "id": "node_personal_dictionary",
+      "label": "Personal Dictionary",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: 可以将单词添加到自己的词典中",
+        "关键点: 可以随时复习添加的单词"
+      ]
+    },
+    {
+      "id": "node_starring_function",
+      "label": "Starring Function",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: 实现了星标功能，可以给单词加黄色星星",
+        "关键点: 可以标记困难或常用的单词",
+        "关键点: 提高对特定单词的关注度",
+        "关键点: 使学习更高效"
+      ]
+    },
+    {
+      "id": "node_time_tracking",
+      "label": "Time Tracking",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: 计算在网站上花费的时间",
+        "关键点: 帮助用户设定每日学习目标，如每天学习两小时",
+        "关键点: 对比刷抖音，提高学习自律性"
+      ]
+    },
+    {
+      "id": "node_daily_slogan",
+      "label": "Daily Slogan",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: 显示每日标语鼓励继续学习",
+        "关键点: 激励用户坚持不懈"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_app_features",
+      "target": "node_personal_dictionary",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_features",
+      "target": "node_starring_function",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_features",
+      "target": "node_time_tracking",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_features",
+      "target": "node_daily_slogan",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 5
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 5,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.81,
+    "stage2": 0.0,
+    "stage3": 3.28,
+    "overhead": 0.01,
+    "total": 6.1
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

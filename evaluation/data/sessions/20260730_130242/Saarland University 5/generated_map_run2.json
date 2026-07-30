@@ -1,0 +1,297 @@
+{
+  "tree": [
+    {
+      "id": "node_user_features",
+      "label": "User Features",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: 用户讨论App中激励学习的各项功能"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_personalization",
+          "label": "Personalization",
+          "color": "var(--node-green)",
+          "details": [
+            "上下文: 用户个性化学习体验的多个功能"
+          ],
+          "parent_id": "node_user_features",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_expression_tools",
+              "label": "Expression Tools",
+              "color": "var(--node-blue)",
+              "details": [
+                "上下文: 帮助用户标记和整理词汇的工具集"
+              ],
+              "parent_id": "node_personalization",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_starring_function",
+                  "label": "Starring Function",
+                  "color": "var(--node-blue)",
+                  "details": [
+                    "用户原文: 可以给单词加黄星标注",
+                    "关键点: 让注意力集中在难词或常用词上",
+                    "关键点: 提高学习效率"
+                  ],
+                  "parent_id": "node_expression_tools",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                },
+                {
+                  "id": "node_personal_dictionary",
+                  "label": "Personal Dictionary",
+                  "color": "var(--node-green)",
+                  "details": [
+                    "用户原文: 可以添加单词到自己的词典",
+                    "关键点: 可随时复习想复习的单词"
+                  ],
+                  "parent_id": "node_expression_tools",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                },
+                {
+                  "id": "node_daily_slogan",
+                  "label": "Daily Slogan",
+                  "color": "var(--node-purple)",
+                  "details": [
+                    "用户原文: 每日显示励志标语鼓励持续学习",
+                    "关键点: 帮助保持学习动力"
+                  ],
+                  "parent_id": "node_expression_tools",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_behavior_tracking",
+              "label": "Behavior Tracking",
+              "color": "var(--node-orange)",
+              "details": [
+                "上下文: 跟踪用户学习行为和时间的功能"
+              ],
+              "parent_id": "node_personalization",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_time_tracking",
+                  "label": "Time Tracking",
+                  "color": "var(--node-orange)",
+                  "details": [
+                    "用户原文: 计算在网站上花费的时间",
+                    "关键点: 帮助设定每日学习目标（如2小时）",
+                    "关键点: 替代刷TikTok等浪费时间的行为"
+                  ],
+                  "parent_id": "node_behavior_tracking",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_starring_function",
+      "label": "Starring Function",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: 可以给单词加黄星标注",
+        "关键点: 让注意力集中在难词或常用词上",
+        "关键点: 提高学习效率"
+      ]
+    },
+    {
+      "id": "node_personal_dictionary",
+      "label": "Personal Dictionary",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: 可以添加单词到自己的词典",
+        "关键点: 可随时复习想复习的单词"
+      ]
+    },
+    {
+      "id": "node_time_tracking",
+      "label": "Time Tracking",
+      "color": "var(--node-orange)",
+      "details": [
+        "用户原文: 计算在网站上花费的时间",
+        "关键点: 帮助设定每日学习目标（如2小时）",
+        "关键点: 替代刷TikTok等浪费时间的行为"
+      ]
+    },
+    {
+      "id": "node_daily_slogan",
+      "label": "Daily Slogan",
+      "color": "var(--node-purple)",
+      "details": [
+        "用户原文: 每日显示励志标语鼓励持续学习",
+        "关键点: 帮助保持学习动力"
+      ]
+    },
+    {
+      "id": "node_user_features",
+      "label": "User Features",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: 用户讨论App中激励学习的各项功能"
+      ]
+    },
+    {
+      "id": "node_personalization",
+      "label": "Personalization",
+      "color": "var(--node-green)",
+      "details": [
+        "上下文: 用户个性化学习体验的多个功能"
+      ]
+    },
+    {
+      "id": "node_expression_tools",
+      "label": "Expression Tools",
+      "color": "var(--node-blue)",
+      "details": [
+        "上下文: 帮助用户标记和整理词汇的工具集"
+      ]
+    },
+    {
+      "id": "node_behavior_tracking",
+      "label": "Behavior Tracking",
+      "color": "var(--node-orange)",
+      "details": [
+        "上下文: 跟踪用户学习行为和时间的功能"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_user_features",
+      "target": "node_personalization",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_personalization",
+      "target": "node_expression_tools",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_personalization",
+      "target": "node_behavior_tracking",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_expression_tools",
+      "target": "node_starring_function",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_expression_tools",
+      "target": "node_personal_dictionary",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_expression_tools",
+      "target": "node_daily_slogan",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_behavior_tracking",
+      "target": "node_time_tracking",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 8
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 8,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.67,
+    "stage2": 1.89,
+    "stage3": 4.43,
+    "overhead": 0.01,
+    "total": 8.99
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

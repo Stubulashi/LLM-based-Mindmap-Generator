@@ -1,0 +1,52 @@
+{
+  "nodes": [
+    {
+      "id": "n0",
+      "label": "Feature Suggestion",
+      "parent_id": null
+    },
+    {
+      "id": "n1",
+      "label": "Basic Enough",
+      "parent_id": "n0"
+    },
+    {
+      "id": "n2",
+      "label": "AI daily Quiz",
+      "parent_id": "n0"
+    },
+    {
+      "id": "n2_1",
+      "label": "Review",
+      "parent_id": "n2"
+    },
+    {
+      "id": "n2_2",
+      "label": "preview",
+      "parent_id": "n2"
+    }
+  ],
+  "links": [
+    {"source": "n0", "target": "n1"},
+    {"source": "n0", "target": "n2"},
+    {"source": "n2", "target": "n2_1"},
+    {"source": "n2", "target": "n2_2"}
+  ],
+  "tree": [
+    {
+      "id": "n0",
+      "label": "Feature Suggestion",
+      "children": [
+        {"id": "n1", "label": "Basic Enough"},
+        {
+          "id": "n2",
+          "label": "AI daily Quiz",
+          "children": [
+            {"id": "n2_1", "label": "Review"},
+            {"id": "n2_2", "label": "preview"}
+          ]
+        }
+      ]
+    }
+  ]
+}

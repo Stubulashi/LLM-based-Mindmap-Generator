@@ -194,12 +194,16 @@ def evaluate_hierarchy_quality(
         parent_S = compute_similarity_matrix(gold_parents, gen_parents, alignment.model_name)
         child_S = compute_similarity_matrix(gold_children, gen_children, alignment.model_name)
 
-        # E: Hit if parent_sim >= tau AND child_sim >= tau
-        # C: 判定命中 — 父相似度 >= τ AND 子相似度 >= τ
+        # E: Hit if parent_sim >= tau AND child_sim >= tau, one-to-one matching
+        # C: 判定命中 — 父相似度 >= τ AND 子相似度 >= τ，一对一匹配，避免重复计数
+        used_gen_indices: set[int] = set()
         for i, (g_p, g_c) in enumerate(gold_p_labels):
             for j, (gen_p, gen_c) in enumerate(gen_p_labels):
+                if j in used_gen_indices:
+                    continue
                 if parent_S[i, j] >= similarity_threshold and child_S[i, j] >= similarity_threshold:
                     pc_correct += 1
+                    used_gen_indices.add(j)
                     break
 
     pc_recall = pc_correct / len(gold_pairs) if gold_pairs else 1.0

@@ -1,0 +1,230 @@
+{
+  "tree": [
+    {
+      "id": "node_user_experience",
+      "label": "User Experience",
+      "color": "var(--node-blue)",
+      "details": [
+        "Root node for app feedback analysis"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_interface_design",
+          "label": "Interface Design",
+          "color": "var(--node-blue)",
+          "details": [
+            "Sub-group for interface-related concepts"
+          ],
+          "parent_id": "node_user_experience",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_app_interface",
+              "label": "App Interface",
+              "color": "var(--node-blue)",
+              "details": [
+                "Rating: 8/10",
+                "User原文: very easy to find all the functions",
+                "User原文: very intuitive",
+                "User原文: design is very clear",
+                "User原文: not confusing at all"
+              ],
+              "parent_id": "node_interface_design",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_login_interface",
+              "label": "Login Interface",
+              "color": "var(--node-orange)",
+              "details": [
+                "User原文: some details need to be improved"
+              ],
+              "parent_id": "node_interface_design",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_usability",
+          "label": "Usability",
+          "color": "var(--node-green)",
+          "details": [
+            "Sub-group for usability-related concepts"
+          ],
+          "parent_id": "node_user_experience",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_intuitiveness",
+              "label": "Intuitiveness",
+              "color": "var(--node-green)",
+              "details": [
+                "Key point: Functions are intuitive without prior learning needed",
+                "User原文: very intuitive and not confusing at all"
+              ],
+              "parent_id": "node_usability",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_user_experience",
+      "label": "User Experience",
+      "color": "var(--node-blue)",
+      "details": [
+        "Root node for app feedback analysis"
+      ]
+    },
+    {
+      "id": "node_interface_design",
+      "label": "Interface Design",
+      "color": "var(--node-blue)",
+      "details": [
+        "Sub-group for interface-related concepts"
+      ]
+    },
+    {
+      "id": "node_usability",
+      "label": "Usability",
+      "color": "var(--node-green)",
+      "details": [
+        "Sub-group for usability-related concepts"
+      ]
+    },
+    {
+      "id": "node_app_interface",
+      "label": "App Interface",
+      "color": "var(--node-blue)",
+      "details": [
+        "Rating: 8/10",
+        "User原文: very easy to find all the functions",
+        "User原文: very intuitive",
+        "User原文: design is very clear",
+        "User原文: not confusing at all"
+      ]
+    },
+    {
+      "id": "node_login_interface",
+      "label": "Login Interface",
+      "color": "var(--node-orange)",
+      "details": [
+        "User原文: some details need to be improved"
+      ]
+    },
+    {
+      "id": "node_intuitiveness",
+      "label": "Intuitiveness",
+      "color": "var(--node-green)",
+      "details": [
+        "Key point: Functions are intuitive without prior learning needed",
+        "User原文: very intuitive and not confusing at all"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_user_experience",
+      "target": "node_interface_design",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_user_experience",
+      "target": "node_usability",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_interface_design",
+      "target": "node_app_interface",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_interface_design",
+      "target": "node_login_interface",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_usability",
+      "target": "node_intuitiveness",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 6
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 6,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 1.93,
+    "stage2": 1.37,
+    "stage3": 3.15,
+    "overhead": 0.01,
+    "total": 6.45
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

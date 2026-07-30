@@ -1,0 +1,192 @@
+{
+  "tree": [
+    {
+      "id": "node_ai_learning_support",
+      "label": "AI辅助学习",
+      "color": "var(--node-blue)",
+      "details": [
+        "上下文: 用户评价AI提取知识点并加入词典的功能"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_knowledge_processing",
+          "label": "知识处理",
+          "color": "var(--node-blue)",
+          "details": [],
+          "parent_id": "node_ai_learning_support",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_ai_extract_knowledge",
+              "label": "AI知识点提取",
+              "color": "var(--node-blue)",
+              "details": [
+                "关键点: 用户认为该功能非常强大",
+                "关键点: 无需自己手动标记每个单词",
+                "关键点: AI能高效完成标记工作",
+                "关键点: 可根据用户学习方式和知识水平调整标记不熟悉的词汇",
+                "关键点: 帮助用户更专注于词汇和文本",
+                "关键点: 提升学习感受和知识水平"
+              ],
+              "parent_id": "node_knowledge_processing",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_review_methods",
+          "label": "复习方法",
+          "color": "var(--node-green)",
+          "details": [],
+          "parent_id": "node_ai_learning_support",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_efficient_review",
+              "label": "高效学习复习",
+              "color": "var(--node-green)",
+              "details": [
+                "定义: AI提取知识点并加入词典的功能",
+                "关键点: 用户认为该功能有助于高效学习和复习"
+              ],
+              "parent_id": "node_review_methods",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_ai_learning_support",
+      "label": "AI辅助学习",
+      "color": "var(--node-blue)",
+      "details": [
+        "上下文: 用户评价AI提取知识点并加入词典的功能"
+      ]
+    },
+    {
+      "id": "node_knowledge_processing",
+      "label": "知识处理",
+      "color": "var(--node-blue)",
+      "details": []
+    },
+    {
+      "id": "node_ai_extract_knowledge",
+      "label": "AI知识点提取",
+      "color": "var(--node-blue)",
+      "details": [
+        "关键点: 用户认为该功能非常强大",
+        "关键点: 无需自己手动标记每个单词",
+        "关键点: AI能高效完成标记工作",
+        "关键点: 可根据用户学习方式和知识水平调整标记不熟悉的词汇",
+        "关键点: 帮助用户更专注于词汇和文本",
+        "关键点: 提升学习感受和知识水平"
+      ]
+    },
+    {
+      "id": "node_review_methods",
+      "label": "复习方法",
+      "color": "var(--node-green)",
+      "details": []
+    },
+    {
+      "id": "node_efficient_review",
+      "label": "高效学习复习",
+      "color": "var(--node-green)",
+      "details": [
+        "定义: AI提取知识点并加入词典的功能",
+        "关键点: 用户认为该功能有助于高效学习和复习"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_ai_learning_support",
+      "target": "node_knowledge_processing",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_learning_support",
+      "target": "node_review_methods",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_knowledge_processing",
+      "target": "node_ai_extract_knowledge",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_review_methods",
+      "target": "node_efficient_review",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 5
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 5,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.18,
+    "stage2": 1.58,
+    "stage3": 2.98,
+    "overhead": 0.01,
+    "total": 6.75
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

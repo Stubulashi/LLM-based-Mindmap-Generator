@@ -1,0 +1,199 @@
+{
+  "tree": [
+    {
+      "id": "node_quiz_problem",
+      "label": "Quiz Problem",
+      "color": "var(--node-red)",
+      "details": [
+        "User identified the quiz function as the biggest problem in the app"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_quiz_function",
+          "label": "Quiz Function",
+          "color": "var(--node-red)",
+          "details": [
+            "Current version cannot deeply analyze user answers",
+            "Fails to rate objective points in responses"
+          ],
+          "parent_id": "node_quiz_problem",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_ai_integration",
+              "label": "AI Integration",
+              "color": "var(--node-blue)",
+              "details": [
+                "Current version lacks strong AI association for judging answers",
+                "User suggests using AI APIs to evaluate answers",
+                "AI should consider key messages in test responses"
+              ],
+              "parent_id": "node_quiz_function",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_ai_apis",
+                  "label": "AI APIs",
+                  "color": "var(--node-green)",
+                  "details": [
+                    "User recommends using AI APIs to address quiz function issues",
+                    "Would enable AI to judge answers and thoughts more objectively"
+                  ],
+                  "parent_id": "node_ai_integration",
+                  "collapsed": false,
+                  "children": [
+                    {
+                      "id": "node_review_report",
+                      "label": "Review & Report",
+                      "color": "var(--node-blue)",
+                      "details": [
+                        "Would become clearer and more specific with AI integration",
+                        "Benefits from AI analyzing key messages in user answers"
+                      ],
+                      "parent_id": "node_ai_apis",
+                      "collapsed": false,
+                      "children": [],
+                      "_isVirtual": false,
+                      "_isRoot": false,
+                      "_depth": 4,
+                      "_hasChildren": false,
+                      "x": null,
+                      "y": null,
+                      "userPositioned": false,
+                      "link_type": "solid"
+                    }
+                  ],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": true,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_quiz_problem",
+      "label": "Quiz Problem",
+      "color": "var(--node-red)",
+      "details": [
+        "User identified the quiz function as the biggest problem in the app"
+      ]
+    },
+    {
+      "id": "node_quiz_function",
+      "label": "Quiz Function",
+      "color": "var(--node-red)",
+      "details": [
+        "Current version cannot deeply analyze user answers",
+        "Fails to rate objective points in responses"
+      ]
+    },
+    {
+      "id": "node_ai_integration",
+      "label": "AI Integration",
+      "color": "var(--node-blue)",
+      "details": [
+        "Current version lacks strong AI association for judging answers",
+        "User suggests using AI APIs to evaluate answers",
+        "AI should consider key messages in test responses"
+      ]
+    },
+    {
+      "id": "node_ai_apis",
+      "label": "AI APIs",
+      "color": "var(--node-green)",
+      "details": [
+        "User recommends using AI APIs to address quiz function issues",
+        "Would enable AI to judge answers and thoughts more objectively"
+      ]
+    },
+    {
+      "id": "node_review_report",
+      "label": "Review & Report",
+      "color": "var(--node-blue)",
+      "details": [
+        "Would become clearer and more specific with AI integration",
+        "Benefits from AI analyzing key messages in user answers"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_quiz_problem",
+      "target": "node_quiz_function",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_quiz_function",
+      "target": "node_ai_integration",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_integration",
+      "target": "node_ai_apis",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_apis",
+      "target": "node_review_report",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 5
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 5,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.53,
+    "stage2": 0.0,
+    "stage3": 2.74,
+    "overhead": 0.01,
+    "total": 5.28
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "label": {
+    "node_precision": 0.5,
+    "node_recall": 1.0,
+    "node_f1": 0.6667,
+    "label_sim": 0.8063,
+    "entity_recall": 1.0,
+    "tp": 4,
+    "fp": 4,
+    "fn": 0,
+    "entity_hits": [
+      "AI Instruction",
+      "Efficiency",
+      "learning Experience",
+      "personalization"
+    ],
+    "entity_misses": [],
+    "entity_total": 4,
+    "matches": [
+      {
+        "gold_label": "AI Instruction",
+        "gen_label": "AI赋能教育",
+        "similarity": 0.8762
+      },
+      {
+        "gold_label": "Efficiency",
+        "gen_label": "学习效率",
+        "similarity": 0.7891
+      },
+      {
+        "gold_label": "personalization",
+        "gen_label": "个性化学习",
+        "similarity": 0.8006
+      },
+      {
+        "gold_label": "learning Experience",
+        "gen_label": "个性化学习方案",
+        "similarity": 0.7593
+      }
+    ],
+    "threshold": 0.7,
+    "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+    "gold_count": 4,
+    "gen_count": 8
+  },
+  "hierarchy": {
+    "edge_precision": 1.0,
+    "edge_recall": 0.0,
+    "edge_f1": 0.0,
+    "edge_tp": 0,
+    "edge_fp": 0,
+    "edge_fn": 3,
+    "uas": 0.25,
+    "nted": 0.5,
+    "raw_ted": 4.0,
+    "pc_precision": 1.0,
+    "pc_recall": 0.0,
+    "pc_f1": 0.0,
+    "pc_tp": 0,
+    "lar": 0.25
+  }
+}

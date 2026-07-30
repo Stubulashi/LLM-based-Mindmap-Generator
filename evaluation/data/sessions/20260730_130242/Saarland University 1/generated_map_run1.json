@@ -1,0 +1,395 @@
+{
+  "tree": [
+    {
+      "id": "node_linguistics",
+      "label": "Linguistics",
+      "color": "var(--node-red)",
+      "details": [],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_lexicology",
+          "label": "Lexicology",
+          "color": "var(--node-orange)",
+          "details": [],
+          "parent_id": "node_linguistics",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_lexical_relations",
+              "label": "Lexical Relations",
+              "color": "var(--node-purple)",
+              "details": [],
+              "parent_id": "node_lexicology",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_synonyms",
+                  "label": "Synonyms",
+                  "color": "var(--node-purple)",
+                  "details": [
+                    "关键点: Can be found via online encyclopedias in dictionaries",
+                    "关键点: Helps understand word groups and related words"
+                  ],
+                  "parent_id": "node_lexical_relations",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                },
+                {
+                  "id": "node_word_groups",
+                  "label": "Word groups",
+                  "color": "var(--node-purple)",
+                  "details": [
+                    "关键点: Related words that help learn multiple words at once",
+                    "关键点: User finds this more helpful than focusing on one word alone"
+                  ],
+                  "parent_id": "node_lexical_relations",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_lexicography",
+              "label": "Lexicography",
+              "color": "var(--node-orange)",
+              "details": [],
+              "parent_id": "node_lexicology",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_dictionary_types",
+                  "label": "Dictionary Types",
+                  "color": "var(--node-orange)",
+                  "details": [],
+                  "parent_id": "node_lexicography",
+                  "collapsed": false,
+                  "children": [
+                    {
+                      "id": "node_electronic_dictionaries",
+                      "label": "Electronic dictionaries",
+                      "color": "var(--node-green)",
+                      "details": [
+                        "关键点: Provide detailed definitions to a word",
+                        "关键点: Can show grammatical info like masculine/feminine",
+                        "关键点: Some can access online encyclopedias for more definitions and synonyms"
+                      ],
+                      "parent_id": "node_dictionary_types",
+                      "collapsed": false,
+                      "children": [],
+                      "_isVirtual": false,
+                      "_isRoot": false,
+                      "_depth": 4,
+                      "_hasChildren": false,
+                      "x": null,
+                      "y": null,
+                      "userPositioned": false,
+                      "link_type": "solid"
+                    }
+                  ],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": true,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_syntax",
+          "label": "Syntax",
+          "color": "var(--node-red)",
+          "details": [],
+          "parent_id": "node_linguistics",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_sentence_structure",
+              "label": "Sentence Structure",
+              "color": "var(--node-orange)",
+              "details": [],
+              "parent_id": "node_syntax",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_parts_of_sentence",
+                  "label": "Parts of Sentence",
+                  "color": "var(--node-blue)",
+                  "details": [],
+                  "parent_id": "node_sentence_structure",
+                  "collapsed": false,
+                  "children": [
+                    {
+                      "id": "node_explanation_part",
+                      "label": "Explanation part",
+                      "color": "var(--node-blue)",
+                      "details": [
+                        "关键点: User considers this very important",
+                        "定义: The feature that provides detailed definitions and descriptions of words"
+                      ],
+                      "parent_id": "node_parts_of_sentence",
+                      "collapsed": false,
+                      "children": [],
+                      "_isVirtual": false,
+                      "_isRoot": false,
+                      "_depth": 4,
+                      "_hasChildren": false,
+                      "x": null,
+                      "y": null,
+                      "userPositioned": false,
+                      "link_type": "solid"
+                    }
+                  ],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": true,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_linguistics",
+      "label": "Linguistics",
+      "color": "var(--node-red)",
+      "details": []
+    },
+    {
+      "id": "node_lexicology",
+      "label": "Lexicology",
+      "color": "var(--node-orange)",
+      "details": []
+    },
+    {
+      "id": "node_lexical_relations",
+      "label": "Lexical Relations",
+      "color": "var(--node-purple)",
+      "details": []
+    },
+    {
+      "id": "node_lexicography",
+      "label": "Lexicography",
+      "color": "var(--node-orange)",
+      "details": []
+    },
+    {
+      "id": "node_dictionary_types",
+      "label": "Dictionary Types",
+      "color": "var(--node-orange)",
+      "details": []
+    },
+    {
+      "id": "node_electronic_dictionaries",
+      "label": "Electronic dictionaries",
+      "color": "var(--node-green)",
+      "details": [
+        "关键点: Provide detailed definitions to a word",
+        "关键点: Can show grammatical info like masculine/feminine",
+        "关键点: Some can access online encyclopedias for more definitions and synonyms"
+      ]
+    },
+    {
+      "id": "node_syntax",
+      "label": "Syntax",
+      "color": "var(--node-red)",
+      "details": []
+    },
+    {
+      "id": "node_sentence_structure",
+      "label": "Sentence Structure",
+      "color": "var(--node-orange)",
+      "details": []
+    },
+    {
+      "id": "node_parts_of_sentence",
+      "label": "Parts of Sentence",
+      "color": "var(--node-blue)",
+      "details": []
+    },
+    {
+      "id": "node_explanation_part",
+      "label": "Explanation part",
+      "color": "var(--node-blue)",
+      "details": [
+        "关键点: User considers this very important",
+        "定义: The feature that provides detailed definitions and descriptions of words"
+      ]
+    },
+    {
+      "id": "node_synonyms",
+      "label": "Synonyms",
+      "color": "var(--node-purple)",
+      "details": [
+        "关键点: Can be found via online encyclopedias in dictionaries",
+        "关键点: Helps understand word groups and related words"
+      ]
+    },
+    {
+      "id": "node_word_groups",
+      "label": "Word groups",
+      "color": "var(--node-purple)",
+      "details": [
+        "关键点: Related words that help learn multiple words at once",
+        "关键点: User finds this more helpful than focusing on one word alone"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_linguistics",
+      "target": "node_lexicology",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_linguistics",
+      "target": "node_syntax",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_lexicology",
+      "target": "node_lexical_relations",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_lexicology",
+      "target": "node_lexicography",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_lexical_relations",
+      "target": "node_synonyms",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_lexical_relations",
+      "target": "node_word_groups",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_lexicography",
+      "target": "node_dictionary_types",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_dictionary_types",
+      "target": "node_electronic_dictionaries",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_syntax",
+      "target": "node_sentence_structure",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_sentence_structure",
+      "target": "node_parts_of_sentence",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_parts_of_sentence",
+      "target": "node_explanation_part",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 12
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 12,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 3.34,
+    "stage2": 2.52,
+    "stage3": 5.32,
+    "overhead": 0.01,
+    "total": 11.18
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

@@ -1,0 +1,338 @@
+{
+  "tree": [
+    {
+      "id": "node_app_features",
+      "label": "App Features",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户发现的值得关注的应用功能特性"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_productivity",
+          "label": "Productivity Tools",
+          "color": "var(--node-blue)",
+          "details": [
+            "提升学习效率和生产力的工具"
+          ],
+          "parent_id": "node_app_features",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_personalization",
+              "label": "Personalization",
+              "color": "var(--node-green)",
+              "details": [
+                "个性化学习体验相关功能"
+              ],
+              "parent_id": "node_productivity",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_personal_dictionary",
+                  "label": "Personal Dictionary",
+                  "color": "var(--node-green)",
+                  "details": [
+                    "用户可以添加单词到自己的词典",
+                    "可以随时复习已添加的单词"
+                  ],
+                  "parent_id": "node_personalization",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                },
+                {
+                  "id": "node_daily_slogan",
+                  "label": "Daily Slogan",
+                  "color": "var(--node-green)",
+                  "details": [
+                    "每天显示鼓励性标语",
+                    "激励用户持续学习",
+                    "帮助用户保持学习动力",
+                    "防止用户中途放弃"
+                  ],
+                  "parent_id": "node_personalization",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_tracking",
+              "label": "Tracking",
+              "color": "var(--node-blue)",
+              "details": [
+                "学习追踪与统计相关功能"
+              ],
+              "parent_id": "node_productivity",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_time_tracking",
+                  "label": "Time Tracking",
+                  "color": "var(--node-blue)",
+                  "details": [
+                    "计算用户在网站上花费的时间",
+                    "帮助用户设定每日学习目标",
+                    "例如设定每天学习2小时的目标",
+                    "对比刷TikTok的被动时间消耗"
+                  ],
+                  "parent_id": "node_tracking",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_engagement",
+          "label": "User Engagement",
+          "color": "var(--node-green)",
+          "details": [
+            "增强用户参与度和学习动力的功能"
+          ],
+          "parent_id": "node_app_features",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_starring_function",
+              "label": "Starring Function",
+              "color": "var(--node-blue)",
+              "details": [
+                "用户可以给单词标黄星标记",
+                "帮助用户标记难词或常用词",
+                "增强对特定单词的关注度",
+                "提升学习效率"
+              ],
+              "parent_id": "node_engagement",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_app_features",
+      "label": "App Features",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户发现的值得关注的应用功能特性"
+      ]
+    },
+    {
+      "id": "node_productivity",
+      "label": "Productivity Tools",
+      "color": "var(--node-blue)",
+      "details": [
+        "提升学习效率和生产力的工具"
+      ]
+    },
+    {
+      "id": "node_personalization",
+      "label": "Personalization",
+      "color": "var(--node-green)",
+      "details": [
+        "个性化学习体验相关功能"
+      ]
+    },
+    {
+      "id": "node_tracking",
+      "label": "Tracking",
+      "color": "var(--node-blue)",
+      "details": [
+        "学习追踪与统计相关功能"
+      ]
+    },
+    {
+      "id": "node_engagement",
+      "label": "User Engagement",
+      "color": "var(--node-green)",
+      "details": [
+        "增强用户参与度和学习动力的功能"
+      ]
+    },
+    {
+      "id": "node_starring_function",
+      "label": "Starring Function",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户可以给单词标黄星标记",
+        "帮助用户标记难词或常用词",
+        "增强对特定单词的关注度",
+        "提升学习效率"
+      ]
+    },
+    {
+      "id": "node_personal_dictionary",
+      "label": "Personal Dictionary",
+      "color": "var(--node-green)",
+      "details": [
+        "用户可以添加单词到自己的词典",
+        "可以随时复习已添加的单词"
+      ]
+    },
+    {
+      "id": "node_time_tracking",
+      "label": "Time Tracking",
+      "color": "var(--node-blue)",
+      "details": [
+        "计算用户在网站上花费的时间",
+        "帮助用户设定每日学习目标",
+        "例如设定每天学习2小时的目标",
+        "对比刷TikTok的被动时间消耗"
+      ]
+    },
+    {
+      "id": "node_daily_slogan",
+      "label": "Daily Slogan",
+      "color": "var(--node-green)",
+      "details": [
+        "每天显示鼓励性标语",
+        "激励用户持续学习",
+        "帮助用户保持学习动力",
+        "防止用户中途放弃"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_app_features",
+      "target": "node_productivity",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_features",
+      "target": "node_engagement",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_productivity",
+      "target": "node_personalization",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_productivity",
+      "target": "node_tracking",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_personalization",
+      "target": "node_personal_dictionary",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_personalization",
+      "target": "node_daily_slogan",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_tracking",
+      "target": "node_time_tracking",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_engagement",
+      "target": "node_starring_function",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 9
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 9,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.51,
+    "stage2": 1.54,
+    "stage3": 4.1,
+    "overhead": 0.01,
+    "total": 8.16
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "tree": [
+    {
+      "id": "node_daily_usage",
+      "label": "Daily usage",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: current version is already enough for a very basic daily usage"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_ai_daily_quiz",
+          "label": "AI-generated daily quiz",
+          "color": "var(--node-blue)",
+          "details": [
+            "关键点: 用来复习昨天学过的内容",
+            "关键点: 可以生成明天可能用到的题目",
+            "关键点: 用户建议作为App的附加功能"
+          ],
+          "parent_id": "node_daily_usage",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_review",
+              "label": "Review",
+              "color": "var(--node-red)",
+              "details": [
+                "关键点: 复习昨天学过的内容",
+                "关键点: 通过AI生成的日常测验来实现"
+              ],
+              "parent_id": "node_ai_daily_quiz",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_prepare",
+              "label": "Prepare",
+              "color": "var(--node-red)",
+              "details": [
+                "关键点: 生成明天可能用到的题目",
+                "关键点: 帮助提前准备"
+              ],
+              "parent_id": "node_ai_daily_quiz",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "dashed"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_daily_usage",
+      "label": "Daily usage",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: current version is already enough for a very basic daily usage"
+      ]
+    },
+    {
+      "id": "node_ai_daily_quiz",
+      "label": "AI-generated daily quiz",
+      "color": "var(--node-blue)",
+      "details": [
+        "关键点: 用来复习昨天学过的内容",
+        "关键点: 可以生成明天可能用到的题目",
+        "关键点: 用户建议作为App的附加功能"
+      ]
+    },
+    {
+      "id": "node_review",
+      "label": "Review",
+      "color": "var(--node-red)",
+      "details": [
+        "关键点: 复习昨天学过的内容",
+        "关键点: 通过AI生成的日常测验来实现"
+      ]
+    },
+    {
+      "id": "node_prepare",
+      "label": "Prepare",
+      "color": "var(--node-red)",
+      "details": [
+        "关键点: 生成明天可能用到的题目",
+        "关键点: 帮助提前准备"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_ai_daily_quiz",
+      "target": "node_review",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_daily_quiz",
+      "target": "node_prepare",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_daily_usage",
+      "target": "node_ai_daily_quiz",
+      "link_type": "dashed"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 4
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 4,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 1.93,
+    "stage2": 0.0,
+    "stage3": 2.33,
+    "overhead": 0.01,
+    "total": 4.27
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

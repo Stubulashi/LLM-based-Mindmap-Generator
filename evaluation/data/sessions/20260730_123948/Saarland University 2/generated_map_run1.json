@@ -1,0 +1,169 @@
+{
+  "tree": [
+    {
+      "id": "node_learning_methods",
+      "label": "学习方法",
+      "color": "var(--node-green)",
+      "details": [
+        "User context: Discussing learning methods with AI-assisted tools"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_ai_assisted_learning",
+          "label": "AI辅助学习",
+          "color": "var(--node-green)",
+          "details": [
+            "User context: The core topic of AI helping with study and review"
+          ],
+          "parent_id": "node_learning_methods",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_ai_knowledge_extraction",
+              "label": "AI Knowledge Extraction",
+              "color": "var(--node-blue)",
+              "details": [
+                "User says: the function of AI extracting knowledge points and adding them to the dictionary",
+                "Key point: User describes this feature as 'very powerful'",
+                "Key point: Eliminates need for manual self-work to mark words",
+                "Key point: AI can efficiently mark words user may be unfamiliar with",
+                "Key point: Adjusts to user's studying style and knowledge standard",
+                "Key point: Helps user focus more on words and text"
+              ],
+              "parent_id": "node_ai_assisted_learning",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_efficient_study",
+              "label": "Efficient Study",
+              "color": "var(--node-green)",
+              "details": [
+                "User says: AI can help study and review efficiently",
+                "Key point: Improves learning feeling",
+                "Key point: Improves knowledge standard"
+              ],
+              "parent_id": "node_ai_assisted_learning",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_learning_methods",
+      "label": "学习方法",
+      "color": "var(--node-green)",
+      "details": [
+        "User context: Discussing learning methods with AI-assisted tools"
+      ]
+    },
+    {
+      "id": "node_ai_assisted_learning",
+      "label": "AI辅助学习",
+      "color": "var(--node-green)",
+      "details": [
+        "User context: The core topic of AI helping with study and review"
+      ]
+    },
+    {
+      "id": "node_ai_knowledge_extraction",
+      "label": "AI Knowledge Extraction",
+      "color": "var(--node-blue)",
+      "details": [
+        "User says: the function of AI extracting knowledge points and adding them to the dictionary",
+        "Key point: User describes this feature as 'very powerful'",
+        "Key point: Eliminates need for manual self-work to mark words",
+        "Key point: AI can efficiently mark words user may be unfamiliar with",
+        "Key point: Adjusts to user's studying style and knowledge standard",
+        "Key point: Helps user focus more on words and text"
+      ]
+    },
+    {
+      "id": "node_efficient_study",
+      "label": "Efficient Study",
+      "color": "var(--node-green)",
+      "details": [
+        "User says: AI can help study and review efficiently",
+        "Key point: Improves learning feeling",
+        "Key point: Improves knowledge standard"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_learning_methods",
+      "target": "node_ai_assisted_learning",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_assisted_learning",
+      "target": "node_ai_knowledge_extraction",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_assisted_learning",
+      "target": "node_efficient_study",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 4
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 4,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.49,
+    "stage2": 1.53,
+    "stage3": 3.16,
+    "overhead": 0.02,
+    "total": 7.2
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

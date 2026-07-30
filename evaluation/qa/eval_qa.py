@@ -425,11 +425,24 @@ class QAEvaluator:
         print(f"[QA]   实验组准确率 / Experiment accuracy: {avg_experiment_accuracy:.4f}")
         print(f"[QA]   综合评分 / Composite: {qa_composite:.4f}")
 
+        # E: Rough token count estimation (4 chars ≈ 1 token for English, 1.5 chars ≈ 1 token for Chinese)
+        # C: 粗略 token 估算（英文 4 字符 ≈ 1 token，中文 1.5 字符 ≈ 1 token）
+        transcript_len = len(transcript)
+        map_text_len = len(map_text)
+        # E: Weighted average: if mostly Chinese use 1.5, else 4
+        # C: 加权平均：中文为主用 1.5，否则用 4
+        zh_chars = sum(1 for ch in transcript if '\u4e00' <= ch <= '\u9fff')
+        zh_ratio = zh_chars / max(transcript_len, 1)
+        chars_per_token = 1.5 if zh_ratio > 0.3 else 4
+        est_transcript_tokens = transcript_len / chars_per_token
+        est_map_tokens = map_text_len / chars_per_token
+        token_reduction = 1.0 - (est_map_tokens / max(est_transcript_tokens, 1))
+
         return QAMetrics(
             control_accuracy=avg_control_accuracy,
             experiment_accuracy=avg_experiment_accuracy,
             qa_retention=qa_retention,
-            token_reduction=0.0,
+            token_reduction=token_reduction,
             bleu_4=bleu4,
             rouge_l=rouge_l,
             bert_score=bert_s,

@@ -1,0 +1,40 @@
+{
+  "nodes": [
+    {
+      "id": "n0",
+      "label": "Quiz",
+      "parent_id": null
+    },
+    {
+      "id": "n1",
+      "label": "AI-based Analyse",
+      "parent_id": "n0"
+    },
+    {
+      "id": "n2",
+      "label": "General view",
+      "parent_id": "n0"
+    },
+    {
+      "id": "n3",
+      "label": "Testing Superior",
+      "parent_id": "n0"
+    }
+  ],
+  "links": [
+    {"source": "n0", "target": "n1"},
+    {"source": "n0", "target": "n2"},
+    {"source": "n0", "target": "n3"}
+  ],
+  "tree": [
+    {
+      "id": "n0",
+      "label": "Quiz",
+      "children": [
+        {"id": "n1", "label": "AI-based Analyse"},
+        {"id": "n2", "label": "General view"},
+        {"id": "n3", "label": "Testing Superior"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,263 @@
+{
+  "tree": [
+    {
+      "id": "node_reading_improvement",
+      "label": "Reading Improvement",
+      "color": "var(--node-blue)",
+      "details": [
+        "定义: AI-powered reading assistance for improving reading efficiency"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_speed_techniques",
+          "label": "Speed Techniques",
+          "color": "var(--node-blue)",
+          "details": [
+            "定义: Methods and features that enable faster reading through AI"
+          ],
+          "parent_id": "node_reading_improvement",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_ai_time_saving",
+              "label": "Time Saving",
+              "color": "var(--node-green)",
+              "details": [
+                "用户原文: computer and artificial intelligence can go through a passage very quickly",
+                "关键点: AI can read a thousand even million words in one second",
+                "关键点: AI can do marking of unfamiliar words in very short time",
+                "定义: Using AI saves significant time for the user"
+              ],
+              "parent_id": "node_speed_techniques",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_ai_reading_speed",
+              "label": "Reading Speed",
+              "color": "var(--node-blue)",
+              "details": [
+                "用户原文: can read a thousand even million words in one second",
+                "关键点: AI processes passages very quickly"
+              ],
+              "parent_id": "node_speed_techniques",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_comprehension_aids",
+          "label": "Comprehension Aids",
+          "color": "var(--node-blue)",
+          "details": [
+            "定义: AI tools that help understand and process text better"
+          ],
+          "parent_id": "node_reading_improvement",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_vocabulary_support",
+              "label": "Vocabulary Support",
+              "color": "var(--node-blue)",
+              "details": [
+                "定义: AI features that assist with unfamiliar vocabulary in texts"
+              ],
+              "parent_id": "node_comprehension_aids",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_unfamiliar_word_marking",
+                  "label": "Word Marking",
+                  "color": "var(--node-orange)",
+                  "details": [
+                    "用户原文: do the marking of unfamiliar words in very short time",
+                    "定义: AI automatically identifies and marks unknown vocabulary in texts"
+                  ],
+                  "parent_id": "node_vocabulary_support",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_reading_improvement",
+      "label": "Reading Improvement",
+      "color": "var(--node-blue)",
+      "details": [
+        "定义: AI-powered reading assistance for improving reading efficiency"
+      ]
+    },
+    {
+      "id": "node_speed_techniques",
+      "label": "Speed Techniques",
+      "color": "var(--node-blue)",
+      "details": [
+        "定义: Methods and features that enable faster reading through AI"
+      ]
+    },
+    {
+      "id": "node_comprehension_aids",
+      "label": "Comprehension Aids",
+      "color": "var(--node-blue)",
+      "details": [
+        "定义: AI tools that help understand and process text better"
+      ]
+    },
+    {
+      "id": "node_vocabulary_support",
+      "label": "Vocabulary Support",
+      "color": "var(--node-blue)",
+      "details": [
+        "定义: AI features that assist with unfamiliar vocabulary in texts"
+      ]
+    },
+    {
+      "id": "node_ai_time_saving",
+      "label": "Time Saving",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: computer and artificial intelligence can go through a passage very quickly",
+        "关键点: AI can read a thousand even million words in one second",
+        "关键点: AI can do marking of unfamiliar words in very short time",
+        "定义: Using AI saves significant time for the user"
+      ]
+    },
+    {
+      "id": "node_ai_reading_speed",
+      "label": "Reading Speed",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: can read a thousand even million words in one second",
+        "关键点: AI processes passages very quickly"
+      ]
+    },
+    {
+      "id": "node_unfamiliar_word_marking",
+      "label": "Word Marking",
+      "color": "var(--node-orange)",
+      "details": [
+        "用户原文: do the marking of unfamiliar words in very short time",
+        "定义: AI automatically identifies and marks unknown vocabulary in texts"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_reading_improvement",
+      "target": "node_speed_techniques",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_reading_improvement",
+      "target": "node_comprehension_aids",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_speed_techniques",
+      "target": "node_ai_time_saving",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_speed_techniques",
+      "target": "node_ai_reading_speed",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_comprehension_aids",
+      "target": "node_vocabulary_support",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_vocabulary_support",
+      "target": "node_unfamiliar_word_marking",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 7
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 7,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.45,
+    "stage2": 1.92,
+    "stage3": 3.72,
+    "overhead": 0.01,
+    "total": 8.1
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

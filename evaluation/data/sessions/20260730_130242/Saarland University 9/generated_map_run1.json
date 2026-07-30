@@ -1,0 +1,228 @@
+{
+  "tree": [
+    {
+      "id": "node_user_experience",
+      "label": "User Experience",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: overall app experience feedback"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_usability_issues",
+          "label": "Usability Issues",
+          "color": "var(--node-orange)",
+          "details": [
+            "用户原文: issues with interface and navigation"
+          ],
+          "parent_id": "node_user_experience",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_interface_overwhelming",
+              "label": "Interface Overwhelming",
+              "color": "var(--node-red)",
+              "details": [
+                "用户原文: interface could sometimes feel a bit overwhelming",
+                "关键点: Too many options or icons on a single page"
+              ],
+              "parent_id": "node_usability_issues",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_navigation_difficulty",
+              "label": "Navigation Difficulty",
+              "color": "var(--node-red)",
+              "details": [
+                "用户原文: it took me a while to figure out how to navigate certain sections",
+                "关键点: Difficulty accessing saved dictionary entries",
+                "关键点: Difficulty accessing progress reports"
+              ],
+              "parent_id": "node_usability_issues",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_value_assessment",
+          "label": "Value Assessment",
+          "color": "var(--node-blue)",
+          "details": [
+            "用户原文: overall positive assessment of the app"
+          ],
+          "parent_id": "node_user_experience",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_app_potential",
+              "label": "App Potential",
+              "color": "var(--node-green)",
+              "details": [
+                "用户原文: the app has a lot of potential",
+                "关键点: App offers useful features"
+              ],
+              "parent_id": "node_value_assessment",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_user_experience",
+      "label": "User Experience",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: overall app experience feedback"
+      ]
+    },
+    {
+      "id": "node_usability_issues",
+      "label": "Usability Issues",
+      "color": "var(--node-orange)",
+      "details": [
+        "用户原文: issues with interface and navigation"
+      ]
+    },
+    {
+      "id": "node_value_assessment",
+      "label": "Value Assessment",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: overall positive assessment of the app"
+      ]
+    },
+    {
+      "id": "node_app_potential",
+      "label": "App Potential",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: the app has a lot of potential",
+        "关键点: App offers useful features"
+      ]
+    },
+    {
+      "id": "node_interface_overwhelming",
+      "label": "Interface Overwhelming",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: interface could sometimes feel a bit overwhelming",
+        "关键点: Too many options or icons on a single page"
+      ]
+    },
+    {
+      "id": "node_navigation_difficulty",
+      "label": "Navigation Difficulty",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: it took me a while to figure out how to navigate certain sections",
+        "关键点: Difficulty accessing saved dictionary entries",
+        "关键点: Difficulty accessing progress reports"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_user_experience",
+      "target": "node_usability_issues",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_user_experience",
+      "target": "node_value_assessment",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_usability_issues",
+      "target": "node_interface_overwhelming",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_usability_issues",
+      "target": "node_navigation_difficulty",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_value_assessment",
+      "target": "node_app_potential",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 6
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 6,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 1.97,
+    "stage2": 1.44,
+    "stage3": 3.4,
+    "overhead": 0.01,
+    "total": 6.82
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

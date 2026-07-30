@@ -1,0 +1,166 @@
+{
+  "tree": [
+    {
+      "id": "node_ai_education",
+      "label": "AI in Education",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: suggested AI-generated features for the app"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_quiz_systems",
+          "label": "AI-Generated Quiz Systems",
+          "color": "var(--node-blue)",
+          "details": [
+            "用户原文: AI-generated daily quiz",
+            "用途: help review what I've learned yesterday",
+            "用途: generate questions for tomorrow"
+          ],
+          "parent_id": "node_ai_education",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_ai_daily_quiz",
+              "label": "Daily quiz",
+              "color": "var(--node-blue)",
+              "details": [
+                "用户原文: AI-generated daily quiz",
+                "用途: review the things I've learned yesterday",
+                "用途: generate questions I may use tomorrow"
+              ],
+              "parent_id": "node_quiz_systems",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_daily_usage",
+                  "label": "Daily usage",
+                  "color": "var(--node-green)",
+                  "details": [
+                    "用户原文: basic daily usage",
+                    "描述: current version is already enough for basic daily needs"
+                  ],
+                  "parent_id": "node_ai_daily_quiz",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_ai_education",
+      "label": "AI in Education",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: suggested AI-generated features for the app"
+      ]
+    },
+    {
+      "id": "node_quiz_systems",
+      "label": "AI-Generated Quiz Systems",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: AI-generated daily quiz",
+        "用途: help review what I've learned yesterday",
+        "用途: generate questions for tomorrow"
+      ]
+    },
+    {
+      "id": "node_ai_daily_quiz",
+      "label": "Daily quiz",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: AI-generated daily quiz",
+        "用途: review the things I've learned yesterday",
+        "用途: generate questions I may use tomorrow"
+      ]
+    },
+    {
+      "id": "node_daily_usage",
+      "label": "Daily usage",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: basic daily usage",
+        "描述: current version is already enough for basic daily needs"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_ai_education",
+      "target": "node_quiz_systems",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_quiz_systems",
+      "target": "node_ai_daily_quiz",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_daily_quiz",
+      "target": "node_daily_usage",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 4
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 4,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 1.9,
+    "stage2": 1.53,
+    "stage3": 2.78,
+    "overhead": 0.01,
+    "total": 6.22
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

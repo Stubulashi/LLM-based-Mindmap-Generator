@@ -1,0 +1,264 @@
+{
+  "tree": [
+    {
+      "id": "node_core_features",
+      "label": "核心功能",
+      "color": "var(--node-red)",
+      "details": [
+        "定义: 用户从学习App中感兴趣的功能特性"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_personalization",
+          "label": "个性化设置",
+          "color": "var(--node-green)",
+          "details": [
+            "定义: 满足用户个性化学习需求的功能"
+          ],
+          "parent_id": "node_core_features",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_personal_dictionary",
+              "label": "Personal Dictionary",
+              "color": "var(--node-green)",
+              "details": [
+                "用户原文: add a word to my own dictionary that I can review it as long as I want",
+                "定义: 用户可添加单词到个人词典并随时复习"
+              ],
+              "parent_id": "node_personalization",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_daily_slogan",
+              "label": "Daily Slogan",
+              "color": "var(--node-green)",
+              "details": [
+                "用户原文: show me a daily slogan that encouraged me keep on learning",
+                "定义: 每日推送鼓励性标语以激励持续学习"
+              ],
+              "parent_id": "node_personalization",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_productivity",
+          "label": "效率工具",
+          "color": "var(--node-blue)",
+          "details": [
+            "定义: 帮助用户提高学习效率的工具"
+          ],
+          "parent_id": "node_core_features",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_time_tracking",
+              "label": "Time Tracking",
+              "color": "var(--node-blue)",
+              "details": [
+                "用户原文: calculating how much time I spent on the website",
+                "定义: 记录用户在网站上的学习时间",
+                "关键点: 可设定每日目标（如2小时）并追踪完成情况"
+              ],
+              "parent_id": "node_productivity",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_starring_function",
+              "label": "Starring Function",
+              "color": "var(--node-blue)",
+              "details": [
+                "用户原文: a starring function that I can put a yellow star to it",
+                "定义: 用户可以对单词标注黄色星号以标记重点",
+                "关键点: 帮助用户关注困难或日常有用的单词"
+              ],
+              "parent_id": "node_productivity",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_core_features",
+      "label": "核心功能",
+      "color": "var(--node-red)",
+      "details": [
+        "定义: 用户从学习App中感兴趣的功能特性"
+      ]
+    },
+    {
+      "id": "node_personalization",
+      "label": "个性化设置",
+      "color": "var(--node-green)",
+      "details": [
+        "定义: 满足用户个性化学习需求的功能"
+      ]
+    },
+    {
+      "id": "node_productivity",
+      "label": "效率工具",
+      "color": "var(--node-blue)",
+      "details": [
+        "定义: 帮助用户提高学习效率的工具"
+      ]
+    },
+    {
+      "id": "node_starring_function",
+      "label": "Starring Function",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: a starring function that I can put a yellow star to it",
+        "定义: 用户可以对单词标注黄色星号以标记重点",
+        "关键点: 帮助用户关注困难或日常有用的单词"
+      ]
+    },
+    {
+      "id": "node_personal_dictionary",
+      "label": "Personal Dictionary",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: add a word to my own dictionary that I can review it as long as I want",
+        "定义: 用户可添加单词到个人词典并随时复习"
+      ]
+    },
+    {
+      "id": "node_time_tracking",
+      "label": "Time Tracking",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: calculating how much time I spent on the website",
+        "定义: 记录用户在网站上的学习时间",
+        "关键点: 可设定每日目标（如2小时）并追踪完成情况"
+      ]
+    },
+    {
+      "id": "node_daily_slogan",
+      "label": "Daily Slogan",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: show me a daily slogan that encouraged me keep on learning",
+        "定义: 每日推送鼓励性标语以激励持续学习"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_core_features",
+      "target": "node_personalization",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_core_features",
+      "target": "node_productivity",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_personalization",
+      "target": "node_personal_dictionary",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_personalization",
+      "target": "node_daily_slogan",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_productivity",
+      "target": "node_time_tracking",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_productivity",
+      "target": "node_starring_function",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 7
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 7,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.71,
+    "stage2": 1.27,
+    "stage3": 3.79,
+    "overhead": 0.01,
+    "total": 7.77
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

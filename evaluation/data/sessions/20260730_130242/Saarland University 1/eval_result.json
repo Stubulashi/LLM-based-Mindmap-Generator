@@ -1,0 +1,55 @@
+{
+  "label": {
+    "node_precision": 0.19023333333333334,
+    "node_recall": 0.6667,
+    "node_f1": 0.2952333333333333,
+    "label_sim": 0.8553333333333333,
+    "entity_recall": 0.6667,
+    "tp": 2.0,
+    "fp": 8.666666666666666,
+    "fn": 1.0,
+    "entity_hits": [
+      "Explanation part",
+      "E-dictionaries - Outline Encyclopedia"
+    ],
+    "entity_misses": [
+      "Word Gender"
+    ],
+    "entity_total": 3.0,
+    "matches": [
+      {
+        "gold_label": "Explanation part",
+        "gen_label": "Explanation part",
+        "similarity": 1.0
+      },
+      {
+        "gold_label": "E-dictionaries - Outline Encyclopedia",
+        "gen_label": "Electronic dictionaries",
+        "similarity": 0.7289
+      }
+    ],
+    "threshold": 0.6999999999999998,
+    "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+    "gold_count": 3.0,
+    "gen_count": 10.666666666666666
+  },
+  "hierarchy": {
+    "edge_precision": 0.0,
+    "edge_recall": 0.0,
+    "edge_f1": 0.0,
+    "edge_tp": 0.0,
+    "edge_fp": 9.333333333333334,
+    "edge_fn": 2.0,
+    "uas": 0.0,
+    "nted": 0.28533333333333327,
+    "raw_ted": 3.0,
+    "pc_precision": 1.0,
+    "pc_recall": 0.0,
+    "pc_f1": 0.0,
+    "pc_tp": 0.0,
+    "lar": 0.5
+  },
+  "timing_snapshots": [],
+  "__repeat_count": 3,
+  "__successful_runs": 3
+}

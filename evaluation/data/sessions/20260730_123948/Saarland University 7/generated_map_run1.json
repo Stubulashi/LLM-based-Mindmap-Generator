@@ -1,0 +1,317 @@
+{
+  "tree": [
+    {
+      "id": "node_learning_system",
+      "label": "Learning System",
+      "color": "var(--node-blue)",
+      "details": [
+        "来自用户反馈: App usage experience with quiz and evaluation features"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_assessment",
+          "label": "Assessment Features",
+          "color": "var(--node-blue)",
+          "details": [],
+          "parent_id": "node_learning_system",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_quiz_eval",
+              "label": "Quiz & Evaluation",
+              "color": "var(--node-blue)",
+              "details": [],
+              "parent_id": "node_assessment",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_quiz_function",
+                  "label": "Quiz Function",
+                  "color": "var(--node-red)",
+                  "details": [
+                    "用户原文: The biggest problem I've encountered is in the quiz function",
+                    "问题: Current version can't look deep in my answer and rate very objective points",
+                    "原因: Not highly associated with AI for judging answers or thoughts"
+                  ],
+                  "parent_id": "node_quiz_eval",
+                  "collapsed": false,
+                  "children": [
+                    {
+                      "id": "node_ai_integration",
+                      "label": "AI Integration",
+                      "color": "var(--node-green)",
+                      "details": [
+                        "用户建议: Use some APIs from AI",
+                        "目的: Let AI consider tests with key messages from user's answer",
+                        "预期效果: Make review and report clearer and more specific"
+                      ],
+                      "parent_id": "node_ai_features",
+                      "collapsed": false,
+                      "children": [],
+                      "_isVirtual": false,
+                      "_isRoot": false,
+                      "_depth": 4,
+                      "_hasChildren": false,
+                      "x": null,
+                      "y": null,
+                      "userPositioned": false,
+                      "link_type": "reference"
+                    }
+                  ],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": true,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                },
+                {
+                  "id": "node_answer_evaluation",
+                  "label": "Answer Evaluation",
+                  "color": "var(--node-blue)",
+                  "details": [
+                    "问题: Current version can't rate objectively on user's answers",
+                    "改进方向: Use AI to judge answers and thoughts"
+                  ],
+                  "parent_id": "node_quiz_eval",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_reporting",
+              "label": "Reporting",
+              "color": "var(--node-blue)",
+              "details": [],
+              "parent_id": "node_assessment",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_review_report",
+                  "label": "Review Report",
+                  "color": "var(--node-blue)",
+                  "details": [
+                    "预期改进: Will become clearer and more specific with AI integration"
+                  ],
+                  "parent_id": "node_reporting",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_ai_features",
+          "label": "AI Features",
+          "color": "var(--node-green)",
+          "details": [],
+          "parent_id": "node_learning_system",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_quiz_function",
+      "label": "Quiz Function",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: The biggest problem I've encountered is in the quiz function",
+        "问题: Current version can't look deep in my answer and rate very objective points",
+        "原因: Not highly associated with AI for judging answers or thoughts"
+      ]
+    },
+    {
+      "id": "node_ai_integration",
+      "label": "AI Integration",
+      "color": "var(--node-green)",
+      "details": [
+        "用户建议: Use some APIs from AI",
+        "目的: Let AI consider tests with key messages from user's answer",
+        "预期效果: Make review and report clearer and more specific"
+      ]
+    },
+    {
+      "id": "node_answer_evaluation",
+      "label": "Answer Evaluation",
+      "color": "var(--node-blue)",
+      "details": [
+        "问题: Current version can't rate objectively on user's answers",
+        "改进方向: Use AI to judge answers and thoughts"
+      ]
+    },
+    {
+      "id": "node_review_report",
+      "label": "Review Report",
+      "color": "var(--node-blue)",
+      "details": [
+        "预期改进: Will become clearer and more specific with AI integration"
+      ]
+    },
+    {
+      "id": "node_learning_system",
+      "label": "Learning System",
+      "color": "var(--node-blue)",
+      "details": [
+        "来自用户反馈: App usage experience with quiz and evaluation features"
+      ]
+    },
+    {
+      "id": "node_assessment",
+      "label": "Assessment Features",
+      "color": "var(--node-blue)",
+      "details": []
+    },
+    {
+      "id": "node_quiz_eval",
+      "label": "Quiz & Evaluation",
+      "color": "var(--node-blue)",
+      "details": []
+    },
+    {
+      "id": "node_reporting",
+      "label": "Reporting",
+      "color": "var(--node-blue)",
+      "details": []
+    },
+    {
+      "id": "node_ai_features",
+      "label": "AI Features",
+      "color": "var(--node-green)",
+      "details": []
+    }
+  ],
+  "links": [
+    {
+      "source": "node_learning_system",
+      "target": "node_assessment",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_learning_system",
+      "target": "node_ai_features",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_assessment",
+      "target": "node_quiz_eval",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_assessment",
+      "target": "node_reporting",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_quiz_eval",
+      "target": "node_quiz_function",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_quiz_eval",
+      "target": "node_answer_evaluation",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_reporting",
+      "target": "node_review_report",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_features",
+      "target": "node_ai_integration",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_quiz_function",
+      "target": "node_ai_integration",
+      "link_type": "reference"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 9
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 9,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.34,
+    "stage2": 1.67,
+    "stage3": 4.11,
+    "overhead": 0.01,
+    "total": 8.11
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "tree": [
+    {
+      "id": "node_root",
+      "label": "AI Study Features",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户讨论的软件功能: AI提取知识点并加入词典"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_ai_extraction",
+          "label": "AI Extraction",
+          "color": "var(--node-blue)",
+          "details": [
+            "用户原文: AI extracting knowledge points and adding them to the dictionary can help you study and review efficiently",
+            "用户评价: This feature is very powerful",
+            "关键点: Eliminates the need for self-work to manually mark every word",
+            "关键点: AI can do it very efficiently"
+          ],
+          "parent_id": "node_root",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_study_efficiency",
+              "label": "Study Efficiency",
+              "color": "var(--node-green)",
+              "details": [
+                "用户原文: AI can help me study and review efficiently",
+                "关键点: AI adjusts way of studying and knowledge standard",
+                "关键点: Helps mark unfamiliar words potentially unknown to the user"
+              ],
+              "parent_id": "node_ai_extraction",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_learning_focus",
+              "label": "Learning Focus",
+              "color": "var(--node-green)",
+              "details": [
+                "用户原文: It may help me focus more on the word and the text",
+                "用户评价: I think will improve my learning feeling and also my knowledge standard"
+              ],
+              "parent_id": "node_ai_extraction",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_ai_extraction",
+      "label": "AI Extraction",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: AI extracting knowledge points and adding them to the dictionary can help you study and review efficiently",
+        "用户评价: This feature is very powerful",
+        "关键点: Eliminates the need for self-work to manually mark every word",
+        "关键点: AI can do it very efficiently"
+      ]
+    },
+    {
+      "id": "node_study_efficiency",
+      "label": "Study Efficiency",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: AI can help me study and review efficiently",
+        "关键点: AI adjusts way of studying and knowledge standard",
+        "关键点: Helps mark unfamiliar words potentially unknown to the user"
+      ]
+    },
+    {
+      "id": "node_learning_focus",
+      "label": "Learning Focus",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: It may help me focus more on the word and the text",
+        "用户评价: I think will improve my learning feeling and also my knowledge standard"
+      ]
+    },
+    {
+      "id": "node_root",
+      "label": "AI Study Features",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户讨论的软件功能: AI提取知识点并加入词典"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_root",
+      "target": "node_ai_extraction",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_extraction",
+      "target": "node_study_efficiency",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_extraction",
+      "target": "node_learning_focus",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 4
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 4,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 1.98,
+    "stage2": 0.0,
+    "stage3": 2.66,
+    "overhead": 0.01,
+    "total": 4.65
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

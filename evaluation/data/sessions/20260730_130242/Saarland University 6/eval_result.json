@@ -1,0 +1,65 @@
+{
+  "label": {
+    "node_precision": 0.4484333333333333,
+    "node_recall": 0.75,
+    "node_f1": 0.5596,
+    "label_sim": 0.8096666666666668,
+    "entity_recall": 0.75,
+    "tp": 3.0,
+    "fp": 4.0,
+    "fn": 1.0,
+    "entity_hits": [
+      "App Interface",
+      "Intuitive Design",
+      "Login Interface",
+      "High usability"
+    ],
+    "entity_misses": [],
+    "entity_total": 4.0,
+    "matches": [
+      {
+        "gold_label": "App Interface",
+        "gen_label": "App Interface",
+        "similarity": 1.0
+      },
+      {
+        "gold_label": "High usability",
+        "gen_label": "Usability",
+        "similarity": 0.7336
+      },
+      {
+        "gold_label": "Intuitive Design",
+        "gen_label": "Intuitiveness",
+        "similarity": 0.7813
+      },
+      {
+        "gold_label": "Login Interface",
+        "gen_label": "Login Interface",
+        "similarity": 1.0
+      }
+    ],
+    "threshold": 0.6999999999999998,
+    "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+    "gold_count": 4.0,
+    "gen_count": 7.0
+  },
+  "hierarchy": {
+    "edge_precision": 0.11109999999999999,
+    "edge_recall": 0.2222333333333333,
+    "edge_f1": 0.14813333333333334,
+    "edge_tp": 0.6666666666666666,
+    "edge_fp": 5.0,
+    "edge_fn": 2.3333333333333335,
+    "uas": 0.3889,
+    "nted": 0.5793666666666667,
+    "raw_ted": 4.0,
+    "pc_precision": 1.0,
+    "pc_recall": 0.0,
+    "pc_f1": 0.0,
+    "pc_tp": 0.0,
+    "lar": 0.3611
+  },
+  "timing_snapshots": [],
+  "__repeat_count": 3,
+  "__successful_runs": 3
+}

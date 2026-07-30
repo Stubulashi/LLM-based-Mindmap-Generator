@@ -1,0 +1,266 @@
+{
+  "tree": [
+    {
+      "id": "node_app_potential",
+      "label": "App Potential",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: the app has a lot of potential",
+        "关键点: 用户认为应用整体有发展潜力"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_useful_features",
+          "label": "Useful Features",
+          "color": "var(--node-green)",
+          "details": [
+            "用户原文: it offers some really useful features",
+            "关键点: 用户认可应用提供的功能很实用"
+          ],
+          "parent_id": "node_app_potential",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_overwhelming_interface",
+          "label": "Overwhelming Interface",
+          "color": "var(--node-red)",
+          "details": [
+            "用户原文: the interface could sometimes feel a bit overwhelming",
+            "关键点: 界面有时让人感到不知所措"
+          ],
+          "parent_id": "node_app_potential",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_too_many_options",
+              "label": "Too Many Options",
+              "color": "var(--node-red)",
+              "details": [
+                "用户原文: too many options or icons on a single page",
+                "关键点: 单页面上选项或图标过多导致导航困难"
+              ],
+              "parent_id": "node_overwhelming_interface",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_navigation_difficulty",
+              "label": "Navigation Difficulty",
+              "color": "var(--node-red)",
+              "details": [
+                "用户原文: it took me a while to figure out how to navigate certain sections",
+                "关键点: 用户需要花时间才能找到某些功能位置"
+              ],
+              "parent_id": "node_overwhelming_interface",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_saved_dictionary",
+                  "label": "Saved Dictionary",
+                  "color": "var(--node-yellow)",
+                  "details": [
+                    "用户原文: where to access my saved dictionary entries",
+                    "关键点: 难以找到已保存的词典条目入口"
+                  ],
+                  "parent_id": "node_navigation_difficulty",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                },
+                {
+                  "id": "node_progress_reports",
+                  "label": "Progress Reports",
+                  "color": "var(--node-yellow)",
+                  "details": [
+                    "用户原文: progress app reports",
+                    "关键点: 难以找到进度报告入口"
+                  ],
+                  "parent_id": "node_navigation_difficulty",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_app_potential",
+      "label": "App Potential",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: the app has a lot of potential",
+        "关键点: 用户认为应用整体有发展潜力"
+      ]
+    },
+    {
+      "id": "node_useful_features",
+      "label": "Useful Features",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: it offers some really useful features",
+        "关键点: 用户认可应用提供的功能很实用"
+      ]
+    },
+    {
+      "id": "node_overwhelming_interface",
+      "label": "Overwhelming Interface",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: the interface could sometimes feel a bit overwhelming",
+        "关键点: 界面有时让人感到不知所措"
+      ]
+    },
+    {
+      "id": "node_too_many_options",
+      "label": "Too Many Options",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: too many options or icons on a single page",
+        "关键点: 单页面上选项或图标过多导致导航困难"
+      ]
+    },
+    {
+      "id": "node_navigation_difficulty",
+      "label": "Navigation Difficulty",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: it took me a while to figure out how to navigate certain sections",
+        "关键点: 用户需要花时间才能找到某些功能位置"
+      ]
+    },
+    {
+      "id": "node_saved_dictionary",
+      "label": "Saved Dictionary",
+      "color": "var(--node-yellow)",
+      "details": [
+        "用户原文: where to access my saved dictionary entries",
+        "关键点: 难以找到已保存的词典条目入口"
+      ]
+    },
+    {
+      "id": "node_progress_reports",
+      "label": "Progress Reports",
+      "color": "var(--node-yellow)",
+      "details": [
+        "用户原文: progress app reports",
+        "关键点: 难以找到进度报告入口"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_app_potential",
+      "target": "node_useful_features",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_potential",
+      "target": "node_overwhelming_interface",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_overwhelming_interface",
+      "target": "node_too_many_options",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_overwhelming_interface",
+      "target": "node_navigation_difficulty",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_navigation_difficulty",
+      "target": "node_saved_dictionary",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_navigation_difficulty",
+      "target": "node_progress_reports",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 7
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 7,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 3.66,
+    "stage2": 0.0,
+    "stage3": 3.26,
+    "overhead": 0.01,
+    "total": 6.93
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

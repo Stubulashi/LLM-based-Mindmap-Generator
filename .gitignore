@@ -22,3 +22,4 @@ api.env
 
 # Debug output
 debug_output/
+.qoder/plans/ai-mindmap-agent.bak-*.hf_cache/

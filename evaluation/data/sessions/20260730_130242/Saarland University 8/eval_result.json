@@ -1,0 +1,52 @@
+{
+  "label": {
+    "node_precision": 0.21666666666666667,
+    "node_recall": 0.20000000000000004,
+    "node_f1": 0.20740000000000003,
+    "label_sim": 0.8666999999999999,
+    "entity_recall": 0.20000000000000004,
+    "tp": 1.0,
+    "fp": 3.6666666666666665,
+    "fn": 4.0,
+    "entity_hits": [
+      "AI daily Quiz"
+    ],
+    "entity_misses": [
+      "preview",
+      "Review",
+      "Basic Enough",
+      "Feature Suggestion"
+    ],
+    "entity_total": 5.0,
+    "matches": [
+      {
+        "gold_label": "AI daily Quiz",
+        "gen_label": "AI-Generated Daily Quiz",
+        "similarity": 0.9379
+      }
+    ],
+    "threshold": 0.6999999999999998,
+    "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+    "gold_count": 5.0,
+    "gen_count": 4.666666666666667
+  },
+  "hierarchy": {
+    "edge_precision": 0.0,
+    "edge_recall": 0.0,
+    "edge_f1": 0.0,
+    "edge_tp": 0.0,
+    "edge_fp": 3.6666666666666665,
+    "edge_fn": 4.0,
+    "uas": 0.0,
+    "nted": 1.0,
+    "raw_ted": 5.0,
+    "pc_precision": 1.0,
+    "pc_recall": 0.0,
+    "pc_f1": 0.0,
+    "pc_tp": 0.0,
+    "lar": 0.0
+  },
+  "timing_snapshots": [],
+  "__repeat_count": 3,
+  "__successful_runs": 3
+}

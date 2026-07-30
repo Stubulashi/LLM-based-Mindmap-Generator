@@ -1,0 +1,388 @@
+{
+  "tree": [
+    {
+      "id": "node_learning_system",
+      "label": "Learning System",
+      "color": "var(--node-blue)",
+      "details": [
+        "定义: 整体学习系统框架"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_user_engagement",
+          "label": "User Engagement",
+          "color": "var(--node-green)",
+          "details": [
+            "定义: 用户参与相关的学习活动"
+          ],
+          "parent_id": "node_learning_system",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_daily_usage",
+              "label": "Daily Usage",
+              "color": "var(--node-green)",
+              "details": [
+                "定义: 日常使用数据，作为AI分析知识水平的依据之一"
+              ],
+              "parent_id": "node_user_engagement",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_learning_activities",
+              "label": "Learning Activities",
+              "color": "var(--node-green)",
+              "details": [
+                "定义: 具体的学习行为和活动"
+              ],
+              "parent_id": "node_user_engagement",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_quiz_features",
+                  "label": "Quiz Features",
+                  "color": "var(--node-green)",
+                  "details": [
+                    "定义: 测验功能，用于评估学习水平"
+                  ],
+                  "parent_id": "node_learning_activities",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                },
+                {
+                  "id": "node_learning_reflection",
+                  "label": "Learning Reflection",
+                  "color": "var(--node-blue)",
+                  "details": [
+                    "用户原文: 结合日常使用和测验能反映学得如何及如何改进"
+                  ],
+                  "parent_id": "node_learning_activities",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_progress_tracking",
+          "label": "Progress Tracking",
+          "color": "var(--node-blue)",
+          "details": [
+            "定义: 学习进度跟踪与分析"
+          ],
+          "parent_id": "node_learning_system",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_progress_reports",
+              "label": "Progress Reports",
+              "color": "var(--node-blue)",
+              "details": [
+                "用户原文: 该功能清晰且非常有用",
+                "定义: Quiz功能的进度报告，展示学习进展"
+              ],
+              "parent_id": "node_progress_tracking",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_knowledge_gaps",
+              "label": "Knowledge Gaps",
+              "color": "var(--node-red)",
+              "details": [
+                "用户原文: 我可能忽略或没注意到的知识点"
+              ],
+              "parent_id": "node_progress_tracking",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_ai_enhanced",
+              "label": "AI-Enhanced Analytics",
+              "color": "var(--node-blue)",
+              "details": [
+                "定义: 基于人工智能的增强分析"
+              ],
+              "parent_id": "node_progress_tracking",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_artificial_intelligence",
+                  "label": "Artificial Intelligence",
+                  "color": "var(--node-blue)",
+                  "details": [
+                    "用户原文: 能生成报告指出可改进的答案和遗漏的知识点",
+                    "用户原文: 能基于日常使用和测验分析真实知识水平",
+                    "关键点: 可以反映传统测试无法体现的学习水平"
+                  ],
+                  "parent_id": "node_ai_enhanced",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_learning_system",
+      "label": "Learning System",
+      "color": "var(--node-blue)",
+      "details": [
+        "定义: 整体学习系统框架"
+      ]
+    },
+    {
+      "id": "node_user_engagement",
+      "label": "User Engagement",
+      "color": "var(--node-green)",
+      "details": [
+        "定义: 用户参与相关的学习活动"
+      ]
+    },
+    {
+      "id": "node_learning_activities",
+      "label": "Learning Activities",
+      "color": "var(--node-green)",
+      "details": [
+        "定义: 具体的学习行为和活动"
+      ]
+    },
+    {
+      "id": "node_progress_tracking",
+      "label": "Progress Tracking",
+      "color": "var(--node-blue)",
+      "details": [
+        "定义: 学习进度跟踪与分析"
+      ]
+    },
+    {
+      "id": "node_ai_enhanced",
+      "label": "AI-Enhanced Analytics",
+      "color": "var(--node-blue)",
+      "details": [
+        "定义: 基于人工智能的增强分析"
+      ]
+    },
+    {
+      "id": "node_progress_reports",
+      "label": "Progress Reports",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: 该功能清晰且非常有用",
+        "定义: Quiz功能的进度报告，展示学习进展"
+      ]
+    },
+    {
+      "id": "node_quiz_features",
+      "label": "Quiz Features",
+      "color": "var(--node-green)",
+      "details": [
+        "定义: 测验功能，用于评估学习水平"
+      ]
+    },
+    {
+      "id": "node_artificial_intelligence",
+      "label": "Artificial Intelligence",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: 能生成报告指出可改进的答案和遗漏的知识点",
+        "用户原文: 能基于日常使用和测验分析真实知识水平",
+        "关键点: 可以反映传统测试无法体现的学习水平"
+      ]
+    },
+    {
+      "id": "node_knowledge_gaps",
+      "label": "Knowledge Gaps",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: 我可能忽略或没注意到的知识点"
+      ]
+    },
+    {
+      "id": "node_daily_usage",
+      "label": "Daily Usage",
+      "color": "var(--node-green)",
+      "details": [
+        "定义: 日常使用数据，作为AI分析知识水平的依据之一"
+      ]
+    },
+    {
+      "id": "node_learning_reflection",
+      "label": "Learning Reflection",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: 结合日常使用和测验能反映学得如何及如何改进"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_learning_system",
+      "target": "node_user_engagement",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_learning_system",
+      "target": "node_progress_tracking",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_user_engagement",
+      "target": "node_daily_usage",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_user_engagement",
+      "target": "node_learning_activities",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_learning_activities",
+      "target": "node_quiz_features",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_learning_activities",
+      "target": "node_learning_reflection",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_progress_tracking",
+      "target": "node_progress_reports",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_progress_tracking",
+      "target": "node_knowledge_gaps",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_progress_tracking",
+      "target": "node_ai_enhanced",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_enhanced",
+      "target": "node_artificial_intelligence",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 11
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 11,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 3.03,
+    "stage2": 2.04,
+    "stage3": 5.12,
+    "overhead": 0.01,
+    "total": 10.2
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

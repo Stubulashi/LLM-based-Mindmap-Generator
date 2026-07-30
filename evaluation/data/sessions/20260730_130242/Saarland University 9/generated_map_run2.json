@@ -1,0 +1,396 @@
+{
+  "tree": [
+    {
+      "id": "node_app_ux",
+      "label": "App User Experience",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: 用户分享了对应用的整体使用体验"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_strengths",
+          "label": "Strengths",
+          "color": "var(--node-green)",
+          "details": [
+            "关键点: 用户认为应用的优势方面"
+          ],
+          "parent_id": "node_app_ux",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_app_potential",
+              "label": "App Potential",
+              "color": "var(--node-green)",
+              "details": [
+                "用户原文: The app has a lot of potential",
+                "关键点: 用户认为应用具有很大潜力"
+              ],
+              "parent_id": "node_strengths",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_useful_features",
+              "label": "Useful Features",
+              "color": "var(--node-green)",
+              "details": [
+                "用户原文: It offers some really useful features",
+                "关键点: 用户认可应用提供的功能实用"
+              ],
+              "parent_id": "node_strengths",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_weaknesses",
+          "label": "Weaknesses",
+          "color": "var(--node-red)",
+          "details": [
+            "关键点: 用户指出的应用问题"
+          ],
+          "parent_id": "node_app_ux",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_ui_issues",
+              "label": "UI Issues",
+              "color": "var(--node-red)",
+              "details": [
+                "关键点: 用户界面方面的问题"
+              ],
+              "parent_id": "node_weaknesses",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_overwhelming_interface",
+                  "label": "Overwhelming Interface",
+                  "color": "var(--node-red)",
+                  "details": [
+                    "用户原文: The interface could sometimes feel a bit overwhelming",
+                    "用户原文: Too many options or icons on a single page",
+                    "关键点: 界面拥挤，选项和图标过多导致使用困难"
+                  ],
+                  "parent_id": "node_ui_issues",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                },
+                {
+                  "id": "node_navigation_difficulty",
+                  "label": "Navigation Difficulty",
+                  "color": "var(--node-red)",
+                  "details": [
+                    "用户原文: It took me a while to figure out how to navigate certain sections",
+                    "关键点: 用户难以找到某些功能区域的位置"
+                  ],
+                  "parent_id": "node_ui_issues",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_tracking_features",
+              "label": "Tracking Features",
+              "color": "var(--node-yellow)",
+              "details": [
+                "关键点: 用户难以找到的跟踪功能入口"
+              ],
+              "parent_id": "node_weaknesses",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_saved_entries",
+                  "label": "Saved Dictionary Entries",
+                  "color": "var(--node-yellow)",
+                  "details": [
+                    "用户原文: Where to access my saved dictionary entries",
+                    "关键点: 用户无法快速找到已保存的词典条目入口"
+                  ],
+                  "parent_id": "node_tracking_features",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                },
+                {
+                  "id": "node_progress_reports",
+                  "label": "Progress Reports",
+                  "color": "var(--node-yellow)",
+                  "details": [
+                    "用户原文: Where to access my progress app reports",
+                    "关键点: 用户无法快速找到进度报告入口"
+                  ],
+                  "parent_id": "node_tracking_features",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "solid"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_app_potential",
+      "label": "App Potential",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: The app has a lot of potential",
+        "关键点: 用户认为应用具有很大潜力"
+      ]
+    },
+    {
+      "id": "node_useful_features",
+      "label": "Useful Features",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: It offers some really useful features",
+        "关键点: 用户认可应用提供的功能实用"
+      ]
+    },
+    {
+      "id": "node_overwhelming_interface",
+      "label": "Overwhelming Interface",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: The interface could sometimes feel a bit overwhelming",
+        "用户原文: Too many options or icons on a single page",
+        "关键点: 界面拥挤，选项和图标过多导致使用困难"
+      ]
+    },
+    {
+      "id": "node_navigation_difficulty",
+      "label": "Navigation Difficulty",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: It took me a while to figure out how to navigate certain sections",
+        "关键点: 用户难以找到某些功能区域的位置"
+      ]
+    },
+    {
+      "id": "node_saved_entries",
+      "label": "Saved Dictionary Entries",
+      "color": "var(--node-yellow)",
+      "details": [
+        "用户原文: Where to access my saved dictionary entries",
+        "关键点: 用户无法快速找到已保存的词典条目入口"
+      ]
+    },
+    {
+      "id": "node_progress_reports",
+      "label": "Progress Reports",
+      "color": "var(--node-yellow)",
+      "details": [
+        "用户原文: Where to access my progress app reports",
+        "关键点: 用户无法快速找到进度报告入口"
+      ]
+    },
+    {
+      "id": "node_app_ux",
+      "label": "App User Experience",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: 用户分享了对应用的整体使用体验"
+      ]
+    },
+    {
+      "id": "node_strengths",
+      "label": "Strengths",
+      "color": "var(--node-green)",
+      "details": [
+        "关键点: 用户认为应用的优势方面"
+      ]
+    },
+    {
+      "id": "node_weaknesses",
+      "label": "Weaknesses",
+      "color": "var(--node-red)",
+      "details": [
+        "关键点: 用户指出的应用问题"
+      ]
+    },
+    {
+      "id": "node_ui_issues",
+      "label": "UI Issues",
+      "color": "var(--node-red)",
+      "details": [
+        "关键点: 用户界面方面的问题"
+      ]
+    },
+    {
+      "id": "node_tracking_features",
+      "label": "Tracking Features",
+      "color": "var(--node-yellow)",
+      "details": [
+        "关键点: 用户难以找到的跟踪功能入口"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_app_ux",
+      "target": "node_strengths",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_ux",
+      "target": "node_weaknesses",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_strengths",
+      "target": "node_app_potential",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_strengths",
+      "target": "node_useful_features",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_weaknesses",
+      "target": "node_ui_issues",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_weaknesses",
+      "target": "node_tracking_features",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ui_issues",
+      "target": "node_overwhelming_interface",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ui_issues",
+      "target": "node_navigation_difficulty",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_tracking_features",
+      "target": "node_saved_entries",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_tracking_features",
+      "target": "node_progress_reports",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 11
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 11,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 3.17,
+    "stage2": 1.72,
+    "stage3": 5.19,
+    "overhead": 0.01,
+    "total": 10.09
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

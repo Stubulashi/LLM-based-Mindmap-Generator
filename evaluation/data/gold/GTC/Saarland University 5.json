@@ -1,0 +1,52 @@
+{
+  "nodes": [
+    {
+      "id": "n0",
+      "label": "Features",
+      "parent_id": null
+    },
+    {
+      "id": "n1",
+      "label": "daily slogan",
+      "parent_id": "n0"
+    },
+    {
+      "id": "n2",
+      "label": "starring Function",
+      "parent_id": "n0"
+    },
+    {
+      "id": "n2_1",
+      "label": "time tracking",
+      "parent_id": "n2"
+    },
+    {
+      "id": "n3",
+      "label": "Personal Dictionary",
+      "parent_id": "n0"
+    }
+  ],
+  "links": [
+    {"source": "n0", "target": "n1"},
+    {"source": "n0", "target": "n2"},
+    {"source": "n2", "target": "n2_1"},
+    {"source": "n0", "target": "n3"}
+  ],
+  "tree": [
+    {
+      "id": "n0",
+      "label": "Features",
+      "children": [
+        {"id": "n1", "label": "daily slogan"},
+        {
+          "id": "n2",
+          "label": "starring Function",
+          "children": [
+            {"id": "n2_1", "label": "time tracking"}
+          ]
+        },
+        {"id": "n3", "label": "Personal Dictionary"}
+      ]
+    }
+  ]
+}

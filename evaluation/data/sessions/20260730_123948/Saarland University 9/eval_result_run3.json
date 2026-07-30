@@ -1,0 +1,61 @@
+{
+  "label": {
+    "node_precision": 0.3,
+    "node_recall": 0.4286,
+    "node_f1": 0.3529,
+    "label_sim": 0.9871,
+    "entity_recall": 0.4286,
+    "tp": 3,
+    "fp": 7,
+    "fn": 4,
+    "entity_hits": [
+      "overwhelming Interface",
+      "Navigation difficulty",
+      "Progress Report"
+    ],
+    "entity_misses": [
+      "Potential",
+      "Feedback",
+      "too many options",
+      "dictionary entities"
+    ],
+    "entity_total": 7,
+    "matches": [
+      {
+        "gold_label": "overwhelming Interface",
+        "gen_label": "Interface Overwhelming",
+        "similarity": 0.9902
+      },
+      {
+        "gold_label": "Navigation difficulty",
+        "gen_label": "Navigation Difficulty",
+        "similarity": 0.9921
+      },
+      {
+        "gold_label": "Progress Report",
+        "gen_label": "Progress Reports",
+        "similarity": 0.9789
+      }
+    ],
+    "threshold": 0.7,
+    "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+    "gold_count": 7,
+    "gen_count": 10
+  },
+  "hierarchy": {
+    "edge_precision": 0.0,
+    "edge_recall": 0.0,
+    "edge_f1": 0.0,
+    "edge_tp": 0,
+    "edge_fp": 8,
+    "edge_fn": 6,
+    "uas": 0.0,
+    "nted": 0.7,
+    "raw_ted": 7.0,
+    "pc_precision": 1.0,
+    "pc_recall": 0.0,
+    "pc_f1": 0.0,
+    "pc_tp": 0,
+    "lar": 0.0
+  }
+}

@@ -1,0 +1,202 @@
+{
+  "tree": [
+    {
+      "id": "node_ai_study_assistant",
+      "label": "AI Study Assistant",
+      "color": "var(--node-blue)",
+      "details": [
+        "核心主题: AI-powered study and review software"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_ai_extraction",
+          "label": "AI Extraction",
+          "color": "var(--node-blue)",
+          "details": [
+            "User describes this feature as 'very powerful'",
+            "关键点: Automatically extracts knowledge points from text",
+            "关键点: Adds extracted knowledge points to dictionary"
+          ],
+          "parent_id": "node_ai_study_assistant",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_efficient_study",
+          "label": "Efficient Study",
+          "color": "var(--node-green)",
+          "details": [
+            "用户原文: 'AI can do it very efficiently'",
+            "关键点: Reduces self-work needed to manually mark words",
+            "关键点: Helps focus more on words and text"
+          ],
+          "parent_id": "node_ai_study_assistant",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_personalized_learning",
+          "label": "Personalized Learning",
+          "color": "var(--node-green)",
+          "details": [
+            "用户原文: 'AI can adjust my way of studying'",
+            "关键点: Adapts to user's knowledge standard",
+            "关键点: Marks words user may be unfamiliar with"
+          ],
+          "parent_id": "node_ai_study_assistant",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_learning_experience",
+          "label": "Learning Experience",
+          "color": "var(--node-red)",
+          "details": [
+            "用户原文: 'improve my learning feeling'",
+            "关键点: Enhances user's overall learning experience",
+            "关键点: Improves knowledge standard"
+          ],
+          "parent_id": "node_ai_study_assistant",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_ai_extraction",
+      "label": "AI Extraction",
+      "color": "var(--node-blue)",
+      "details": [
+        "User describes this feature as 'very powerful'",
+        "关键点: Automatically extracts knowledge points from text",
+        "关键点: Adds extracted knowledge points to dictionary"
+      ]
+    },
+    {
+      "id": "node_efficient_study",
+      "label": "Efficient Study",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: 'AI can do it very efficiently'",
+        "关键点: Reduces self-work needed to manually mark words",
+        "关键点: Helps focus more on words and text"
+      ]
+    },
+    {
+      "id": "node_personalized_learning",
+      "label": "Personalized Learning",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: 'AI can adjust my way of studying'",
+        "关键点: Adapts to user's knowledge standard",
+        "关键点: Marks words user may be unfamiliar with"
+      ]
+    },
+    {
+      "id": "node_learning_experience",
+      "label": "Learning Experience",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: 'improve my learning feeling'",
+        "关键点: Enhances user's overall learning experience",
+        "关键点: Improves knowledge standard"
+      ]
+    },
+    {
+      "id": "node_ai_study_assistant",
+      "label": "AI Study Assistant",
+      "color": "var(--node-blue)",
+      "details": [
+        "核心主题: AI-powered study and review software"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_ai_study_assistant",
+      "target": "node_ai_extraction",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_study_assistant",
+      "target": "node_efficient_study",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_study_assistant",
+      "target": "node_personalized_learning",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_study_assistant",
+      "target": "node_learning_experience",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 5
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 5,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 3.59,
+    "stage2": 0.0,
+    "stage3": 3.31,
+    "overhead": 0.01,
+    "total": 6.91
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

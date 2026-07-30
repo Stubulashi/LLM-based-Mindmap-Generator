@@ -1,0 +1,273 @@
+{
+  "tree": [
+    {
+      "id": "node_app_features",
+      "label": "Application Features",
+      "color": "var(--node-blue)",
+      "details": [
+        "上下文: Root-level grouping for all app feature discussions from user feedback"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_ai_capabilities",
+          "label": "AI Capabilities",
+          "color": "var(--node-blue)",
+          "details": [
+            "上下文: Sub-group for AI-related features discussed"
+          ],
+          "parent_id": "node_app_features",
+          "collapsed": false,
+          "children": [
+            {
+              "id": "node_ai_integration",
+              "label": "AI Integration",
+              "color": "var(--node-blue)",
+              "details": [
+                "用户原文: This version isn't really highly associated to AI",
+                "建议: Use APIs from AI to judge answers and thoughts"
+              ],
+              "parent_id": "node_ai_capabilities",
+              "collapsed": false,
+              "children": [],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": false,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            },
+            {
+              "id": "node_ai_api_suggestion",
+              "label": "AI API",
+              "color": "var(--node-green)",
+              "details": [
+                "用户原文: I would suggest you really use some APIs from AI",
+                "用途: Let AI consider tests with key messages"
+              ],
+              "parent_id": "node_ai_capabilities",
+              "collapsed": false,
+              "children": [
+                {
+                  "id": "node_quiz_function",
+                  "label": "Quiz Function",
+                  "color": "var(--node-red)",
+                  "details": [
+                    "用户原文: The biggest problem encountered is in the quiz function",
+                    "问题: Current version can't look deep into answers and rate objectively"
+                  ],
+                  "parent_id": "node_assessment_features",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "reference"
+                },
+                {
+                  "id": "node_review_report",
+                  "label": "Review Report",
+                  "color": "var(--node-green)",
+                  "details": [
+                    "用户原文: It will make the review and the report clearer and more specific"
+                  ],
+                  "parent_id": "node_assessment_features",
+                  "collapsed": false,
+                  "children": [],
+                  "_isVirtual": false,
+                  "_isRoot": false,
+                  "_depth": 3,
+                  "_hasChildren": false,
+                  "x": null,
+                  "y": null,
+                  "userPositioned": false,
+                  "link_type": "reference"
+                }
+              ],
+              "_isVirtual": false,
+              "_isRoot": false,
+              "_depth": 2,
+              "_hasChildren": true,
+              "x": null,
+              "y": null,
+              "userPositioned": false,
+              "link_type": "solid"
+            }
+          ],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": true,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_assessment_features",
+          "label": "Assessment Features",
+          "color": "var(--node-blue)",
+          "details": [
+            "上下文: Sub-group for assessment and quiz related features"
+          ],
+          "parent_id": "node_app_features",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_app_features",
+      "label": "Application Features",
+      "color": "var(--node-blue)",
+      "details": [
+        "上下文: Root-level grouping for all app feature discussions from user feedback"
+      ]
+    },
+    {
+      "id": "node_ai_capabilities",
+      "label": "AI Capabilities",
+      "color": "var(--node-blue)",
+      "details": [
+        "上下文: Sub-group for AI-related features discussed"
+      ]
+    },
+    {
+      "id": "node_assessment_features",
+      "label": "Assessment Features",
+      "color": "var(--node-blue)",
+      "details": [
+        "上下文: Sub-group for assessment and quiz related features"
+      ]
+    },
+    {
+      "id": "node_quiz_function",
+      "label": "Quiz Function",
+      "color": "var(--node-red)",
+      "details": [
+        "用户原文: The biggest problem encountered is in the quiz function",
+        "问题: Current version can't look deep into answers and rate objectively"
+      ]
+    },
+    {
+      "id": "node_ai_integration",
+      "label": "AI Integration",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户原文: This version isn't really highly associated to AI",
+        "建议: Use APIs from AI to judge answers and thoughts"
+      ]
+    },
+    {
+      "id": "node_ai_api_suggestion",
+      "label": "AI API",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: I would suggest you really use some APIs from AI",
+        "用途: Let AI consider tests with key messages"
+      ]
+    },
+    {
+      "id": "node_review_report",
+      "label": "Review Report",
+      "color": "var(--node-green)",
+      "details": [
+        "用户原文: It will make the review and the report clearer and more specific"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "root",
+      "target": "node_app_features",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_features",
+      "target": "node_ai_capabilities",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_features",
+      "target": "node_assessment_features",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_capabilities",
+      "target": "node_ai_integration",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_capabilities",
+      "target": "node_ai_api_suggestion",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_assessment_features",
+      "target": "node_quiz_function",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_assessment_features",
+      "target": "node_review_report",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_ai_api_suggestion",
+      "target": "node_quiz_function",
+      "link_type": "reference"
+    },
+    {
+      "source": "node_ai_api_suggestion",
+      "target": "node_review_report",
+      "link_type": "reference"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 7
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 7,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.32,
+    "stage2": 1.26,
+    "stage3": 3.78,
+    "overhead": 0.01,
+    "total": 7.37
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}

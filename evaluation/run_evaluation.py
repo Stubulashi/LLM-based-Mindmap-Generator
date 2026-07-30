@@ -37,6 +37,15 @@ from typing import Optional
 # C: 确保可以 import 项目根目录下的模块
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# E: Load .env BEFORE importing modules that use huggingface
+#    (sentence-transformers in aligner.py needs HF_ENDPOINT set before first import)
+# C: 在导入使用 huggingface 的模块之前加载 .env
+#    (aligner.py 中的 sentence-transformers 需要在首次导入前设置 HF_ENDPOINT)
+from dotenv import load_dotenv
+from pathlib import Path
+_env_path = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) / '.env'
+load_dotenv(dotenv_path=_env_path)
+
 from evaluation.core.data_loader import DataLoader, MindMapData
 from evaluation.core.aligner import HungarianAligner
 from evaluation.utils.console_utils import (
@@ -79,13 +88,13 @@ METHOD_REQUIRED_FILES: dict[str, list[str]] = {
 # E: (method_name -> list of importable package names)
 # C: (方法名 -> 可 import 的包名列表)
 METHOD_DEPENDENCIES: dict[str, list[str]] = {
-    'label':       ['numpy'],
-    'hierarchy':   ['numpy', 'zss'],
-    'qa':          ['nltk', 'rouge_score', 'bert_score'],
+    'label':       ['numpy', 'sentence_transformers'],
+    'hierarchy':   ['numpy', 'zss', 'sentence_transformers'],
+    'qa':          ['openai', 'nltk', 'rouge_score', 'bert_score'],
     'efficiency':  ['jiwer', 'jieba', 'scipy'],
     'multilingual': [],
     'human_corr':  ['scipy'],
-    'full':        ['nltk', 'rouge_score', 'bert_score', 'zss', 'jiwer', 'jieba', 'scipy'],
+    'full':        ['nltk', 'rouge_score', 'bert_score', 'zss', 'jiwer', 'jieba', 'scipy', 'sentence_transformers', 'openai'],
 }
 
 # E: Pip install names for dependency display / auto-install
@@ -99,6 +108,8 @@ _PIP_PACKAGE_NAMES: dict[str, str] = {
     'jieba': 'jieba',
     'scipy': 'scipy',
     'numpy': 'numpy',
+    'sentence_transformers': 'sentence-transformers',
+    'openai': 'openai',
 }
 
 # E: Human-readable descriptions for each file category
@@ -276,6 +287,114 @@ def check_dependencies(
 def _ensure_dir(path: str):
     """E: Create directory if it doesn't exist / C: 确保目录存在"""
     os.makedirs(path, exist_ok=True)
+
+
+def _format_gold_example(transcript_path: str, gold_json_path: str, max_transcript_chars: int = 3000) -> Optional[str]:
+    """
+    E: Format a gold example (transcript + gold mind map) as an in-context example block.
+        The formatted block is inserted into the beginning of chat_history to guide the model
+        to generate a mind map that matches the structural style of the gold standard.
+    C: 将黄金示例（转录文本 + 金标准导图）格式化为 in-context 示例块。
+        该示例块插入到 chat_history 最前面，指导模型生成更符合金标准结构的导图。
+
+    Args / 参数:
+        transcript_path: Path to transcript .txt file / 转录文本 .txt 文件路径
+        gold_json_path: Path to gold standard mind map .json file / 金标准导图 .json 文件路径
+        max_transcript_chars: Max chars of transcript to include / 转录文本最大包含字符数
+
+    Returns / 返回:
+        Formatted gold example string, or None if files cannot be loaded
+        格式化后的黄金示例字符串，文件无法加载时返回 None
+    """
+    # E: Validate files exist / C: 验证文件存在
+    if not transcript_path or not os.path.isfile(transcript_path):
+        print(f"  [Gold Example] Transcript not found / 转录文件不存在: {transcript_path}")
+        return None
+    if not gold_json_path or not os.path.isfile(gold_json_path):
+        print(f"  [Gold Example] Gold JSON not found / 金标准JSON不存在: {gold_json_path}")
+        return None
+
+    # E: Read transcript / C: 读取转录文本
+    try:
+        with open(transcript_path, 'r', encoding='utf-8') as f:
+            transcript_text = f.read()
+    except Exception as e:
+        print(f"  [Gold Example] Failed to read transcript / 转录读取失败: {e}")
+        return None
+
+    # E: Truncate transcript if too long / C: 文本过长则截断
+    if len(transcript_text) > max_transcript_chars:
+        transcript_text = transcript_text[:max_transcript_chars] + "\n... (truncated / 已截断)"
+
+    # E: Read and parse gold JSON / C: 读取并解析金标准 JSON
+    try:
+        with open(gold_json_path, 'r', encoding='utf-8') as f:
+            gold_data = json.load(f)
+    except Exception as e:
+        print(f"  [Gold Example] Failed to parse gold JSON / 金标准JSON解析失败: {e}")
+        return None
+
+    # E: Serialize gold map as indented tree text / C: 将金标准导图序列化为缩进文本树
+    gold_nodes = gold_data.get('nodes', [])
+    tree_lines = _serialize_gold_tree(gold_nodes)
+    tree_text = '\n'.join(tree_lines)
+
+    # E: Format the complete example block / C: 格式化完整示例块
+    example_block = (
+        f"C: 【黄金示例 / Gold Example】以下是先前课程的一个优秀思维导图生成案例，请仔细学习其结构风格。\n"
+        f"E: [Gold Example] Below is an excellent mind map generation example from a previous lecture. Study its structural style carefully.\n\n"
+        f"C: 【原始转录文本 / Original Transcript】\n{transcript_text}\n\n"
+        f"C: 【对应的高质量思维导图 / Corresponding High-Quality Mind Map】\n{tree_text}\n\n"
+        f"C: 【重要指令】请参照以上示例的结构风格和层级划分方式，对接下来提供的新音频转录生成思维导图。"
+        f"请特别注意：1) 层级深度和分支数量与示例保持一致；2) 节点标签精炼程度与示例类似；3) 父子关系的组织逻辑参照示例。\n"
+        f"E: [Important Instruction] Please refer to the structural style and hierarchy organization of the above example when generating the mind map for the new audio transcript below. "
+        f"Pay special attention to: 1) Maintain similar depth and branching factor; 2) Keep node label conciseness comparable; 3) Follow the same parent-child organization logic.\n"
+        f"---\n"
+    )
+
+    print(f"  ✓ Gold example formatted / 黄金示例已格式化 ({len(transcript_text)} chars transcript / 转录字符, {len(gold_nodes)} gold nodes / 金标准节点)")
+    return example_block
+
+
+def _serialize_gold_tree(nodes: list[dict]) -> list[str]:
+    """
+    E: Serialize gold standard nodes into an indented text tree representation.
+    C: 将金标准节点序列化为缩进文本树表示。
+
+    Args / 参数:
+        nodes: List of node dicts with id, label, parent_id / 含 id, label, parent_id 的节点列表
+
+    Returns / 返回:
+        List of indented lines / 缩进文本行列表
+    """
+    # E: Build parent-child index / C: 构建父子索引
+    children_map: dict[str, list[dict]] = {}
+    root_nodes = []
+    for n in nodes:
+        pid = n.get('parent_id')
+        if pid is None:
+            root_nodes.append(n)
+        else:
+            children_map.setdefault(pid, []).append(n)
+
+    lines = []
+
+    def _render(node: dict, depth: int):
+        indent = '  ' * depth
+        label = node.get('label', '')
+        lines.append(f"{indent}- {label}")
+        # E: Include details if present (max 2) / C: 如果有详情，最多显示2条
+        details = node.get('details', [])
+        for d in details[:2]:
+            lines.append(f"{indent}  [{d}]")
+        children = sorted(children_map.get(node['id'], []), key=lambda x: x.get('label', ''))
+        for child in children:
+            _render(child, depth + 1)
+
+    if root_nodes:
+        _render(root_nodes[0], 0)
+
+    return lines
 
 
 def _copy_to_data_dir(src_path: str, category: str) -> str:
@@ -542,6 +661,8 @@ def _run_evaluation_for_pair(
     threshold: float = 0.70,
     essential_concepts: Optional[list[str]] = None,
     selected_methods: Optional[list[str]] = None,
+    transcript_text: str = "",
+    questions: Optional[list[dict]] = None,
 ) -> dict:
     """
     E: Execute all selected evaluation methods for a single pair
@@ -599,7 +720,7 @@ def _run_evaluation_for_pair(
         from evaluation.qa.eval_qa import QAEvaluator
         try:
             qa_eval = QAEvaluator()
-            qa_result = qa_eval.evaluate("", gen_map.nodes, [])
+            qa_result = qa_eval.evaluate(transcript_text, gen_map.nodes, questions or [])
             results['qa'] = qa_result.to_dict()
         except Exception as e:
             results['qa'] = {"error": str(e)}
@@ -635,6 +756,49 @@ def _run_evaluation_for_pair(
 
 
 # ============================================================
+# E: Average multiple evaluation run results into one result
+# C: 将多次评估运行的结果取平均值
+# ============================================================
+def _average_eval_results(run_results: list[dict]) -> dict:
+    """
+    E: Average multiple independent evaluation run results.
+        Each run_result is the dict returned by _run_evaluation_for_pair.
+        All numeric metric values are averaged; non-numeric fields from the
+        first result are deep-copied so originals are never mutated.
+    C: 对多次独立评估运行结果取平均值。
+        每次 run_result 是 _run_evaluation_for_pair 返回的字典。
+        所有数值型指标取平均值；非数值字段使用第一次运行的深拷贝。
+    """
+    if not run_results:
+        return {}
+    if len(run_results) == 1:
+        return copy.deepcopy(run_results[0])
+
+    # E: Collect all (dim_key, metric_key) pairs that are numeric across all runs
+    # C: 收集在所有运行中均为数值型的 (dim_key, metric_key) 对
+    all_keys: dict[tuple[str, str], list[float]] = {}
+    for rr in run_results:
+        for dim_key, dim_data in rr.items():
+            if isinstance(dim_data, dict) and 'error' not in dim_data:
+                for metric_key, metric_val in dim_data.items():
+                    if isinstance(metric_val, (int, float)):
+                        key = (dim_key, metric_key)
+                        if key not in all_keys:
+                            all_keys[key] = []
+                        all_keys[key].append(metric_val)
+
+    # E: Build averaged result, starting from a deep copy of the first run
+    # C: 构建平均值结果，从第一次运行的深拷贝开始
+    averaged = copy.deepcopy(run_results[0])
+    for (dim_key, metric_key), values in all_keys.items():
+        if dim_key in averaged and isinstance(averaged[dim_key], dict):
+            avg_val = sum(values) / len(values)
+            averaged[dim_key][metric_key] = avg_val
+
+    return averaged
+
+
+# ============================================================
 # E: Single pipeline: audio → transcription → map → evaluation
 # C: 单条管线：音频 → 转录 → 导图 → 评估
 # ============================================================
@@ -649,16 +813,23 @@ async def _run_single_pipeline(
     model_name: str,
     threshold: float,
     essential_concepts: Optional[list[str]] = None,
+    gold_example_context: Optional[str] = None,
+    questions_path: Optional[str] = None,
+    repeat_count: int = 1,
 ) -> dict:
     """
     E: Execute the full pipeline for a single audio pair
+        Supports repeated independent runs with metric averaging.
     C: 对单个音频配对执行完整管线
+        支持多次独立运行并取指标平均值。
 
     Steps / 步骤:
-    1. Whisper transcription / Whisper 转录
-    2. Mind map generation / 导图生成
-    3. Quality evaluation / 质量评估
-    4. Dual output save / 双轨输出保存
+    1. Whisper transcription / Whisper 转录 (repeated per run)
+    2. Mind map generation / 导图生成 (repeated per run)
+    3. Quality evaluation / 质量评估 (run once per generated map)
+    4. Metric averaging across runs / 多次运行的指标取平均
+    5. Auto-report generation / 自动生成报告
+    6. Dual output save / 双轨输出保存
     """
     result = {
         "pair_name": pair_name,
@@ -670,136 +841,262 @@ async def _run_single_pipeline(
         "generated_map": None,
         "eval_result": None,
         "error": None,
+        "repeat_count": repeat_count,
+        "repeat_results": [],
     }
+
+    # E: Timing snapshots collected during pipeline execution
+    # C: 管线执行过程中采集的计时快照
+    timing_snapshots = []
 
     print(f"\n{'=' * 60}")
     print(f"  Processing pair / 处理配对: {pair_name}")
+    if repeat_count > 1:
+        print(f"  Repeat count / 重复次数: {repeat_count}")
     print(f"{'=' * 60}")
 
+    if mcp_client is None:
+        result["error"] = "MCP Client not started / MCP Client 未启动"
+        return result
+
+    # E: Load questions for QA evaluation if path provided / C: 如有QA问题集路径则加载
+    questions: Optional[list[dict]] = None
+    if questions_path and os.path.isfile(questions_path):
+        try:
+            with open(questions_path, "r", encoding="utf-8") as f:
+                qdata = json.load(f)
+            questions = qdata.get("questions", [])
+            print(f"  ✓ Questions loaded / 问题集已加载: {len(questions)} questions / 问题")
+        except Exception as e:
+            print(f"  ⚠ Questions load failed / 问题集加载失败: {e}")
+
+    # E: Track timing and accumulated results across repeats
+
+    # ============================================================
+    # E: Run the full pipeline repeat_count times independently
+    # C: 独立执行完整管线 repeat_count 次
+    # ============================================================
+    all_eval_results: list[dict] = []
+    all_generated_maps: list[dict] = []
+    all_transcriptions: list[str] = []
+
+    for run_idx in range(repeat_count):
+        if repeat_count > 1:
+            print(f"\n  --- Run {run_idx + 1}/{repeat_count} ---")
+            print(f"  --- 第 {run_idx + 1}/{repeat_count} 次运行 ---")
+
+        try:
+            # -------------------------------------------------
+            # E: Step 1: Whisper transcription
+            # C: 步骤 1: Whisper 转录
+            # -------------------------------------------------
+            print(f"  [1/3] Transcribing audio / 转录音频...")
+
+            transcribe_result = await mcp_client.call_tool(
+                "transcribe_audio", {"file_path": os.path.abspath(audio_path)}
+            )
+            raw_text = ""
+            if isinstance(transcribe_result, dict):
+                raw_text = transcribe_result.get("raw_text", "").strip()
+
+            if not raw_text:
+                print(f"  [Skip / 跳过] Transcription is empty / 转录为空")
+                if repeat_count > 1 and run_idx < repeat_count - 1:
+                    continue  # E: Try next run / C: 尝试下一次运行
+                result["error"] = "Empty transcription / 空转录"
+                return result
+
+            run_suffix = f"_run{run_idx + 1}" if repeat_count > 1 else ""
+            # E: Save transcription / C: 保存转录文本
+            trans_path = os.path.join(session_dir, pair_name, f"transcription{run_suffix}.txt")
+            _ensure_dir(os.path.dirname(trans_path))
+            with open(trans_path, "w", encoding="utf-8") as f:
+                f.write(raw_text)
+            print(f"  ✓ Transcription saved / 转录已保存 ({len(raw_text)} chars / 字符)")
+
+            # E: Keep first run's transcription for result summary
+            # C: 保留第一次运行的转录作为结果摘要
+            if run_idx == 0:
+                result["transcription"] = raw_text
+            all_transcriptions.append(raw_text)
+
+            # -------------------------------------------------
+            # E: Step 2: Mind map generation
+            # C: 步骤 2: 导图生成
+            # -------------------------------------------------
+            print(f"  [2/3] Generating mind map / 生成导图...")
+
+            chat_history = (
+                f"C: 【最高优先级指令】请根据以下语音转录文本生成思维导图。\n"
+                f"提取其中所有关键概念，并按层级组织。\n"
+                f"E: [Highest Priority Instruction] Please generate a mind map from the speech transcript below.\n"
+                f"Extract all key concepts and organize them hierarchically.\n\n"
+                f"C: 【转录文本 / Transcript】\n{raw_text}\n---\n"
+                f"E: [Transcript Text]\n{raw_text}\n---"
+            )
+
+            # E: Prepend gold example context if provided / C: 如果有黄金示例则插入到最前面
+            if gold_example_context:
+                chat_history = gold_example_context + "\n" + chat_history
+                if run_idx == 0:
+                    print(f"  ✓ Gold example injected into generation prompt / 黄金示例已注入生成 prompt")
+
+            gen_result = await mcp_client.call_tool(
+                "modify_mind_map_v2",
+                {
+                    "chat_history": chat_history,
+                    "current_map": {"nodes": [], "links": []},
+                    "session_ts": f"{timestamp_str}_{pair_name}{run_suffix}",
+                },
+            )
+
+            if not isinstance(gen_result, dict):
+                raise RuntimeError(f"Invalid map generation result / 导图生成返回无效: {type(gen_result)}")
+
+            # E: Save generated map / C: 保存生成导图
+            data_type_suffix = f"generated_map{run_suffix}" if repeat_count > 1 else "generated_map"
+            _save_dual_output(pair_name, gen_result, data_type_suffix, session_dir, timestamp_str)
+            node_count = len(gen_result.get("nodes", []))
+            print(f"  ✓ Map generated / 导图已生成 ({node_count} nodes / 节点)")
+
+            all_generated_maps.append(gen_result)
+
+            # -------------------------------------------------
+            # E: Step 3: Evaluation
+            # C: 步骤 3: 运行评估
+            # -------------------------------------------------
+            print(f"  [3/3] Running evaluation / 运行评估...")
+
+            eval_result = _run_evaluation_for_pair(
+                gold_path=gold_path,
+                gen_data=gen_result,
+                model_name=model_name,
+                threshold=threshold,
+                essential_concepts=essential_concepts,
+                selected_methods=selected_methods,
+                transcript_text=raw_text,
+                questions=questions,
+            )
+
+            if "error" in eval_result:
+                print(f"  ✗ Evaluation failed / 评估失败: {eval_result['error']}")
+                if repeat_count > 1 and run_idx < repeat_count - 1:
+                    continue  # E: Try next run / C: 尝试下一次运行
+                result["error"] = eval_result["error"]
+                return result
+
+            # E: Save per-run evaluation result / C: 保存每次运行的评估结果
+            evalu_data_type = f"eval_result{run_suffix}" if repeat_count > 1 else "eval_result"
+            _save_dual_output(pair_name, eval_result, evalu_data_type, session_dir, timestamp_str)
+
+            all_eval_results.append(eval_result)
+
+        except Exception as e:
+            print(f"  ✗ Run {run_idx + 1} failed / 第 {run_idx + 1} 次运行失败: {e}")
+            import traceback
+            traceback.print_exc()
+            if repeat_count > 1 and run_idx < repeat_count - 1:
+                continue  # E: Try next run / C: 尝试下一次运行
+            result["error"] = str(e)
+            return result
+
+    # ============================================================
+    # E: Post-loop: average metrics and generate report
+    # C: 循环后：取指标平均值并生成报告
+    # ============================================================
+    if not all_eval_results:
+        result["error"] = "All runs failed / 所有运行均失败"
+        return result
+
+    # E: Average evaluation results across runs / C: 对多次运行的评估结果取平均
+    if len(all_eval_results) > 1:
+        print(f"\n  Averaging metrics across {len(all_eval_results)} runs / 对 {len(all_eval_results)} 次运行的指标取平均...")
+    averaged_eval = _average_eval_results(all_eval_results)
+
+    eval_result_with_timing = dict(averaged_eval)
+    eval_result_with_timing['timing_snapshots'] = timing_snapshots
+    eval_result_with_timing['__repeat_count'] = repeat_count
+    eval_result_with_timing['__successful_runs'] = len(all_eval_results)
+
+    # E: Run stand-alone efficiency evaluation with timing data / C: 用计时数据运行效率评估
+    if 'efficiency' in selected_methods:
+        try:
+            from evaluation.efficiency.eval_efficiency import evaluate_efficiency, EfficiencyStandards
+            st = EfficiencyStandards()
+            custom_stds = os.path.join(os.getcwd(), 'evaluation', 'data', 'standards', 'custom_standards.json')
+            if os.path.isfile(custom_stds):
+                st = EfficiencyStandards(custom_stds)
+            eff_result = evaluate_efficiency(
+                timing_snapshots=timing_snapshots,
+                stt_text=result.get('transcription', ''),
+                key_terms=None,
+                standards=st,
+            )
+            eval_result_with_timing['efficiency'] = eff_result.to_dict()
+            print(f"    ✓ Efficiency evaluation complete / 效率评估完成: Total P50={eff_result.t_total_p50:.2f}s")
+        except Exception as e:
+            print(f"    [Efficiency] Auto-eval failed / 自动效率评估失败: {e}")
+
+    # E: Save final evaluation result / C: 保存最终评估结果
+    _save_dual_output(pair_name, eval_result_with_timing, "eval_result", session_dir, timestamp_str)
+
+    result["eval_result"] = eval_result_with_timing
+    result["timing_snapshots"] = timing_snapshots
+    result["generated_map"] = all_generated_maps[0] if all_generated_maps else None
+    result["repeat_results"] = all_eval_results
+    result["success"] = True
+
+    # ============================================================
+    # E: Auto-generate per-pair Markdown report
+    # C: 自动生成每配对的 Markdown 报告
+    # ============================================================
     try:
-        # -------------------------------------------------
-        # E: Step 1: Whisper transcription
-        # C: 步骤 1: Whisper 转录
-        # -------------------------------------------------
-        print(f"  [1/3] Transcribing audio / 转录音频...")
-        if mcp_client is None:
-            raise RuntimeError("MCP Client not started / MCP Client 未启动")
+        from evaluation.core.data_loader import DataLoader
+        gold_map = DataLoader.from_map_file(gold_path) if gold_path else None
+        gen_map = DataLoader.from_flat_dict(result["generated_map"]) if result["generated_map"] else None
 
-        transcribe_result = await mcp_client.call_tool(
-            "transcribe_audio", {"file_path": os.path.abspath(audio_path)}
-        )
-        raw_text = ""
-        if isinstance(transcribe_result, dict):
-            raw_text = transcribe_result.get("raw_text", "").strip()
+        config_info = {
+            'pipeline': f"embedding={model_name}, τ={threshold}",
+            'audio': os.path.basename(audio_path),
+            'methods': ', '.join(selected_methods),
+            'repeat_count': str(repeat_count),
+            'successful_runs': str(len(all_eval_results)),
+        }
 
-        if not raw_text:
-            print(f"  [Skip / 跳过] Transcription is empty / 转录为空")
-            result["error"] = "Empty transcription / 空转录"
-            return result
-
-        # E: Save transcription / C: 保存转录文本
-        trans_path = os.path.join(session_dir, pair_name, "transcription.txt")
-        _ensure_dir(os.path.dirname(trans_path))
-        with open(trans_path, "w", encoding="utf-8") as f:
-            f.write(raw_text)
-        print(f"  ✓ Transcription saved / 转录已保存 ({len(raw_text)} chars / 字符)")
-
-        result["transcription"] = raw_text
-
-        # -------------------------------------------------
-        # E: Step 2: Mind map generation
-        # C: 步骤 2: 导图生成
-        # -------------------------------------------------
-        print(f"  [2/3] Generating mind map / 生成导图...")
-
-        chat_history = (
-            f"C: 【最高优先级指令】请根据以下语音转录文本生成思维导图。\n"
-            f"提取其中所有关键概念，并按层级组织。\n"
-            f"E: [Highest Priority Instruction] Please generate a mind map from the speech transcript below.\n"
-            f"Extract all key concepts and organize them hierarchically.\n\n"
-            f"C: 【转录文本 / Transcript】\n{raw_text}\n---\n"
-            f"E: [Transcript Text]\n{raw_text}\n---"
+        renderer = MarkdownReportRenderer(embedding_model=model_name, threshold=threshold)
+        report = renderer.render(
+            gold_map, gen_map, averaged_eval,
+            inclusion_list=selected_methods,
+            config_info=config_info,
         )
 
-        gen_result = await mcp_client.call_tool(
-            "modify_mind_map_v2",
-            {
-                "chat_history": chat_history,
-                "current_map": {"nodes": [], "links": []},
-                "session_ts": f"{timestamp_str}_{pair_name}",
-            },
+        # E: Save report to session dir / C: 保存报告到会话目录
+        pair_report_dir = os.path.join(session_dir, pair_name)
+        _ensure_dir(pair_report_dir)
+        report_path_session = os.path.join(pair_report_dir, "eval_report.md")
+        with open(report_path_session, "w", encoding="utf-8") as f:
+            f.write(report)
+        print(f"  ✓ Per-pair report saved / 配对报告已保存: {report_path_session}")
+
+        # E: Also save to evaluation/ root / C: 同时保存到 evaluation/ 根目录
+        report_path_root = os.path.join(
+            os.getcwd(), "evaluation",
+            f"eval_report_{pair_name}_{timestamp_str}.md"
         )
+        with open(report_path_root, "w", encoding="utf-8") as f:
+            f.write(report)
+        print(f"  ✓ Report saved / 报告已保存: {report_path_root}")
 
-        if not isinstance(gen_result, dict):
-            raise RuntimeError(f"Invalid map generation result / 导图生成返回无效: {type(gen_result)}")
+    except Exception as report_err:
+        print(f"  ⚠ Report generation failed / 报告生成失败: {report_err}")
 
-        # E: Save generated map / C: 保存生成导图
-        _save_dual_output(pair_name, gen_result, "generated_map", session_dir, timestamp_str)
-        node_count = len(gen_result.get("nodes", []))
-        print(f"  ✓ Map generated / 导图已生成 ({node_count} nodes / 节点)")
-
-        result["generated_map"] = gen_result
-
-        # -------------------------------------------------
-        # E: Step 3: Evaluation
-        # C: 步骤 3: 运行评估
-        # -------------------------------------------------
-        print(f"  [3/3] Running evaluation / 运行评估...")
-
-        eval_result = _run_evaluation_for_pair(
-            gold_path=gold_path,
-            gen_data=gen_result,
-            model_name=model_name,
-            threshold=threshold,
-            essential_concepts=essential_concepts,
-            selected_methods=selected_methods,
-        )
-
-        if "error" in eval_result:
-            print(f"  ✗ Evaluation failed / 评估失败: {eval_result['error']}")
-            result["error"] = eval_result["error"]
-            return result
-
-        # E: Save evaluation result including timing / C: 保存评估结果（含计时）
-        eval_result_with_timing = dict(eval_result)
-        eval_result_with_timing['timing_snapshots'] = timing_snapshots
-
-        # E: Run stand-alone efficiency evaluation with timing data / C: 用计时数据运行效率评估
-        if 'efficiency' in selected_methods:
-            try:
-                from evaluation.efficiency.eval_efficiency import evaluate_efficiency, EfficiencyStandards
-                st = EfficiencyStandards()
-                custom_stds = os.path.join(os.getcwd(), 'evaluation', 'data', 'standards', 'custom_standards.json')
-                if os.path.isfile(custom_stds):
-                    st = EfficiencyStandards(custom_stds)
-                eff_result = evaluate_efficiency(
-                    timing_snapshots=timing_snapshots,
-                    stt_text=result.get('transcription', ''),
-                    key_terms=None,
-                    standards=st,
-                )
-                eval_result_with_timing['efficiency'] = eff_result.to_dict()
-                print(f"    ✓ Efficiency evaluation complete / 效率评估完成: Total P50={eff_result.t_total_p50:.2f}s")
-            except Exception as e:
-                print(f"    [Efficiency] Auto-eval failed / 自动效率评估失败: {e}")
-
-        # E: Save evaluation result / C: 保存评估结果
-        _save_dual_output(pair_name, eval_result_with_timing, "eval_result", session_dir, timestamp_str)
-
-        result["eval_result"] = eval_result_with_timing
-        result["timing_snapshots"] = timing_snapshots
-        result["success"] = True
-
-        # E: Print summary / C: 打印摘要
-        nf1 = eval_result.get('label', {}).get('node_f1', 0) if isinstance(eval_result.get('label'), dict) else 0
-        ef1 = eval_result.get('hierarchy', {}).get('edge_f1', 0) if isinstance(eval_result.get('hierarchy'), dict) else 0
-        print(f"  ✓ Evaluation complete / 评估完成: Node-F1={nf1:.4f}, Edge-F1={ef1:.4f}")
-
-    except Exception as e:
-        print(f"  ✗ Pipeline failed / 管线失败: {e}")
-        import traceback
-        traceback.print_exc()
-        result["error"] = str(e)
+    # E: Print summary / C: 打印摘要
+    label_data = averaged_eval.get('label', {})
+    hier_data = averaged_eval.get('hierarchy', {})
+    nf1 = label_data.get('node_f1', 0) if isinstance(label_data, dict) else 0
+    ef1 = hier_data.get('edge_f1', 0) if isinstance(hier_data, dict) else 0
+    repeat_info = f", averaged over {len(all_eval_results)} runs" if repeat_count > 1 else ""
+    print(f"  ✓ Evaluation complete / 评估完成: Node-F1={nf1:.4f}, Edge-F1={ef1:.4f}{repeat_info}")
 
     return result
 
@@ -828,6 +1125,9 @@ class BatchEvaluator:
         model_name: str = "paraphrase-multilingual-MiniLM-L12-v2",
         threshold: float = 0.70,
         selected_methods: Optional[list[str]] = None,
+        gold_example_transcript: Optional[str] = None,
+        gold_example_json: Optional[str] = None,
+        repeat_count: int = 1,
     ):
         self.audio_dir = audio_dir
         self.gold_dir = gold_dir
@@ -835,6 +1135,9 @@ class BatchEvaluator:
         self.model_name = model_name
         self.threshold = threshold
         self.selected_methods = selected_methods or ['label', 'hierarchy', 'efficiency']
+        self.gold_example_transcript = gold_example_transcript
+        self.gold_example_json = gold_example_json
+        self.repeat_count = repeat_count
 
         self.mcp_client: Optional[MCPMindMapClient] = None
         self.session_ts: str = ""
@@ -890,6 +1193,8 @@ class BatchEvaluator:
         print(f"  Model / 模型: {self.model_name}")
         print(f"  Threshold / 阈值: {self.threshold}")
         print(f"  Methods / 方法: {', '.join(self.selected_methods)}")
+        if self.repeat_count > 1:
+            print(f"  Repeat Count / 重复次数: {self.repeat_count}")
         print("=" * 60)
 
         # E: Discover pairs / C: 发现配对
@@ -902,10 +1207,23 @@ class BatchEvaluator:
         # E: Start MCP / C: 启动 MCP
         await self.start_mcp()
 
+        # E: Format gold example context for batch mode / C: 批量模式下格式化黄金示例
+        gold_example_context = None
+        if self.gold_example_transcript and self.gold_example_json:
+            gold_example_context = _format_gold_example(
+                self.gold_example_transcript, self.gold_example_json
+            )
+            if gold_example_context:
+                print("  ✓ Gold example will be injected into batch generation prompts / 黄金示例将注入批量生成 prompt")
+
         # E: Load essential concepts for each pair / C: 加载每个配对的核心概念
         concepts_base_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "evaluation", "data", "concepts",
+        )
+        questions_base_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "evaluation", "data", "questions",
         )
 
         # E: Process each pair / C: 遍历处理
@@ -925,6 +1243,10 @@ class BatchEvaluator:
                 except Exception as e:
                     print(f"  ⚠ Concepts file load failed / 概念文件加载失败: {e}")
 
+            # E: Try to load paired questions / C: 尝试加载配对的问题集
+            qpath = os.path.join(questions_base_dir, f"{pair_name}_questions.json")
+            questions_path_in_batch = qpath if os.path.isfile(qpath) else None
+
             result = await _run_single_pipeline(
                 pair_name=pair_name,
                 audio_path=audio_path,
@@ -936,6 +1258,9 @@ class BatchEvaluator:
                 model_name=self.model_name,
                 threshold=self.threshold,
                 essential_concepts=batch_essential_concepts,
+                gold_example_context=gold_example_context,
+                questions_path=questions_path_in_batch,
+                repeat_count=self.repeat_count,
             )
             self.all_results.append(result)
 
@@ -1547,6 +1872,30 @@ def _interactive_workflow(auto_install: bool = False, ignore_missing: bool = Fal
                 print(f"  ⚠ Concepts load failed / 概念加载失败: {e}")
                 print("  Will auto-extract from gold node labels / 将使用金标准节点 label 自动提取")
 
+    # E: Gold example injection — optionally inject gold example into generation prompts
+    # C: 黄金示例注入 — 可选地将黄金示例注入到生成 prompt 中
+    gold_example_context = None
+    print(f"\n{'=' * 60}")
+    print("  黄金示例优化 / Gold Example Optimization")
+    print(f"{'=' * 60}")
+    print("  A gold example pair (transcript + gold mind map) can be injected into the ")
+    print("  generation prompt to guide the model toward producing maps with a similar structure.")
+    print("  黄金示例对（转录文本 + 金标准导图）可注入到生成 prompt 中，指导模型产出更符合")
+    print("  金标准结构的导图。")
+    print()
+    use_gold = input("  Use gold example for generation optimization? / 是否使用黄金示例优化生成? [y/N]: ").strip().lower()
+    if use_gold in ('y', 'yes'):
+        print()
+        transcript_path = input("  Enter transcript file path / 请输入转录文本文件路径 (e.g., results/transcript.txt): ").strip()
+        if transcript_path:
+            gold_json_path = input("  Enter gold mind map JSON file path / 请输入金标准导图 JSON 文件路径 (e.g., evaluation/data/gold/gold_example.json): ").strip()
+            if gold_json_path:
+                gold_example_context = _format_gold_example(transcript_path, gold_json_path)
+                if gold_example_context:
+                    print("  ✓ Gold example will be injected into generation prompts / 黄金示例将注入生成 prompt")
+                else:
+                    print("  ⚠ Gold example formatting failed, proceeding without it / 格式化失败，将不使用黄金示例")
+
     # E: Step 4: Execute pipeline
     # C: 步骤 4: 执行管线
     print(f"\n{'=' * 60}")
@@ -1583,6 +1932,8 @@ def _interactive_workflow(auto_install: bool = False, ignore_missing: bool = Fal
                 model_name=model_name,
                 threshold=threshold,
                 essential_concepts=essential_concepts,
+                gold_example_context=gold_example_context,
+                questions_path=uploaded_files.get('questions'),
             )
             return result
         finally:
@@ -1658,7 +2009,10 @@ def _interactive_workflow(auto_install: bool = False, ignore_missing: bool = Fal
 # C: 批量模式入口
 # ============================================================
 async def _run_batch(audio_dir: str, gold_dir: str, selected_methods: Optional[list[str]] = None,
-                    auto_install: bool = False, ignore_missing: bool = False):
+                    auto_install: bool = False, ignore_missing: bool = False,
+                    gold_example_transcript: Optional[str] = None,
+                    gold_example_json: Optional[str] = None,
+                    repeat_count: int = 1):
     """
     E: Batch evaluation mode entry — start BatchEvaluator
     C: 批量评估模式入口 — 启动 BatchEvaluator
@@ -1669,6 +2023,9 @@ async def _run_batch(audio_dir: str, gold_dir: str, selected_methods: Optional[l
         selected_methods: Evaluation methods to run / 要运行的评估方法
         auto_install: Auto-install missing dependencies / 自动安装缺失依赖
         ignore_missing: Continue despite missing dependencies / 忽略缺失继续执行
+        gold_example_transcript: Gold example transcript path / 黄金示例转录文本路径
+        gold_example_json: Gold example mind map JSON path / 黄金示例导图JSON路径
+        repeat_count: Number of independent runs per pair for averaging / 每配对独立运行次数取平均值
     """
     print("=" * 60)
     print("  AI MindMap Batch Evaluation Mode v2.0")
@@ -1676,6 +2033,10 @@ async def _run_batch(audio_dir: str, gold_dir: str, selected_methods: Optional[l
     print("=" * 60)
     print(f"  Audio dir / 音频目录: {audio_dir}")
     print(f"  Gold dir / 金标准目录: {gold_dir}")
+    if gold_example_transcript:
+        print(f"  Gold example transcript / 黄金示例转录: {gold_example_transcript}")
+    if gold_example_json:
+        print(f"  Gold example JSON / 黄金示例JSON: {gold_example_json}")
     print()
 
     methods = selected_methods or ['label', 'hierarchy', 'efficiency']
@@ -1690,6 +2051,9 @@ async def _run_batch(audio_dir: str, gold_dir: str, selected_methods: Optional[l
         audio_dir=audio_dir,
         gold_dir=gold_dir,
         selected_methods=methods,
+        gold_example_transcript=gold_example_transcript,
+        gold_example_json=gold_example_json,
+        repeat_count=repeat_count,
     )
     await evaluator.run_all()
 
@@ -1738,6 +2102,24 @@ def main():
         action="store_true",
         help="Continue despite missing dependencies / 忽略缺失依赖继续执行",
     )
+    parser.add_argument(
+        "--gold-example-transcript",
+        type=str,
+        default=None,
+        help="Gold example transcript .txt path (for batch mode) / 黄金示例转录文本路径（批量模式）",
+    )
+    parser.add_argument(
+        "--gold-example-json",
+        type=str,
+        default=None,
+        help="Gold example mind map .json path (for batch mode) / 黄金示例导图JSON路径（批量模式）",
+    )
+    parser.add_argument(
+        "--repeat",
+        type=int,
+        default=1,
+        help="Number of independent runs per pair for metric averaging / 每配对独立运行次数取平均值 (default: 1)",
+    )
 
     args = parser.parse_args()
 
@@ -1748,6 +2130,9 @@ def main():
         asyncio.run(_run_batch(
             args.audio_dir, args.gold_dir, selected_methods,
             auto_install=args.auto_install, ignore_missing=args.ignore_missing_deps,
+            gold_example_transcript=args.gold_example_transcript,
+            gold_example_json=args.gold_example_json,
+            repeat_count=args.repeat,
         ))
     else:
         # E: Interactive CLI mode (default) / C: 交互式 CLI 模式（默认）
@@ -1756,735 +2141,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-#!/usr/bin/env python3
-"""
-C: AI MindMap 质量评估工具 — 统一入口 (交互式 CLI + 批量模式)
-E: AI MindMap Quality Evaluation Tool — Unified Entry (Interactive CLI + Batch Mode)
-
-用法 / Usage:
-    cd /home/akku/ai-mindmap-agent
-    python evaluation/run_evaluation.py            # 交互式 CLI / Interactive CLI
-    python evaluation/run_evaluation.py --batch    # 批量评估模式 / Batch evaluation mode
-
-工作流程 / Workflow:
-    1. 提示用户选择评估方法（多选）/ Prompt user to select evaluation methods (multi-select)
-    2. 自动检测 / 手动输入文件路径 / Auto-detect or manually enter file paths
-    3. 执行评估（带进度条）/ Execute evaluation (with progress bar)
-    4. 输出详细 Markdown 报告 / Output detailed Markdown report
-"""
-import sys
-import os
-import argparse
-
-# C: 确保可以 import 项目根目录下的模块
-# E: Ensure project root is importable
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from datetime import datetime
-
-from evaluation.core.data_loader import DataLoader, MindMapData
-from evaluation.core.aligner import HungarianAligner
-from evaluation.utils.console_utils import (
-    interactive_multiselect,
-    prompt_file,
-    prompt_float,
-    prompt_str,
-    auto_detect_files,
-    ProgressTracker,
-    print_results_table,
-)
-from evaluation.report.markdown_renderer import MarkdownReportRenderer
-
-
-def _run_example_demo():
-    """
-    C: 示例演示模式 — 使用内置示例数据走通全流程，无需用户输入
-    E: Example demo mode — runs full pipeline with built-in example data, no user input
-
-    自动执行以下步骤 / Automatically executes:
-    1. 加载金标准导图、核心概念、问题集等所有示例数据
-    2. 对金标准节点 label 做轻微扰动以模拟生成导图
-    3. 完整执行 label / hierarchy / qa / efficiency / multilingual / human_corr 评估
-    4. 生成带 **example** 标记的 Markdown 评估报告
-    """
-    import json
-    import copy
-    import random
-    import os
-    from evaluation.core.data_loader import DataLoader
-    from evaluation.core.aligner import HungarianAligner
-    from evaluation.report.markdown_renderer import MarkdownReportRenderer
-
-    print("=" * 60)
-    print("  §0 示例演示模式 / Example Demo Mode")
-    print("=" * 60)
-    print("  使用内置示例数据自动执行完整评估流程")
-    print("  Running full evaluation with built-in example data")
-    print()
-
-    # C: 固定配置参数 / E: Fixed config
-    model_name = "paraphrase-multilingual-MiniLM-L12-v2"
-    threshold = 0.70
-
-    # =========================================================
-    # C: 步骤 1 — 加载所有示例数据
-    # E: Step 1 — Load all example data
-    # =========================================================
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(os.path.dirname(base_dir), "evaluation", "data")
-
-    # C: 金标准导图 / E: Gold standard map
-    gold_path = os.path.join(data_dir, "gold", "gold_example.json")
-    gold_map = DataLoader.from_map_file(gold_path)
-    if gold_map is None:
-        print("  ✗ 金标准加载失败，请确认 evaluation/data/gold/gold_example.json 存在")
-        return
-    print(f"  ✓ 金标准加载成功 / Gold loaded: {gold_map.node_count} 节点/nodes")
-
-    # C: 核心概念集合 / E: Essential concepts
-    concepts_path = os.path.join(data_dir, "concepts", "example_essential_concepts.json")
-    essential_concepts = None
-    if os.path.isfile(concepts_path):
-        with open(concepts_path) as f:
-            concepts_data = json.load(f)
-        essential_concepts = concepts_data.get("concepts", [])
-        print(f"  ✓ 核心概念加载成功 / Concepts loaded: {len(essential_concepts)} 项/items")
-
-    # C: 生成模拟导图（对金标准节点 label 做轻微扰动）
-    # E: Generate simulated map (slightly perturb gold node labels)
-    print("  正在生成模拟导图 / Generating simulated map...")
-    gen_dict = _generate_example_map(gold_map)
-    gen_map = DataLoader.from_flat_dict(gen_dict)
-    print(f"  ✓ 模拟导图已生成 / Simulated map generated: {gen_map.node_count} 节点/nodes")
-
-    aligner = HungarianAligner(model_name=model_name, threshold=threshold)
-
-    # =========================================================
-    # C: 步骤 2 — 执行所有维度评估
-    # E: Step 2 — Execute all dimension evaluations
-    # =========================================================
-    results = {}
-    selected_dims = ["label", "hierarchy", "qa", "efficiency", "multilingual", "human_corr"]
-    progress = ProgressTracker(total=len(selected_dims))
-
-    # --- §1 节点标签质量 ---
-    progress.start("节点标签质量 / Node Label Quality")
-    try:
-        from evaluation.label.eval_label import evaluate_label_quality
-        label_result = evaluate_label_quality(gold_map, gen_map, aligner, essential_concepts)
-        results["label"] = label_result.to_dict()
-        print(f"    Node-F1: {label_result.node_f1:.4f}  Node-P: {label_result.node_precision:.4f}")
-        progress.complete("节点标签质量 / Node Label Quality")
-    except Exception as e:
-        print(f"    [错误 / Error] {e}")
-        progress.complete("节点标签质量 / Node Label Quality", status="失败 / Failed")
-
-    # --- §2 层级结构 ---
-    progress.start("层级结构正确率 / Hierarchy Accuracy")
-    try:
-        from evaluation.hierarchy.eval_hierarchy import evaluate_hierarchy_quality
-        alignment = aligner.align(gold_map.nodes, gen_map.nodes)
-        hier_result = evaluate_hierarchy_quality(gold_map, gen_map, alignment)
-        results["hierarchy"] = hier_result.to_dict()
-        print(f"    Edge-F1: {hier_result.edge_f1:.4f}  UAS: {hier_result.uas:.4f}")
-        progress.complete("层级结构正确率 / Hierarchy Accuracy")
-    except Exception as e:
-        print(f"    [错误 / Error] {e}")
-        progress.complete("层级结构正确率 / Hierarchy Accuracy", status="失败 / Failed")
-
-    # --- §3 下游 QA ---
-    progress.start("下游 QA 测试 / Downstream QA")
-    try:
-        questions_path = os.path.join(data_dir, "questions", "example_questions.json")
-        questions = []
-        if os.path.isfile(questions_path):
-            with open(questions_path) as f:
-                qdata = json.load(f)
-            questions = qdata.get("questions", [])
-        from evaluation.qa.eval_qa import QAEvaluator
-        qa_eval = QAEvaluator()
-        qa_result = qa_eval.evaluate("", gen_map.nodes, questions)
-        results["qa"] = qa_result.to_dict()
-        print(f"    QA Retention: {qa_result.qa_retention:.4f}")
-        progress.complete("下游 QA 测试 / Downstream QA")
-    except Exception as e:
-        print(f"    [错误 / Error] {e}")
-        progress.complete("下游 QA 测试 / Downstream QA", status="失败 / Failed")
-
-    # --- §4 效率与 STT ---
-    progress.start("效率与 STT 保真度 / Efficiency & STT Fidelity")
-    try:
-        from evaluation.efficiency.eval_efficiency import evaluate_efficiency
-        timing_logs = None
-        key_terms = None
-        timing_path = os.path.join(data_dir, "timing", "example_timing_logs.json")
-        terms_path = os.path.join(data_dir, "timing", "example_key_terms.json")
-        if os.path.isfile(timing_path):
-            with open(timing_path) as f:
-                td = json.load(f)
-            timing_logs = []
-            for run in td.get("runs", []):
-                for stage in run.get("stages", []):
-                    timing_logs.append({
-                        "stage": stage["stage"],
-                        "start": stage["start"],
-                        "end": stage["end"],
-                    })
-        if os.path.isfile(terms_path):
-            with open(terms_path) as f:
-                kd = json.load(f)
-            key_terms = kd.get("key_terms", [])
-        eff_result = evaluate_efficiency(
-            timing_logs=timing_logs,
-            stt_text="这是一个示例转录文本，用于演示 STT 评估功能",
-            ground_truth_text="这是一个示例转录文本，用于演示 STT 评估功能",
-            key_terms=key_terms,
-        )
-        results["efficiency"] = eff_result.to_dict()
-        print(f"    WER: {eff_result.wer:.4f}  KTRR: {eff_result.ktrr:.4f}")
-        progress.complete("效率与 STT 保真度 / Efficiency & STT Fidelity")
-    except Exception as e:
-        print(f"    [错误 / Error] {e}")
-        progress.complete("效率与 STT 保真度 / Efficiency & STT Fidelity", status="失败 / Failed")
-
-    # --- §5 多语言与鲁棒性 ---
-    progress.start("多语言与鲁棒性 / Multilingual & Robustness")
-    try:
-        from evaluation.multilingual.eval_multilingual import evaluate_multilingual
-        cn_data = en_data = mixed_data = noise_data = None
-        def _load_results(fp):
-            if os.path.isfile(fp):
-                with open(fp) as f:
-                    d = json.load(f)
-                return d.get("results", [])
-            return None
-        m_dir = os.path.join(data_dir, "multilingual")
-        cn_data = _load_results(os.path.join(m_dir, "example_cn_results.json"))
-        en_data = _load_results(os.path.join(m_dir, "example_en_results.json"))
-        mixed_data = _load_results(os.path.join(m_dir, "example_mixed_results.json"))
-        noise_data = _load_results(os.path.join(m_dir, "example_noise_results.json"))
-
-        cn_avg = {"entity_recall": 0, "label_sim": 0, "pc_f1": 0} if cn_data else None
-        if cn_data:
-            cn_avg = {k: sum(d[k] for d in cn_data)/len(cn_data) for k in ["entity_recall","label_sim","pc_f1"]}
-        en_avg = {"entity_recall": 0, "label_sim": 0, "pc_f1": 0} if en_data else None
-        if en_data:
-            en_avg = {k: sum(d[k] for d in en_data)/len(en_data) for k in ["entity_recall","label_sim","pc_f1"]}
-        mx_avg = {"entity_recall": 0, "label_sim": 0, "pc_f1": 0} if mixed_data else None
-        if mixed_data:
-            mx_avg = {k: sum(d[k] for d in mixed_data)/len(mx_avg) for k in ["entity_recall","label_sim","pc_f1"]}
-
-        multi_result = evaluate_multilingual(
-            cn_results=cn_avg, en_results=en_avg, mixed_results=mx_avg,
-            noise_test_results=noise_data,
-        )
-        results["multilingual"] = multi_result.to_dict()
-        print(f"    max_delta_recall: {multi_result.max_delta_recall:.4f}")
-        progress.complete("多语言与鲁棒性 / Multilingual & Robustness")
-    except Exception as e:
-        print(f"    [错误 / Error] {e}")
-        progress.complete("多语言与鲁棒性 / Multilingual & Robustness", status="失败 / Failed")
-
-    # --- §6 人工评估 ---
-    progress.start("人工评估相关性 / Human Evaluation Correlation")
-    try:
-        human_path = os.path.join(data_dir, "human_scores", "example_human_scores.json")
-        human_scores_list = None
-        if os.path.isfile(human_path):
-            with open(human_path) as f:
-                hdata = json.load(f)
-            human_scores_list = hdata.get("samples", [])
-            print(f"  ✓ 人工评分数据加载成功: {len(human_scores_list)} 样本/samples")
-
-        from evaluation.human_correlation.eval_human_correlation import evaluate_human_correlation
-        # NOTE: Per-sample automated scores not available yet;
-        # passing None avoids creating constant arrays from aggregate
-        # values that would trigger ConstantInputWarning.
-        auto_scores_list = None
-
-        hc_result = evaluate_human_correlation(automated_scores=auto_scores_list, human_scores=human_scores_list)
-        results["human_corr"] = hc_result.to_dict()
-        print(f"    Pearson r: {hc_result.node_f1_readability_r:.4f}")
-        progress.complete("人工评估相关性 / Human Evaluation Correlation")
-    except Exception as e:
-        print(f"    [错误 / Error] {e}")
-        progress.complete("人工评估相关性 / Human Evaluation Correlation", status="失败 / Failed")
-
-    # =========================================================
-    # C: 步骤 3 — 生成带 **example** 标记的报告
-    # E: Step 3 — Generate report with **example** markers
-    # =========================================================
-    print()
-    print("=" * 60)
-    print("  生成评估报告 / Generating Evaluation Report")
-    print("=" * 60)
-
-    config_info = {"pipeline": f"embedding={model_name}, threshold={threshold} (示例演示 / Example Demo)"}
-    renderer = MarkdownReportRenderer(embedding_model=model_name, threshold=threshold)
-    report = renderer.render(
-        gold_map, gen_map, results,
-        inclusion_list=selected_dims,
-        config_info=config_info,
-        example_mode=True,
-    )
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_path = os.path.join("evaluation", f"eval_report_example_{timestamp}.md")
-    with open(report_path, "w", encoding="utf-8") as f:
-        f.write(report)
-    print(f"\n  ✓ 报告已保存 / Report saved: {report_path}")
-
-    # =========================================================
-    # C: 步骤 4 — 打印完成信息
-    # E: Step 4 — Print completion info
-    # =========================================================
-    print()
-    print("=" * 60)
-    print("  示例演示已完成 / Example Demo Complete")
-    print(f"  报告文件 / Report file: {report_path}")
-    print("=" * 60)
-    print()
-    print("  📋 说明 / Notes:")
-    print("    1. 演示使用内置示例数据，结果仅供参考")
-    print("    1. Demo uses built-in example data, results are for reference only")
-    print("    2. 报告中所有数值均标记为 **example**，以区别于正式评估")
-    print("    2. All values in the report are marked **example** to distinguish from formal evaluations")
-    print("    3. 上传真实数据后，通过交互式或批量模式获得正式评估结果")
-    print("    3. Upload real data for formal evaluations via interactive or batch mode")
-    print()
-
-
-def _generate_example_map(gold_map) -> dict:
-    import random
-    import copy
-    """
-    C: 对金标准导图做轻微扰动，生成模拟的生成导图
-    E: Slightly perturb the gold standard map to generate a simulated map
-
-    扰动策略 / Perturbation strategy:
-    - 30% 概率替换中文字符为相近字
-    - 20% 概率删除或添加一个词
-    - 保留节点结构和层级关系
-    """
-    random.seed(42)
-
-    nodes = []
-    for n in gold_map.nodes:
-        new_node = copy.deepcopy(n)
-        label = new_node.get("label", "")
-        if label:
-            chars = []
-            for ch in label:
-                if "\u4e00" <= ch <= "\u9fff" and random.random() < 0.3:
-                    # C: 替换为相近的中文字符 / E: Replace with nearby Chinese char
-                    offset = random.choice([-1, 1, -2, 2])
-                    new_ch = chr(ord(ch) + offset)
-                    if "\u4e00" <= new_ch <= "\u9fff":
-                        chars.append(new_ch)
-                    else:
-                        chars.append(ch)
-                else:
-                    chars.append(ch)
-            new_label = "".join(chars)
-            if new_label != label and random.random() < 0.5:
-                new_label = new_label + " " if random.random() < 0.5 else new_label
-            new_node["label"] = new_label
-        nodes.append(new_node)
-
-    links = []
-    for n in nodes:
-        pid = n.get("parent_id")
-        if pid:
-            links.append({"source": pid, "target": n["id"]})
-
-    tree_nodes = _build_nested_tree(nodes)
-
-    return {"nodes": nodes, "links": links, "tree": tree_nodes}
-
-
-def _build_nested_tree(nodes: list) -> list:
-    """C: 将扁平节点列表构建为 G6 嵌套树格式 / E: Build nested tree from flat nodes"""
-    node_map = {n["id"]: dict(n) for n in nodes}
-    root_nodes = []
-    for nid, node in node_map.items():
-        pid = node.get("parent_id")
-        if pid is None:
-            root_nodes.append(node)
-        node["children"] = []
-    for nid, node in node_map.items():
-        pid = node.get("parent_id")
-        if pid and pid in node_map:
-            node_map[pid]["children"].append(node)
-    # C: 排序子节点 / E: Sort children
-    for nid, node in node_map.items():
-        node["children"].sort(key=lambda x: x.get("label", ""))
-    # C: 清理临时字段 / E: Clean up temporary fields
-    for nid, node in node_map.items():
-        for key in ["__note", "__note_en", "details", "metadata", "parent_id"]:
-            node.pop(key, None)
-    return root_nodes
-def main():
-    print("=" * 60)
-    print("  AI MindMap 质量评估工具 v1.0 / AI MindMap Quality Evaluation Tool v1.0")
-    print("=" * 60)
-
-    # C: 步骤 1: 选择评估方法 / E: Step 1: Select evaluation methods
-    # =========================================================
-    available_metrics = {
-        'example': '§0 示例演示模式 / Example Demo Mode (使用内置示例数据走通全流程)',
-        'label': '§1 节点标签质量 / Node Label Quality (Node-P/R/F1, LabelSim, Entity Recall)',
-        'hierarchy': '§2 层级结构正确率 / Hierarchy Accuracy (Edge-P/R/F1, UAS, nTED, PC-F1, LAR)',
-        'qa': '§3 下游 QA 测试 / Downstream QA (需要预置问题集 / requires question set)',
-        'efficiency': '§4 效率与 STT 保真度 / Efficiency & STT Fidelity (延迟/WER/KTRR, 需要计时日志 / requires timing logs)',
-        'multilingual': '§5 多语言与鲁棒性 / Multilingual & Robustness (需要多语言测试集 / requires multilingual test sets)',
-        'human_corr': '§6 人工评估相关性 / Human Evaluation Correlation (需要人工评分数据 / requires human scoring data)',
-        'full': '§7 全量报告 / Full Report (汇总以上所有 + 综合评分 / summarize all + composite score)',
-    }
-
-    selected = interactive_multiselect("步骤 1: 选择评估方法 / Step 1: Select Evaluation Methods", available_metrics)
-
-    # C: 示例演示模式 — 独立处理，自动走完全部维度
-    # E: Example demo mode — standalone, runs all dimensions automatically
-    if 'example' in selected:
-        _run_example_demo()
-        return
-
-    if 'full' in selected:
-        selected = [k for k in available_metrics if k != 'full']
-
-    if not selected:
-        print("\n[!] 未选择任何评估方法，退出。/ No evaluation method selected, exiting.")
-        sys.exit(0)
-
-    print(f"\n  已选择 / Selected: {', '.join(selected)}")
-
-    # C: 步骤 2: 输入文件检测 / E: Step 2: Input File Detection
-    # =========================================================
-    print(f"\n{'=' * 60}")
-    print("  步骤 2: 输入文件检测 / Step 2: Input File Detection")
-    print(f"{'=' * 60}")
-
-    gold_path, gen_path = auto_detect_files()
-
-    need_gold = any(k in selected for k in ('label', 'hierarchy'))
-    need_gen = True
-
-    if need_gold:
-        gold_path = prompt_file("金标准导图 / Gold Tree", gold_path, required=True)
-    else:
-        print("\n[金标准导图 / Gold Tree] 当前选择无需金标准，跳过。/ Gold standard not required for current selection, skipping.")
-
-    gen_path = prompt_file("生成导图 / Generated Map", gen_path, required=True)
-
-    # C: 加载数据 / E: Load data
-    gold_map = None
-    if gold_path:
-        gold_map = DataLoader.from_map_file(gold_path)
-        if gold_map:
-            print(f"  ✓ 金标准加载成功 / Gold loaded successfully: {gold_map.node_count} 节点/nodes, {gold_map.link_count} 边/edges")
-        else:
-            print(f"  ✗ 金标准加载失败 / Gold load failed: {gold_path}")
-            if need_gold:
-                print("  [!] 金标准为必需，退出。/ Gold standard required, exiting.")
-                sys.exit(1)
-
-    gen_map = None
-    if gen_path:
-        gen_map = DataLoader.from_map_file(gen_path)
-        if gen_map:
-            print(f"  ✓ 生成导图加载成功 / Generated map loaded: {gen_map.node_count} 节点/nodes, {gen_map.link_count} 边/edges")
-        else:
-            print(f"  ✗ 生成导图加载失败 / Generated map load failed: {gen_path}")
-            sys.exit(1)
-
-    if gen_map is None or gen_map.node_count == 0:
-        print("\n[!] 生成导图为空，退出。/ Generated map is empty, exiting.")
-        sys.exit(1)
-
-    # C: 额外参数 / E: Additional parameters
-    essential_concepts = None
-    if 'label' in selected:
-        print()
-        print("  [Entity Recall] 核心概念集合 Es / Essential Concepts Set")
-        print("  " + "=" * 52)
-        print("  输入概念列表（逗号分隔），用于 §1.4 Entity Recall 评估。")
-        print("  Enter a comma-separated list of concepts for §1.4 Entity Recall.")
-        print("  建议使用 evaluation/data/concepts/ 下的标准 Es.json 文件内容。")
-        print("  Recommended: use content from a standard Es.json file in evaluation/data/concepts/.")
-        print("  留空则自动从金标准节点 label 提取作为后备。")
-        print("  Leave empty to auto-extract from gold standard node labels as fallback.")
-        print("  " + "=" * 52)
-        raw = input("  > 概念 / Concepts: ").strip()
-        if raw:
-            essential_concepts = [c.strip() for c in raw.split(',') if c.strip()]
-            print(f"  已接收 {len(essential_concepts)} 个概念 / Received {len(essential_concepts)} concepts")
-        else:
-            print("  未输入，将使用金标准节点 label 自动提取")
-            print("  No input, will auto-extract from gold standard node labels")
-
-    # C: 配置共享基础设施 / E: Configure shared infrastructure
-    # =========================================================
-    print(f"\n{'=' * 60}")
-    print("  评估配置 / Evaluation Configuration")
-    print(f"{'=' * 60}")
-
-    model_name = prompt_str("Embedding 模型名称 / Embedding Model Name",
-                            default="paraphrase-multilingual-MiniLM-L12-v2")
-    threshold = prompt_float("相似度阈值 τ / Similarity Threshold τ", default=0.70, min_val=0.0, max_val=1.0)
-
-    aligner = HungarianAligner(model_name=model_name, threshold=threshold)
-
-    # C: 步骤 3: 执行评估 / E: Step 3: Execute Evaluation
-    # =========================================================
-    print(f"\n{'=' * 60}")
-    print("  步骤 3: 执行评估 / Step 3: Execute Evaluation")
-    print(f"{'=' * 60}")
-
-    progress = ProgressTracker(total=len(selected))
-    results = {}
-
-    # C: --- §1 节点标签质量 / §1 Node Label Quality ---
-    if 'label' in selected and gold_map:
-        progress.start('label')
-        try:
-            from evaluation.label.eval_label import evaluate_label_quality
-            label_result = evaluate_label_quality(gold_map, gen_map, aligner, essential_concepts)
-            results['label'] = label_result.to_dict()
-            print(f"    Node-F1: {label_result.node_f1:.4f}  "
-                  f"Node-P: {label_result.node_precision:.4f}  "
-                  f"Node-R: {label_result.node_recall:.4f}")
-            print(f"    LabelSim: {label_result.label_sim:.4f}  "
-                  f"Entity Recall: {label_result.entity_recall:.4f}")
-            progress.complete('节点标签质量 / Node Label Quality')
-        except Exception as e:
-            print(f"    [错误 / Error] {e}")
-            progress.complete('节点标签质量 / Node Label Quality', status='失败 / Failed')
-
-    elif 'label' in selected and not gold_map:
-        print("\n  [跳过 / Skip] §1 需要金标准树。/ §1 requires gold tree.")
-
-    # C: --- §2 层级结构正确率 / §2 Hierarchy Structure Accuracy ---
-    if 'hierarchy' in selected and gold_map:
-        progress.start('hierarchy')
-        try:
-            alignment = None
-            if 'label' in results:
-                # 复用 label 评估的对齐结果
-                label_metrics_module = results['label']
-                from evaluation.core.aligner import AlignmentResult
-                # 如果没有缓存 alignment，需要重新对齐
-                alignment = aligner.align(gold_map.nodes, gen_map.nodes)
-            else:
-                alignment = aligner.align(gold_map.nodes, gen_map.nodes)
-
-            from evaluation.hierarchy.eval_hierarchy import evaluate_hierarchy_quality
-            hier_result = evaluate_hierarchy_quality(gold_map, gen_map, alignment)
-            results['hierarchy'] = hier_result.to_dict()
-            print(f"    Edge-F1: {hier_result.edge_f1:.4f}  "
-                  f"UAS: {hier_result.uas:.4f}  "
-                  f"nTED: {hier_result.nted:.4f}" if hier_result.nted is not None else f"nTED: N/A")
-            progress.complete('层级结构正确率 / Hierarchy Accuracy')
-        except Exception as e:
-            print(f"    [错误 / Error] {e}")
-            import traceback
-            traceback.print_exc()
-            progress.complete('层级结构正确率 / Hierarchy Accuracy', status='失败 / Failed')
-
-    elif 'hierarchy' in selected and not gold_map:
-        print("\n  [跳过 / Skip] §2 需要金标准树。/ §2 requires gold tree.")
-
-    # C: --- §3 下游 QA / §3 Downstream QA ---
-    if 'qa' in selected:
-        progress.start('qa')
-        print()
-        print("  [§3 下游 QA / Downstream QA]")
-        print("  " + "=" * 52)
-        print("  需要上传预置问答问题集（questions_*.json）至 evaluation/data/questions/")
-        print("  Requires uploading a question set (questions_*.json) to evaluation/data/questions/")
-        print("  参见示例文件 / See example: evaluation/data/questions/example_questions.json")
-        print("  " + "=" * 52)
-        try:
-            from evaluation.qa.eval_qa import QAEvaluator
-            qa_eval = QAEvaluator()
-            # C: 需要 transcript 和 questions，目前使用默认值执行（不中断）
-            # E: Requires transcript and questions, using defaults (non-blocking)
-            qa_result = qa_eval.evaluate("", gen_map.nodes, [])
-            results['qa'] = qa_result.to_dict()
-            progress.complete('下游 QA 测试 / Downstream QA', status='已执行（需预置问题集）/ Executed (question set required)')
-        except Exception as e:
-            print(f"    [错误 / Error] {e}")
-            progress.complete('下游 QA 测试 / Downstream QA', status='失败 / Failed')
-
-    # C: --- §4 效率与 STT / §4 Efficiency & STT ---
-    if 'efficiency' in selected:
-        progress.start('efficiency')
-        print()
-        print("  [§4 效率与 STT / Efficiency & STT]")
-        print("  " + "=" * 52)
-        print("  可上传以下文件至 evaluation/data/timing/ 以获得完整评估：")
-        print("  Upload the following to evaluation/data/timing/ for full evaluation:")
-        print("    1. timing_logs.json — 分阶段计时日志 / Per-stage timing logs")
-        print("    2. reference_transcript.txt — 人工转写标准文本 / Reference transcript")
-        print("    3. key_terms.json — 关键术语列表 / Key terms list")
-        print("  未提供时使用默认值运行，不中断流程。")
-        print("  Runs with defaults if not provided, will not interrupt.")
-        print("  参见示例文件 / See examples: evaluation/data/timing/")
-        print("  " + "=" * 52)
-        try:
-            from evaluation.efficiency.eval_efficiency import evaluate_efficiency
-            eff_result = evaluate_efficiency()
-            results['efficiency'] = eff_result.to_dict()
-            progress.complete('效率与 STT 保真度 / Efficiency & STT Fidelity', status='已执行（默认值）/ Executed (defaults)')
-        except Exception as e:
-            print(f"    [错误 / Error] {e}")
-            progress.complete('效率与 STT 保真度 / Efficiency & STT Fidelity', status='失败 / Failed')
-
-    # C: --- §5 多语言 / §5 Multilingual ---
-    if 'multilingual' in selected:
-        progress.start('multilingual')
-        print()
-        print("  [§5 多语言与鲁棒性 / Multilingual & Robustness]")
-        print("  " + "=" * 52)
-        print("  可上传以下文件至 evaluation/data/multilingual/：")
-        print("  Upload the following to evaluation/data/multilingual/:")
-        print("    1. cn_results.json — 纯中文测试集结果 / Chinese-only results")
-        print("    2. en_results.json — 纯英文测试集结果 / English-only results")
-        print("    3. mixed_results.json — 中英混合测试集结果 / Mixed results")
-        print("    4. noise_results.json — 噪声测试结果 / Noise test results")
-        print("  未提供时使用默认值运行，不中断流程。")
-        print("  Runs with defaults if not provided, will not interrupt.")
-        print("  参见示例文件 / See examples: evaluation/data/multilingual/")
-        print("  " + "=" * 52)
-        try:
-            from evaluation.multilingual.eval_multilingual import evaluate_multilingual
-            multi_result = evaluate_multilingual()
-            results['multilingual'] = multi_result.to_dict()
-            progress.complete('多语言与鲁棒性 / Multilingual & Robustness', status='已执行（默认值）/ Executed (defaults)')
-        except Exception as e:
-            print(f"    [错误 / Error] {e}")
-            progress.complete('多语言与鲁棒性 / Multilingual & Robustness', status='失败 / Failed')
-
-    # C: --- §6 人工评估 / §6 Human Evaluation ---
-    if 'human_corr' in selected:
-        progress.start('human_corr')
-        print()
-        print("  [§6 人工评估对齐 / Human Evaluation Alignment]")
-        print("  " + "=" * 52)
-        print("  需要上传人工评分数据至 evaluation/data/human_scores/")
-        print("  Requires uploading human scoring data to evaluation/data/human_scores/")
-        print("  包含 / Contains: readability, hierarchy_intuitiveness, information_density 等维度")
-        print("  参见示例文件 / See example: evaluation/data/human_scores/example_human_scores.json")
-        print("  未提供时使用默认值运行，不中断流程。")
-        print("  Runs with defaults if not provided, will not interrupt.")
-        print("  " + "=" * 52)
-        try:
-            from evaluation.human_correlation.eval_human_correlation import evaluate_human_correlation
-            hc_result = evaluate_human_correlation()
-            results['human_corr'] = hc_result.to_dict()
-            progress.complete('人工评估相关性 / Human Evaluation Correlation', status='已执行（默认值）/ Executed (defaults)')
-        except Exception as e:
-            print(f"    [错误 / Error] {e}")
-            progress.complete('人工评估相关性 / Human Evaluation Correlation', status='失败 / Failed')
-
-    # C: 步骤 4: 生成报告 / E: Step 4: Generate Report
-    # =========================================================
-    print(f"\n{'=' * 60}")
-    print("  步骤 4: 生成评估报告 / Step 4: Generate Evaluation Report")
-    print(f"{'=' * 60}")
-
-    config_info = {
-        'pipeline': f"embedding={model_name}, τ={threshold}",
-    }
-
-    renderer = MarkdownReportRenderer(embedding_model=model_name, threshold=threshold)
-    report = renderer.render(gold_map, gen_map, results,
-                             inclusion_list=selected,
-                             config_info=config_info)
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_path = os.path.join("evaluation", f"eval_report_{timestamp}.md")
-    try:
-        with open(report_path, 'w', encoding='utf-8') as f:
-            f.write(report)
-        print(f"\n  ✓ 报告已保存 / Report saved: {report_path}")
-    except Exception as e:
-        print(f"\n  ✗ 报告写入失败 / Report write failed: {e}")
-
-    # C: 终端显示摘要 / E: Show summary in terminal
-    show_summary = input("\n  在终端显示报告摘要？/ Show report summary in terminal? [Y/n]: ").strip().lower()
-    if show_summary in ('', 'y', 'yes'):
-        print_results_table(results)
-
-    # C: 输出摘要指标 / E: Output summary metrics
-    print(f"\n{'=' * 60}")
-    print("  评估完成！/ Evaluation Complete!")
-    print(f"  报告文件 / Report file: {report_path}")
-    print(f"{'=' * 60}")
-
-    # C: 推荐下一步 / E: Recommended next steps
-    print("\n  📋 推荐下一步 / Recommended Next Steps:")
-    if not gold_path:
-        print("    1. 将金标准导图放入 evaluation/data/gold/ 目录，以便自动检测 / Place gold map in evaluation/data/gold/ for auto-detection")
-    print("    2. 查看生成的 Markdown 评估报告 / Review the generated Markdown evaluation report")
-    print("    3. 上传金标准树集合后，可执行完整评估并获得诊断建议 / Upload gold tree set for complete evaluation with diagnostic suggestions")
-    print()
-
-
-# C: 批量评估模式入口 / E: Batch evaluation mode entry
-def _run_batch(audio_dir: str, gold_dir: str):
-    """
-    C: 批量评估模式入口 — 启动 BatchEvaluator
-    E: Batch evaluation mode entry — start BatchEvaluator
-    """
-    import asyncio
-    from evaluation.batch_evaluate import BatchEvaluator
-
-    print("=" * 60)
-    print("  AI MindMap 批量评估模式 v1.0")
-    print("  AI MindMap Batch Evaluation Mode")
-    print("=" * 60)
-    print(f"  音频目录 / Audio dir: {audio_dir}")
-    print(f"  金标准目录 / Gold dir: {gold_dir}")
-    print()
-
-    evaluator = BatchEvaluator(
-        audio_dir=audio_dir,
-        gold_dir=gold_dir,
-    )
-    asyncio.run(evaluator.run_all())
-
-
-if __name__ == '__main__':
-    # C: 解析命令行参数 / E: Parse command line arguments
-    parser = argparse.ArgumentParser(
-        description="AI MindMap 质量评估工具 / AI MindMap Quality Evaluation Tool"
-    )
-    parser.add_argument(
-        "--batch",
-        action="store_true",
-        help="批量评估模式 / Batch evaluation mode",
-    )
-    parser.add_argument(
-        "--audio-dir",
-        type=str,
-        default="evaluation/data/audio",
-        help="音频文件目录（--batch 模式下使用）/ Audio file directory (used in --batch mode)",
-    )
-    parser.add_argument(
-        "--gold-dir",
-        type=str,
-        default="evaluation/data/gold",
-        help="金标准文件目录（--batch 模式下使用）/ Gold standard directory (used in --batch mode)",
-    )
-
-    args = parser.parse_args()
-
-    if args.batch:
-        # C: 批量评估模式 / E: Batch evaluation mode
-        _run_batch(args.audio_dir, args.gold_dir)
-    else:
-        # C: 交互式 CLI 模式（默认）/ E: Interactive CLI mode (default)
-        main()
-
-
-# C: 示例演示模式入口 / E: Example demo mode entry

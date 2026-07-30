@@ -1,0 +1,138 @@
+{
+  "tree": [
+    {
+      "id": "node_app_interface",
+      "label": "App Interface",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户评分: 8/10",
+        "所有功能易于找到",
+        "非常直观(Intuitive)",
+        "无需预先学习即可使用",
+        "设计非常清晰(Clear)"
+      ],
+      "parent_id": null,
+      "collapsed": false,
+      "children": [
+        {
+          "id": "node_login_interface",
+          "label": "Login Interface",
+          "color": "var(--node-orange)",
+          "details": [
+            "需要改进的细节",
+            "有一些小问题需要优化",
+            "但不影响整体正面评价"
+          ],
+          "parent_id": "node_app_interface",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        },
+        {
+          "id": "node_function_accessibility",
+          "label": "Function Accessibility",
+          "color": "var(--node-green)",
+          "details": [
+            "无需学习即可找到",
+            "功能位置直观",
+            "用户可以轻松找到所需功能"
+          ],
+          "parent_id": "node_app_interface",
+          "collapsed": false,
+          "children": [],
+          "_isVirtual": false,
+          "_isRoot": false,
+          "_depth": 1,
+          "_hasChildren": false,
+          "x": null,
+          "y": null,
+          "userPositioned": false,
+          "link_type": "solid"
+        }
+      ],
+      "_isVirtual": false,
+      "_isRoot": true,
+      "_depth": 0,
+      "_hasChildren": true,
+      "x": null,
+      "y": null,
+      "userPositioned": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_app_interface",
+      "label": "App Interface",
+      "color": "var(--node-blue)",
+      "details": [
+        "用户评分: 8/10",
+        "所有功能易于找到",
+        "非常直观(Intuitive)",
+        "无需预先学习即可使用",
+        "设计非常清晰(Clear)"
+      ]
+    },
+    {
+      "id": "node_login_interface",
+      "label": "Login Interface",
+      "color": "var(--node-orange)",
+      "details": [
+        "需要改进的细节",
+        "有一些小问题需要优化",
+        "但不影响整体正面评价"
+      ]
+    },
+    {
+      "id": "node_function_accessibility",
+      "label": "Function Accessibility",
+      "color": "var(--node-green)",
+      "details": [
+        "无需学习即可找到",
+        "功能位置直观",
+        "用户可以轻松找到所需功能"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "source": "node_app_interface",
+      "target": "node_login_interface",
+      "link_type": "solid"
+    },
+    {
+      "source": "node_app_interface",
+      "target": "node_function_accessibility",
+      "link_type": "solid"
+    }
+  ],
+  "_depth_stats": {
+    "max_depth": 1,
+    "avg_depth": 1.0,
+    "depth_distribution": {
+      "1": 3
+    },
+    "top_level_count": 0,
+    "shallow_leaves": 3,
+    "min_depth": 3
+  },
+  "_timing": {
+    "stage1": 2.34,
+    "stage2": 0.0,
+    "stage3": 2.77,
+    "overhead": 0.01,
+    "total": 5.11
+  },
+  "_degradation": {
+    "stage1_failed": false,
+    "stage2_failed": false,
+    "stage3_failed": false,
+    "degraded_to_legacy": false
+  }
+}
