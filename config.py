@@ -27,34 +27,45 @@ class Config:
     #    Set in .env: LLM_API_KEY / LLM_BASE_URL / LLM_MODEL
     #    If not set, auto-fallback to DEEPSEEK_* vars (backward compatible)
     # ---------------------------------------------------------
-    LLM_API_KEY = (
-        os.getenv('LLM_API_KEY')
-        or os.getenv('DEEPSEEK_API_KEY')
+    # C: 配置来源追踪 — 记录 LLM_* 三件套实际命中的环境变量名，供 validate() 检测混用陷阱
+    # E: Config source tracking — record which env var each LLM_* value actually came from (for validate())
+    LLM_API_KEY_SRC = next(
+        (n for n in ('LLM_API_KEY', 'DEEPSEEK_API_KEY', 'OPENAI_API_KEY')
+         if os.getenv(n)),
+        None,
+    )
+    LLM_API_KEY = os.getenv(LLM_API_KEY_SRC) if LLM_API_KEY_SRC else None
+    LLM_BASE_URL_SRC = next(
+        (n for n in ('LLM_BASE_URL', 'DEEPSEEK_BASE_URL') if os.getenv(n)),
+        None,
     )
     LLM_BASE_URL = (
-        os.getenv('LLM_BASE_URL')
-        or os.getenv('DEEPSEEK_BASE_URL')
-        or 'https://api.deepseek.com'
+        os.getenv(LLM_BASE_URL_SRC)
+        if LLM_BASE_URL_SRC
+        else 'https://api.deepseek.com'
+    )
+    LLM_MODEL_SRC = next(
+        (n for n in ('LLM_MODEL', 'DEEPSEEK_MODEL') if os.getenv(n)),
+        None,
     )
     LLM_MODEL = (
-        os.getenv('LLM_MODEL')
-        or os.getenv('DEEPSEEK_MODEL')
-        or 'deepseek-chat'
+        os.getenv(LLM_MODEL_SRC) if LLM_MODEL_SRC else 'deepseek-chat'
     )
-    
-    # ---------------------------------------------------------
-    # C: DeepSeek 专用变量（向后兼容，指向 LLM_* 同名值）
-    #    已废弃：新代码请使用 Config.LLM_API_KEY 等
-    #    保留原因：agent.py / test_api.py 仍在使用
-    # E: DeepSeek-specific vars (backward compatible, alias to LLM_*)
-    #    Deprecated: new code should use Config.LLM_API_KEY etc.
-    #    Kept for: agent.py / test_api.py compatibility
-    # ---------------------------------------------------------
-    DEEPSEEK_API_KEY = LLM_API_KEY
-    DEEPSEEK_BASE_URL = LLM_BASE_URL
-    DEEPSEEK_MODEL = LLM_MODEL
-    
     API_TIMEOUT = int(os.getenv('API_TIMEOUT', 30))
+
+    # C: 最大输出 token（第三方端点上限可能低于 8192，可调低）
+    # E: Max output tokens (3rd-party endpoints may cap below 8192; lower if needed)
+    LLM_MAX_TOKENS = int(os.getenv('LLM_MAX_TOKENS', '8192'))
+
+    # C: 纯文本 JSON 降级模式 — 提供商不支持 function calling 时，
+    #    最后一次调用不传 tools，要求模型直接输出 JSON 对象（经 _safe_json_parse 解析）
+    # E: Plain-text JSON fallback mode — when the provider does not support function
+    #    calling, the final attempt omits tools and asks the model to output a raw
+    #    JSON object (parsed via _safe_json_parse)
+    LLM_JSON_FALLBACK = (
+        os.getenv('LLM_JSON_FALLBACK', 'true').lower()
+        in ('true', '1', 'yes')
+    )
     
     # ---------------------------------------------------------
     # C: 润色专用轻量模型配置（混合审查模式）
@@ -225,6 +236,44 @@ class Config:
     MAX_SIBLINGS_PER_NODE = int(os.getenv('MAX_SIBLINGS_PER_NODE', '6'))
 
     # ---------------------------------------------------------
+    # C: 评估对齐模式配置（EVAL_STRUCTURE_ALIGN）
+    #    用于批量评估场景：目标深度 2-3 层、概念数量上限、紧凑分层，
+    #    使生成结构与浅层金标准（GTC/YQL）对齐。
+    #    默认关闭 — 普通对话场景保持深度优先策略不变。
+    #    MAX_CONCEPTS: 概念提取数量上限
+    #    EVAL_TARGET_DEPTH: 评估模式下目标深度（根算第1层）
+    #    EVAL_MAX_SIBLINGS: 评估模式下每父节点最大子节点数
+    # E: Evaluation alignment mode config (EVAL_STRUCTURE_ALIGN)
+    #    For batch evaluation scenarios: target depth 2-3, concept count cap,
+    #    compact hierarchy aligned with shallow gold standards (GTC/YQL).
+    #    Disabled by default — normal chat keeps depth-first strategy unchanged.
+    #    MAX_CONCEPTS: concept extraction count cap
+    #    EVAL_TARGET_DEPTH: target depth in eval mode (root=level 1)
+    #    EVAL_MAX_SIBLINGS: max children per parent in eval mode
+    # ---------------------------------------------------------
+    EVAL_STRUCTURE_ALIGN = (
+        os.getenv('EVAL_STRUCTURE_ALIGN', 'false').lower()
+        in ('true', '1', 'yes')
+    )
+    MAX_CONCEPTS = int(os.getenv('MAX_CONCEPTS', '12'))
+    EVAL_TARGET_DEPTH = int(os.getenv('EVAL_TARGET_DEPTH', '2'))
+    EVAL_MAX_SIBLINGS = int(os.getenv('EVAL_MAX_SIBLINGS', '4'))
+
+    # ---------------------------------------------------------
+    # C: 树形后处理开关（TREE_POSTPROCESS_ENABLED）
+    #    在生成结果落库前对导图做确定性结构修复：环检测切断、
+    #    孤儿节点挂接、扁平树补层（语义聚合父节点），并对齐
+    #    gold 先验深度/扇出。默认开启，可经环境变量关闭。
+    # E: Tree post-processing switch — deterministically repair the map
+    #    structure before persisting: cycle cutting, orphan re-parenting,
+    #    shallow-tree deepening (semantic merges), aligned to gold depth/fanout.
+    # ---------------------------------------------------------
+    TREE_POSTPROCESS_ENABLED = (
+        os.getenv('TREE_POSTPROCESS_ENABLED', 'true').lower()
+        in ('true', '1', 'yes')
+    )
+
+    # ---------------------------------------------------------
     # C: 词典术语下划线标注配置
     #    ANNOTATION_ENABLED: 是否启用节点术语下划线标注功能
     #    DICT_UNDERLINE_SERVER_SCRIPT: 词典标注 MCP Server 脚本路径
@@ -268,23 +317,56 @@ class Config:
     # ---------------------------------------------------------
     FREE_DICT_TIMEOUT = int(os.getenv('FREE_DICT_TIMEOUT', '5'))
 
-# C: 为了兼容 agent.py，我们在类外部定义这个变量
-# E: For compatibility with agent.py, we define this variable outside the class
-DEEPSEEK_CONFIG = {
-    "api_key": Config.LLM_API_KEY,
-    "base_url": Config.LLM_BASE_URL,
-    "model": Config.LLM_MODEL
-}
+    # ---------------------------------------------------------
+    # C: 配置一致性校验 — 检测「Key 与端点/模型来源不匹配」等混用陷阱
+    #    返回警告列表（空列表 = 无警告），不阻断启动。
+    # E: Config consistency check — detects mismatched key/endpoint/model sources.
+    #    Returns a list of warnings (empty = OK); never blocks startup.
+    # ---------------------------------------------------------
+    @staticmethod
+    def validate() -> list[str]:
+        """C: 校验 LLM 配置一致性，返回中文+英文警告列表（可为空）。
+        E: Validate LLM config consistency, returning bilingual warning list (may be empty)."""
+        warnings: list[str] = []
+        if not Config.LLM_API_KEY:
+            warnings.append(
+                "C: 未设置 LLM_API_KEY / DEEPSEEK_API_KEY / OPENAI_API_KEY，LLM 功能将不可用\n"
+                "E: No LLM_API_KEY / DEEPSEEK_API_KEY / OPENAI_API_KEY set, LLM features unavailable"
+            )
+        # C: 混用陷阱 — key 来自 OPENAI_API_KEY，但端点/模型仍为 DeepSeek 默认值
+        # E: Mixing trap — key from OPENAI_API_KEY but endpoint/model still DeepSeek defaults
+        if (
+            Config.LLM_API_KEY_SRC == 'OPENAI_API_KEY'
+            and Config.LLM_BASE_URL_SRC is None
+            and Config.LLM_MODEL_SRC is None
+        ):
+            warnings.append(
+                "C: LLM_API_KEY 来源于 OPENAI_API_KEY，但 LLM_BASE_URL / LLM_MODEL 未设置"
+                "（当前为 DeepSeek 默认端点）——请求会发送到错误端点导致 401。"
+                "请设置 LLM_BASE_URL=https://api.openai.com/v1 与 LLM_MODEL，"
+                "或改用 LLM_API_KEY / LLM_BASE_URL / LLM_MODEL 三件套。\n"
+                "E: LLM_API_KEY comes from OPENAI_API_KEY but LLM_BASE_URL / LLM_MODEL are"
+                " unset (DeepSeek default endpoint) — requests will hit the wrong endpoint (401)."
+                " Set LLM_BASE_URL=https://api.openai.com/v1 and LLM_MODEL, or use the"
+                " LLM_API_KEY / LLM_BASE_URL / LLM_MODEL trio."
+            )
+        return warnings
+
+# C: 内部工具定位声明 — 本项目仅供内部使用，不部署公网，不包含登录/认证等安全设计
+# E: Internal-tool notice — for internal use only, not deployed publicly, no auth/security design
 
 if __name__ == "__main__":
+    warnings = Config.validate()
     if Config.LLM_API_KEY:
         print(f"C: LLM_CONFIG:")
         print(f"E: LLM_CONFIG:")
-        print(f"  Model:     {Config.LLM_MODEL}")
-        print(f"  Base URL:  {Config.LLM_BASE_URL}")
-        print(f"  API Key:   {'***' + Config.LLM_API_KEY[-4:]}")
+        print(f"  Model:     {Config.LLM_MODEL}  (来源/Source: {Config.LLM_MODEL_SRC or 'default'})")
+        print(f"  Base URL:  {Config.LLM_BASE_URL}  (来源/Source: {Config.LLM_BASE_URL_SRC or 'default'})")
+        print(f"  API Key:   来源/Source: {Config.LLM_API_KEY_SRC or 'NONE'}")
         print("C: 配置加载成功！")
         print("E: Configuration loaded successfully!")
     else:
         print("C: 警告: 未设置 LLM_API_KEY 或 DEEPSEEK_API_KEY")
         print("E: Warning: LLM_API_KEY or DEEPSEEK_API_KEY not set")
+    for w in warnings:
+        print(f"C: [配置校验 / Config Check] {w}\n")

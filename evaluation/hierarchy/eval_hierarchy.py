@@ -50,6 +50,9 @@ class HierarchyMetrics:
     # 2.5 LAR / 层级对齐率
     lar: float = 0.0
 
+    # 2.6 Alignment coverage / 对齐覆盖（供诊断区分“无对齐”与“父级错误”）
+    aligned_count: int = 0
+
     def to_dict(self) -> dict:
         return {
             'edge_precision': round(self.edge_precision, 4),
@@ -66,6 +69,7 @@ class HierarchyMetrics:
             'pc_f1': round(self.pc_f1, 4),
             'pc_tp': self.pc_tp,
             'lar': round(self.lar, 4),
+            'aligned_count': self.aligned_count,
         }
 
 
@@ -124,35 +128,43 @@ def evaluate_hierarchy_quality(
     gen_parent = {}
     for p, c in gen_edges:
         gen_parent[c] = p
-    # E: Root node / C: 根节点
-    gold_root = None
-    for n in gold_map.nodes:
-        pid = n.get('parent_id')
-        if pid is None:
-            gold_root = n['id']
-            break
-    gen_root = None
-    for n in gen_map.nodes:
-        pid = n.get('parent_id')
-        if pid is None:
-            gen_root = n['id']
-            break
+
+    # E: Guard — non-empty alignment with empty edge sets makes parent matching
+    #    unreliable (every node would look like a root). Warn instead of silent
+    #    inflation; the empty-mu case itself is handled below with explicit 0.0.
+    # C: 边界加固 — 对齐非空但任一边集为空时，父匹配不可靠（所有节点都会像根节点）。
+    #    显式告警而非静默虚高；空 mu 的情况在下文显式返回 0.0。
+    if len(mu) > 0 and (not gold_edges or not gen_edges):
+        import logging
+        logging.getLogger(__name__).warning(
+            "[eval_hierarchy] UAS: gold or gen edge set is empty with non-empty alignment — "
+            "parent matching may be unreliable / 金标准或生成边集为空但存在对齐节点，父匹配可能不可靠"
+        )
 
     uas_correct = 0
     uas_total = len(mu)
-    for gold_id, gen_id in mu.items():
-        g_parent = gold_parent.get(gold_id)  # None if root / 若无则为根节点
-        gen_parent_node = gen_parent.get(gen_id)
+    if uas_total == 0:
+        # E: No aligned nodes — explicit 0.0 marker instead of misleading 1.0
+        # C: 无对齐节点 — 返回显式 0.0 标记而非误导性的 1.0
+        import logging
+        logging.getLogger(__name__).warning(
+            "[eval_hierarchy] UAS: mu is empty (no aligned nodes), returning 0.0 / 无对齐节点，UAS 返回 0.0"
+        )
+        uas = 0.0
+    else:
+        for gold_id, gen_id in mu.items():
+            g_parent = gold_parent.get(gold_id)  # None if root / 若无则为根节点
+            gen_parent_node = gen_parent.get(gen_id)
 
-        if g_parent is None and gen_parent_node is None:
-            # both roots / 两个都是根节点
-            uas_correct += 1
-        elif g_parent is not None and gen_parent_node is not None:
-            expected_gen_parent = mu.get(g_parent)
-            if expected_gen_parent == gen_parent_node:
+            if g_parent is None and gen_parent_node is None:
+                # both roots / 两个都是根节点
                 uas_correct += 1
+            elif g_parent is not None and gen_parent_node is not None:
+                expected_gen_parent = mu.get(g_parent)
+                if expected_gen_parent == gen_parent_node:
+                    uas_correct += 1
 
-    uas = uas_correct / uas_total if uas_total > 0 else 1.0
+        uas = uas_correct / uas_total
 
     # =========================================================
     # 2.3 nTED (normalized Tree Edit Distance) / 归一化树编辑距离
@@ -165,8 +177,16 @@ def evaluate_hierarchy_quality(
         nted, raw_ted = _compute_nted(gold_map, gen_map)
     except ImportError:
         # zss not installed / zss 未安装
+        import logging
+        logging.getLogger(__name__).warning(
+            "[eval_hierarchy] nTED unavailable: zss library not installed / zss 库未安装，nTED 返回 None"
+        )
         nted = None
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"[eval_hierarchy] nTED computation failed / nTED 计算失败: {e}, returning None"
+        )
         nted = None
 
     # =========================================================
@@ -174,8 +194,8 @@ def evaluate_hierarchy_quality(
     # =========================================================
     # E: Schema §2.4 — Check parent and child labels independently
     # C: Schema §2.4 — 分别检查父标签和子标签是否均语义匹配
-    gold_pairs = extract_parent_child_pairs(gold_map.nodes)
-    gen_pairs = extract_parent_child_pairs(gen_map.nodes)
+    gold_pairs = extract_parent_child_pairs(gold_map.nodes, gold_map.links)
+    gen_pairs = extract_parent_child_pairs(gen_map.nodes, gen_map.links)
 
     pc_correct = 0
     if gold_pairs and gen_pairs:
@@ -194,17 +214,16 @@ def evaluate_hierarchy_quality(
         parent_S = compute_similarity_matrix(gold_parents, gen_parents, alignment.model_name)
         child_S = compute_similarity_matrix(gold_children, gen_children, alignment.model_name)
 
-        # E: Hit if parent_sim >= tau AND child_sim >= tau, one-to-one matching
-        # C: 判定命中 — 父相似度 >= τ AND 子相似度 >= τ，一对一匹配，避免重复计数
-        used_gen_indices: set[int] = set()
-        for i, (g_p, g_c) in enumerate(gold_p_labels):
-            for j, (gen_p, gen_c) in enumerate(gen_p_labels):
-                if j in used_gen_indices:
-                    continue
-                if parent_S[i, j] >= similarity_threshold and child_S[i, j] >= similarity_threshold:
-                    pc_correct += 1
-                    used_gen_indices.add(j)
-                    break
+        # E: Hit if parent_sim >= tau AND child_sim >= tau — global optimal
+        #    one-to-one assignment (order-independent), replacing the previous
+        #    first-fit greedy loop that systematically underestimated pc_tp.
+        # C: 判定命中 — 父相似度 >= τ AND 子相似度 >= τ，全局最优一对一指派
+        #    （与排列顺序无关），替换此前顺序敏感的贪心匹配（会低估 pc_tp）。
+        hit = (parent_S >= similarity_threshold) & (child_S >= similarity_threshold)
+        if hit.size:
+            from scipy.optimize import linear_sum_assignment
+            g_idx, c_idx = linear_sum_assignment(-hit.astype(float))
+            pc_correct = int(hit[g_idx, c_idx].sum())
 
     pc_recall = pc_correct / len(gold_pairs) if gold_pairs else 1.0
     pc_precision = pc_correct / len(gen_pairs) if gen_pairs else 1.0
@@ -219,11 +238,20 @@ def evaluate_hierarchy_quality(
 
     lar_correct = 0
     lar_total = len(mu)
-    for gold_id, gen_id in mu.items():
-        if gold_depths.get(gold_id) == gen_depths.get(gen_id):
-            lar_correct += 1
+    if lar_total == 0:
+        # E: No aligned nodes — explicit 0.0 marker instead of misleading 1.0
+        # C: 无对齐节点 — 返回显式 0.0 标记而非误导性的 1.0
+        import logging
+        logging.getLogger(__name__).warning(
+            "[eval_hierarchy] LAR: mu is empty (no aligned nodes), returning 0.0 / 无对齐节点，LAR 返回 0.0"
+        )
+        lar = 0.0
+    else:
+        for gold_id, gen_id in mu.items():
+            if gold_depths.get(gold_id) == gen_depths.get(gen_id):
+                lar_correct += 1
 
-    lar = lar_correct / lar_total if lar_total > 0 else 1.0
+        lar = lar_correct / lar_total
 
     return HierarchyMetrics(
         edge_precision=edge_p,
@@ -240,6 +268,7 @@ def evaluate_hierarchy_quality(
         pc_f1=pc_f1,
         pc_tp=pc_correct,
         lar=lar,
+        aligned_count=len(mu),
     )
 
 
@@ -247,36 +276,61 @@ def _compute_nted(gold_map: MindMapData, gen_map: MindMapData) -> tuple[float, f
     """
     E: Compute normalized Tree Edit Distance using zss library
     C: 使用 zss 库计算归一化树编辑距离
+
+    E: The ZSS tree is built from the SAME edge source as the other §2 metrics
+       (parent_id → links → nested tree via extract_edges). Previously the tree
+       was built from parent_id only, which collapsed flat maps (nodes without
+       parent_id, structure carried by links/tree) into single-node trees and
+       made nTED meaningless. Multiple roots / orphan nodes are wrapped under a
+       virtual root so every node enters the tree and the normalizer
+       max(|T_g|, |T_s|) stays consistent with the spec.
+    C: ZSS 树使用与其余 §2 指标相同的边源构建（parent_id → links → tree，经
+       extract_edges 兜底）。此前仅按 parent_id 建树，无 parent_id 的扁平图
+       （结构由 links/tree 承载）会退化为单节点树，nTED 失真。多根/孤儿节点
+       用虚拟根包裹，保证全部节点入树，归一化分母与规范一致。
     """
     from zss import Node as ZSSNode, simple_distance
 
-    def build_zss_tree(nodes: list[dict], parent_id: Optional[str] = None) -> Optional[ZSSNode]:
-        children = [n for n in nodes if n.get('parent_id') == parent_id]
-        if not children and parent_id is not None:
+    def build_zss_tree(mind_map: MindMapData) -> Optional[ZSSNode]:
+        nodes = mind_map.nodes
+        edges = extract_edges(nodes, mind_map.links, mind_map.tree)
+        parent_map = {c: p for p, c in edges}
+        child_ids = set(parent_map.keys())
+        roots = [n for n in nodes if str(n.get('id', '')) not in child_ids]
+        if not roots:
             return None
-        if parent_id is None:
-            # root / 根节点
-            root_nodes = [n for n in nodes if n.get('parent_id') is None]
-            if not root_nodes:
-                return None
-            root = root_nodes[0]
+
+        def _add_children(parent_node: ZSSNode, parent_nid: str, visited: Optional[set[str]] = None) -> None:
+            # E: In-path guard against cycles (same semantics as compute_depth_map)
+            # C: 路径内防环（与 compute_depth_map 的语义一致）
+            if visited is None:
+                visited = set()
+            if parent_nid in visited:
+                return
+            visited.add(parent_nid)
+            children = sorted(
+                [n for n in nodes if parent_map.get(str(n.get('id', ''))) == parent_nid],
+                key=lambda x: x.get('label', '')
+            )
+            for child in children:
+                child_node = ZSSNode(child.get('label', ''))
+                parent_node.addkid(child_node)
+                _add_children(child_node, str(child.get('id', '')), visited)
+
+        if len(roots) == 1:
+            root = roots[0]
             zss_root = ZSSNode(root.get('label', ''))
-            _add_zss_children(zss_root, root['id'], nodes)
+            _add_children(zss_root, str(root.get('id', '')))
             return zss_root
-        return None
+        # E: Multiple roots / orphans — wrap in a virtual root so every node enters the tree
+        # C: 多根/孤儿节点 — 用虚拟根包裹，保证全部节点入树
+        vr = ZSSNode('__virtual_root__')
+        for r in roots:
+            _add_children(vr, str(r.get('id', '')))
+        return vr
 
-    def _add_zss_children(parent_node: ZSSNode, parent_nid: str, nodes: list[dict]):
-        children = sorted(
-            [n for n in nodes if n.get('parent_id') == parent_nid],
-            key=lambda x: x.get('label', '')
-        )
-        for child in children:
-            child_node = ZSSNode(child.get('label', ''))
-            parent_node.addkid(child_node)
-            _add_zss_children(child_node, child['id'], nodes)
-
-    gold_tree = build_zss_tree(gold_map.nodes, None)
-    gen_tree = build_zss_tree(gen_map.nodes, None)
+    gold_tree = build_zss_tree(gold_map)
+    gen_tree = build_zss_tree(gen_map)
 
     if gold_tree is None or gen_tree is None:
         return 1.0, 1.0  # max distance / 最大距离
@@ -284,6 +338,12 @@ def _compute_nted(gold_map: MindMapData, gen_map: MindMapData) -> tuple[float, f
     raw_ted = simple_distance(gold_tree, gen_tree)
     max_nodes = max(len(gold_map.nodes), len(gen_map.nodes))
     nted = raw_ted / max_nodes if max_nodes > 0 else 1.0
+    # E: Clamp to [0, 1] — zss simple_distance may exceed the node count for
+    #    structurally divergent trees, while spec §2.3 defines nTED ∈ [0, 1];
+    #    otherwise composite's (1 - nTED) component could go negative.
+    # C: 截断到 [0, 1] — zss 的 simple_distance 对结构差异较大的树可能超过节点数，
+    #    而规范 §2.3 定义 nTED ∈ [0, 1]；否则 composite 的 (1 - nTED) 分量会变负。
+    nted = min(1.0, max(0.0, nted))
 
     return nted, raw_ted
 

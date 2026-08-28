@@ -22,6 +22,12 @@ typing_extensions==4.15.0
 uvicorn==0.46.0
 mcp>=1.0.0
 wikipedia-api>=0.7.0
+openai-whisper
+sentence-transformers>=2.2.0
+
+# C: 可选依赖 — 离线拼音生成（未安装时自动回退 LLM）
+# E: Optional — offline pinyin generation (falls back to LLM when not installed)
+# pypinyin>=0.49.0
 
 # C: 评估框架依赖（可选，缺失时自动降级）
 # E: Evaluation framework dependencies (optional, auto-degrade when missing)
@@ -30,3 +36,7 @@ rouge-score>=0.1.2
 bert-score>=0.3.13
 jiwer>=3.0.0
 jieba>=0.42.1
+# C: zss（nTED）与 scipy（匈牙利指派/统计）为 §2 层级指标必需，声明以免全新安装时 Required 指标静默缺失
+# E: zss (nTED) and scipy (Hungarian assignment/statistics) are required by §2 hierarchy metrics
+zss>=1.2.0
+scipy>=1.10.0

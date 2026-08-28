@@ -36,11 +36,11 @@ class MindMapData:
 
     def get_edges(self) -> list[tuple[str, str]]:
         """E: Extract parent-child edges / C: 提取父子边"""
-        return extract_edges(self.nodes, self.links)
+        return extract_edges(self.nodes, self.links, tree=self.tree)
 
     def get_depths(self) -> dict[str, int]:
         """E: Compute depth map / C: 计算深度映射"""
-        return compute_depth_map(self.nodes)
+        return compute_depth_map(self.nodes, self.links, tree=self.tree)
 
     def get_all_texts(self) -> list[str]:
         """
@@ -82,6 +82,9 @@ class DataLoader:
             metadata = {}
             if 'map_id' in payload:
                 metadata = {k: v for k, v in payload.items() if k != 'data'}
+            # E: Record source path for traceability (relative form is portable)
+            # C: 记录来源路径，便于追溯实际加载的金标准（相对路径保证跨机可移植）
+            metadata.setdefault('source_file', os.path.relpath(filepath))
 
             return MindMapData(nodes=nodes, links=links, tree=tree, metadata=metadata)
         except Exception as e:
@@ -107,9 +110,12 @@ class DataLoader:
         debug_dir = os.path.join("debug_output", session_ts)
         if not os.path.isdir(debug_dir):
             return None
-        # Load map_final.json or most recently modified JSON
-        # C: 加载 map_final.json 或最新修改的 JSON
-        candidates = sorted(glob.glob(os.path.join(debug_dir, "*.json")))
+        # E: Prefer map_final.json, else the most recently modified JSON (mtime order,
+        #    not lexicographic order which may pick eval_result_*.json instead).
+        # C: 优先加载 map_final.json，否则按修改时间取最新 JSON（mtime 排序，
+        #    而非字典序 — 字典序可能选中 eval_result_*.json 等非导图文件）
+        candidates = sorted(glob.glob(os.path.join(debug_dir, "*.json")), key=os.path.getmtime)
         if not candidates:
             return None
-        return DataLoader.from_map_file(candidates[-1])
+        finals = [f for f in candidates if os.path.basename(f) == "map_final.json"]
+        return DataLoader.from_map_file((finals or candidates)[-1])

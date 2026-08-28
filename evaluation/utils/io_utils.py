@@ -3,9 +3,29 @@ E: IO utilities — JSON read/write, result persistence
 C: IO 工具 — JSON 读写、结果持久化
 """
 import json
+import glob
 import os
 from datetime import datetime
 from typing import Any, Optional
+
+# E: Supported audio extensions (shared by all audio-discovery call sites)
+# C: 支持的音频扩展名（所有音频发现调用点共享）
+AUDIO_EXTS = (".wav", ".mp3", ".m4a", ".ogg", ".flac")
+
+
+def discover_audio_files(dir_path: str) -> list[str]:
+    """
+    E: Return sorted, de-duplicated audio file paths under a directory.
+        Returns [] when the directory is missing or contains no audio files.
+    C: 返回目录下排序、去重后的音频文件路径列表；
+        目录不存在或无音频文件时返回空列表。
+    """
+    if not dir_path or not os.path.isdir(dir_path):
+        return []
+    found: list[str] = []
+    for ext in AUDIO_EXTS:
+        found.extend(glob.glob(os.path.join(dir_path, f"*{ext}")))
+    return sorted(set(found))
 
 
 def read_json(filepath: str) -> Optional[dict]:

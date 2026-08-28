@@ -1,1 +1,0 @@
-Are there any additional features you would like to see including the app? I think the current version is already enough for a very basic daily usage, but I would like to suggest if you can realize some AI-generated daily quiz, so it can help me to review the things I've learned yesterday, and also it can generate some questions that I may use tomorrow.

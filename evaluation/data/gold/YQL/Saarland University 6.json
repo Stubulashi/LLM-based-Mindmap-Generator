@@ -1,0 +1,58 @@
+{
+  "nodes": [
+    { "id": "n0", "label": "Interface experience", "parent_id": null },
+    { "id": "n1", "label": "Rating", "parent_id": "n0" },
+    { "id": "n2", "label": "8 out of 10", "parent_id": "n1" },
+    { "id": "n3", "label": "Strengths", "parent_id": "n0" },
+    { "id": "n4", "label": "Easy locate", "parent_id": "n3" },
+    { "id": "n5", "label": "Intuitive", "parent_id": "n3" },
+    { "id": "n6", "label": "Clear layout", "parent_id": "n3" },
+    { "id": "n7", "label": "No confusion", "parent_id": "n3" },
+    { "id": "n8", "label": "Weaknesses", "parent_id": "n0" },
+    { "id": "n9", "label": "Login page", "parent_id": "n8" },
+    { "id": "n10", "label": "Minor details", "parent_id": "n8" }
+  ],
+  "links": [
+    { "source": "n0", "target": "n1" },
+    { "source": "n0", "target": "n3" },
+    { "source": "n0", "target": "n8" },
+    { "source": "n1", "target": "n2" },
+    { "source": "n3", "target": "n4" },
+    { "source": "n3", "target": "n5" },
+    { "source": "n3", "target": "n6" },
+    { "source": "n3", "target": "n7" },
+    { "source": "n8", "target": "n9" },
+    { "source": "n8", "target": "n10" }
+  ],
+  "tree": {
+    "id": "n0",
+    "label": "Interface experience",
+    "children": [
+      {
+        "id": "n1",
+        "label": "Rating",
+        "children": [
+          { "id": "n2", "label": "8 out of 10" }
+        ]
+      },
+      {
+        "id": "n3",
+        "label": "Strengths",
+        "children": [
+          { "id": "n4", "label": "Easy locate" },
+          { "id": "n5", "label": "Intuitive" },
+          { "id": "n6", "label": "Clear layout" },
+          { "id": "n7", "label": "No confusion" }
+        ]
+      },
+      {
+        "id": "n8",
+        "label": "Weaknesses",
+        "children": [
+          { "id": "n9", "label": "Login page" },
+          { "id": "n10", "label": "Minor details" }
+        ]
+      }
+    ]
+  }
+}

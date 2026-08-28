@@ -1,161 +1,62 @@
 """
-E: §3 Downstream QA Utility
-C: §3 下游 QA 测试 — Downstream QA Utility
+E: §3 Downstream QA Utility — Refactored audio-driven flow
+C: §3 下游 QA 测试 — 重构后的音频驱动流程
 
-Evaluation_Schema.md §3
-使用 LLM 执行对照组（原始逐字稿）/ 实验组（仅生成导图）对比评估。
-计算 BLEU-4 / ROUGE-L / BERTScore 三者加权综合评分。
+Evaluation_Schema.md §3（重构 / Refactored）:
+1. 系统引导用户上传音频，并对该音频执行 STT 转录
+   System guides the user to upload an audio file and runs STT on it
+2. 将 STT 转录结果接入完全独立的 AI（干净对话窗口，不携带任何上下文或历史）
+   Feed the STT transcript to a fully independent AI (clean window, no context/history)
+3. 该独立 AI 依据音频内容生成 20 个问题，难度由浅入深
+   The independent AI generates 20 questions with increasing difficulty
+4. 问题交由 mindmap agent：先对音频执行 STT，再仅基于生成的一棵树（导图）回答
+   The mindmap agent answers based solely on one generated tree (no other material)
+5. AI 对每个回答按 1-5 分评分（以转录为参考答案）
+   An AI grades each answer 1-5 (transcript as the reference)
+6. 评分综合后计入系统总分（归一化 [0,1] 作为 §7.2 composite 分量）
+   Scores are aggregated into the total (normalized [0,1] composite component)
 
-Uses LLM for control group (full transcript) / experiment group (generated map only)
-comparative evaluation. Computes weighted composite of BLEU-4 / ROUGE-L / BERTScore.
+旧实现（BLEU-4 / ROUGE-L / BERTScore 对照组-实验组对比）已被此流程取代。
+The legacy control/experiment BLEU-4/ROUGE-L/BERTScore design is replaced.
 """
+import json
+import re
 from dataclasses import dataclass, field
 from typing import Optional
 
-import json
-
-
-# E: Lazy import of scoring libs (print warning on missing, don't abort)
-# C: 评分库的延迟导入（缺失时打印警告，不中断执行）
-_BLEU_AVAILABLE = False
-_ROUGE_AVAILABLE = False
-_BERTSCORE_AVAILABLE = False
-
-
-def _init_scoring_libs():
-    """E: Initialize all scoring libraries, record availability
-    C: 初始化所有评分库，记录可用状态
-    """
-    global _BLEU_AVAILABLE, _ROUGE_AVAILABLE, _BERTSCORE_AVAILABLE
-
-    try:
-        import nltk
-        nltk.data.find('tokenizers/punkt') or nltk.download('punkt', quiet=True)
-        _BLEU_AVAILABLE = True
-    except ImportError:
-        print("[QA] nltk 未安装，BLEU-4 不可用 / nltk not installed, BLEU-4 unavailable")
-    except LookupError:
-        _BLEU_AVAILABLE = True
-
-    try:
-        import rouge_score
-        _ROUGE_AVAILABLE = True
-    except ImportError:
-        print("[QA] rouge-score 未安装，ROUGE-L 不可用 / rouge-score not installed, ROUGE-L unavailable")
-
-    try:
-        import bert_score
-        _BERTSCORE_AVAILABLE = True
-    except ImportError:
-        print("[QA] bert-score 未安装，BERTScore 不可用 / bert-score not installed, BERTScore unavailable")
+from evaluation.i18n import T
 
 
 @dataclass
 class QAMetrics:
     """E: QA test results / C: QA 测试结果"""
-    control_accuracy: float = 0.0
-    experiment_accuracy: float = 0.0
-    qa_retention: float = 0.0
-    token_reduction: float = 0.0
-    bleu_4: float = 0.0
-    rouge_l: float = 0.0
-    bert_score: float = 0.0
-    qa_composite: float = 0.0
+    qa_score: float = 0.0          # E: Normalized [0,1] / C: 归一化 [0,1]
+    avg_raw_score: float = 0.0     # E: Mean of 1-5 per-answer scores / C: 逐题 1-5 分均值
     num_questions: int = 0
-    num_runs: int = 0
+    scores: list[int] = field(default_factory=list)
+    per_question: list[dict] = field(default_factory=list)
+    total_tokens: int = 0
 
     def to_dict(self) -> dict:
         return {
-            'control_accuracy': round(self.control_accuracy, 4),
-            'experiment_accuracy': round(self.experiment_accuracy, 4),
-            'qa_retention': round(self.qa_retention, 4),
-            'token_reduction': round(self.token_reduction, 4),
-            'bleu_4': round(self.bleu_4, 4),
-            'rouge_l': round(self.rouge_l, 4),
-            'bert_score': round(self.bert_score, 4),
-            'qa_composite': round(self.qa_composite, 4),
+            'qa_score': round(self.qa_score, 4),
+            'avg_raw_score': round(self.avg_raw_score, 4),
             'num_questions': self.num_questions,
-            'num_runs': self.num_runs,
+            'scores': self.scores,
+            'per_question': self.per_question,
+            'total_tokens': self.total_tokens,
         }
 
 
-def _exact_match_accuracy(answers: list[str], gold_answers: list[str]) -> float:
-    """E: Simple accuracy based on exact string matching (always available)
-    C: 基于精确字符串匹配的简单准确率（始终可用）
-    """
-    if not answers or not gold_answers or len(answers) != len(gold_answers):
-        return 0.0
-    correct = sum(1 for a, g in zip(answers, gold_answers) if a.strip().lower() == g.strip().lower())
-    return correct / len(answers)
-
-
-def _compute_bleu4(references: list[str], hypotheses: list[str]) -> float:
-    """E: Compute BLEU-4 / C: 计算 BLEU-4"""
-    if not _BLEU_AVAILABLE or not references or not hypotheses:
-        return 0.0
-    try:
-        from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-        scores = []
-        cf = SmoothingFunction().method4
-        for ref, hyp in zip(references, hypotheses):
-            if not ref.strip() or not hyp.strip():
-                continue
-            score = sentence_bleu([ref.split()], hyp.split(), smoothing_function=cf)
-            scores.append(score)
-        return sum(scores) / len(scores) if scores else 0.0
-    except Exception as e:
-        print(f"[QA] BLEU-4 计算失败 / BLEU-4 compute failed: {e}")
-        return 0.0
-
-
-def _compute_rouge_l(references: list[str], hypotheses: list[str]) -> float:
-    """E: Compute ROUGE-L / C: 计算 ROUGE-L"""
-    if not _ROUGE_AVAILABLE or not references or not hypotheses:
-        return 0.0
-    try:
-        from rouge_score import rouge_scorer
-        scorer = rouge_scorer.RougeScorer(['rougeL'], use_stemmer=False)
-        scores = []
-        for ref, hyp in zip(references, hypotheses):
-            if not ref.strip() or not hyp.strip():
-                continue
-            result = scorer.score(ref, hyp)
-            scores.append(result['rougeL'].fmeasure)
-        return sum(scores) / len(scores) if scores else 0.0
-    except Exception as e:
-        print(f"[QA] ROUGE-L 计算失败 / ROUGE-L compute failed: {e}")
-        return 0.0
-
-
-def _compute_bert_score(references: list[str], hypotheses: list[str]) -> float:
-    """E: Compute BERTScore / C: 计算 BERTScore"""
-    if not _BERTSCORE_AVAILABLE or not references or not hypotheses:
-        return 0.0
-    try:
-        import torch
-        if not torch.cuda.is_available():
-            print("[QA] BERTScore 使用 CPU 模式（可能较慢）/ BERTScore using CPU mode (may be slow)")
-        from bert_score import score
-        P, R, F1 = score(hypotheses, references, lang="en", verbose=False)
-        return float(F1.mean())
-    except Exception as e:
-        print(f"[QA] BERTScore 计算失败 / BERTScore compute failed: {e}")
-        return 0.0
-
-
 def _serialize_map_to_text(gen_map_nodes: list[dict]) -> str:
-    """E: Serialize mind map nodes to text
-    C: 将导图节点序列化为文本
-    """
+    """E: Serialize mind map nodes to text (indented hierarchy)
+    C: 将导图节点序列化为文本（缩进层级展示）"""
     lines = []
-    # E: Build id-to-node mapping for hierarchy display
-    # C: 构建 id → node 映射，用于层级展示
-    node_map = {n.get('id', ''): n for n in gen_map_nodes}
     parent_map = {}
     for n in gen_map_nodes:
         pid = n.get('parent_id')
         if pid:
-            parent_map[n['id']] = pid
+            parent_map[n.get('id', '')] = pid
 
     def _depth(nid: str, cache: dict = None) -> int:
         if cache is None:
@@ -173,280 +74,413 @@ def _serialize_map_to_text(gen_map_nodes: list[dict]) -> str:
         nid = n.get('id', '')
         label = n.get('label', '')
         depth = _depth(nid)
-        prefix = "  " * depth + "- "
-        line = f"{prefix}{label}"
-        lines.append(line)
+        lines.append("  " * depth + f"- {label}")
         details = n.get('details', [])
         for d in details:
-            lines.append(f"  {'' * depth}    [{d}]")
-
+            lines.append("  " * depth + f"    [{d}]")
     return "\n".join(lines)
-
-
-def _call_llm_for_qa(client, model: str, system_prompt: str, user_content: str) -> list[str]:
-    """E: Call LLM to answer questions, return answer list
-    C: 调用 LLM 回答问题，返回答案列表
-    """
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0.0,
-            max_tokens=2048,
-        )
-        raw = response.choices[0].message.content.strip()
-
-        # E: Parse answers (one per line, or Q:/A: format)
-        # C: 解析答案（每行一个答案，或 Q:/A: 格式）
-        answers = []
-        for line in raw.split("\n"):
-            line = line.strip()
-            if not line:
-                continue
-            # E: Skip question lines / C: 跳过问题行
-            if line.startswith("Q:") or line.startswith("Q"):
-                continue
-            if line.startswith("A:") or line.startswith("A"):
-                line = line[2:].strip()
-            answers.append(line)
-
-        # E: If empty after parsing, try splitting by blank lines
-        # C: 如果解析后为空，尝试按空行分割
-        if not answers:
-            segments = [s.strip() for s in raw.split("\n\n") if s.strip()]
-            answers = segments
-
-        return answers
-
-    except Exception as e:
-        print(f"[QA] LLM 调用失败 / LLM call failed: {e}")
-        return []
 
 
 class QAEvaluator:
     """
-    E: Downstream QA evaluator
-    C: 下游 QA 评估器
+    E: Downstream QA evaluator — refactored audio-driven flow
+    C: 下游 QA 评估器 — 重构后的音频驱动流程
 
-    需要提供 / Requires:
-        - 原始逐字稿全文 (transcript) / Full transcript text
-        - 10 道测验题 (questions) / 10 quiz questions
-        - LLM API 访问 (复用 Config.LLM_*) / LLM API access (reuses Config.LLM_*)
+    Every AI call uses a brand-new OpenAI client and a single clean message
+    list (no accumulated history), satisfying the "fully independent AI"
+    requirement. Model defaults to Config.LLM_*; an explicit llm_config dict
+    may override api_key / base_url / model.
+    每次 AI 调用均使用全新 OpenAI 客户端与单次干净消息列表（不累积历史），
+    满足"完全独立 AI"要求。模型默认 Config.LLM_*，可通过 llm_config 覆盖。
 
     用法 / Usage:
         evaluator = QAEvaluator()
-        result = evaluator.evaluate(transcript, gen_map_nodes, questions)
+        result = evaluator.evaluate(transcript, gen_map_nodes)
     """
 
     def __init__(self, llm_config: Optional[dict] = None):
         """
-        E: Initialize QA evaluator
-        C: 初始化 QA 评估器
+        E: Initialize QA evaluator (config only — clients are created per call)
+        C: 初始化 QA 评估器（仅保存配置 — 客户端按调用创建）
 
-        参数 / Args:
+        Args / 参数:
             llm_config: LLM 配置字典（可选），未提供时从 Config 自动读取。
                         LLM config dict (optional), auto-reads from Config when not provided.
         """
-        # E: Initialize scoring libraries / C: 初始化评分库
-        _init_scoring_libs()
-
-        # E: Initialize LLM client / C: 初始化 LLM 客户端
-        self.client = None
-        self.model = ""
+        self.api_key: str = ""
+        self.base_url: Optional[str] = None
+        self.model: str = ""
         self._initialized = False
 
         if llm_config:
-            try:
-                from openai import OpenAI
-                self.client = OpenAI(
-                    api_key=llm_config.get('api_key'),
-                    base_url=llm_config.get('base_url'),
-                )
-                self.model = llm_config.get('model', '')
-                self._initialized = True
-            except Exception as e:
-                print(f"[QA] LLM 客户端初始化失败 / LLM client init failed: {e}")
+            self.api_key = llm_config.get('api_key') or ""
+            self.base_url = llm_config.get('base_url') or None
+            self.model = llm_config.get('model') or ""
+            self._initialized = bool(self.api_key and self.model)
         else:
             try:
                 from config import Config
-                if Config.LLM_API_KEY:
-                    from openai import OpenAI
-                    self.client = OpenAI(
-                        api_key=Config.LLM_API_KEY,
-                        base_url=Config.LLM_BASE_URL,
-                    )
-                    self.model = Config.LLM_MODEL
-                    self._initialized = True
-                else:
-                    print("[QA] 未配置 LLM_API_KEY，QA 评估不可用")
-                    print("[QA] LLM_API_KEY not configured, QA evaluation unavailable")
+                self.api_key = getattr(Config, 'LLM_API_KEY', '') or ''
+                self.base_url = getattr(Config, 'LLM_BASE_URL', '') or None
+                self.model = getattr(Config, 'LLM_MODEL', '') or ''
+                self._initialized = bool(self.api_key and self.model)
+                if not self._initialized:
+                    print(T(
+                        "[QA] 未配置 LLM_API_KEY / LLM_MODEL，QA 评估不可用",
+                        "[QA] LLM_API_KEY / LLM_MODEL not configured, QA evaluation unavailable",
+                    ))
             except ImportError:
-                print("[QA] 无法导入 Config，QA 评估不可用 / Config import failed, QA unavailable")
+                print(T(
+                    "[QA] 无法导入 Config，QA 评估不可用",
+                    "[QA] Config import failed, QA evaluation unavailable",
+                ))
 
+    # ---------------------------------------------------------
+    # E: Clean-context LLM helpers / C: 干净上下文 LLM 辅助
+    # ---------------------------------------------------------
+    def _fresh_client(self):
+        """E: Brand-new OpenAI client — fully independent, no shared state
+        C: 创建全新的 OpenAI 客户端 — 完全独立，无任何共享状态"""
+        from openai import OpenAI
+        from config import Config
+        return OpenAI(
+            api_key=self.api_key,
+            base_url=self.base_url,
+            timeout=getattr(Config, 'API_TIMEOUT', 30),
+        )
+
+    def _complete(self, system_prompt: str, user_content: str, max_tokens: int = 2048) -> tuple[str, int]:
+        """
+        E: Single clean-context chat completion (no history accumulation)
+        C: 单次干净上下文补全（不累积任何历史消息）
+
+        Returns (text, total_tokens); total_tokens is 0 when usage is missing.
+        返回 (text, total_tokens)；usage 缺失时 total_tokens 为 0。
+        """
+        client = self._fresh_client()
+        try:
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content},
+                ],
+                temperature=0.0,
+                max_tokens=max_tokens,
+            )
+            text = response.choices[0].message.content.strip()
+            tokens = 0
+            try:
+                usage = getattr(response, 'usage', None)
+                if usage is not None:
+                    tokens = int(getattr(usage, 'total_tokens', 0) or 0)
+            except Exception:
+                tokens = 0
+            return text, tokens
+        except Exception as e:
+            print(T(
+                f"[QA] LLM 调用失败: {e}",
+                f"[QA] LLM call failed: {e}",
+            ))
+            return "", 0
+
+    # ---------------------------------------------------------
+    # E: Step 2-3 — independent AI generates 20 questions (easy → hard)
+    # C: 步骤 2-3 — 独立 AI 生成 20 个问题（由浅入深）
+    # ---------------------------------------------------------
+    def _generate_questions(self, transcript: str) -> tuple[list[dict], int]:
+        """
+        E: Independent AI generates exactly 20 questions with increasing difficulty
+        C: 独立 AI 依据转录生成恰好 20 个难度由浅入深的问题
+
+        Returns (questions, tokens); questions: [{id, difficulty(1-5), question}]
+        返回 (questions, tokens)；questions: [{id, difficulty(1-5), question}]
+        """
+        system_prompt = (
+            "You are a course instructor who has just delivered a lecture.\n"
+            "Based solely on the provided lecture transcript, generate exactly 20 quiz questions.\n"
+            "Questions must progress from easy to hard: difficulty 1 = recall of explicit facts, "
+            "difficulty 5 = synthesis / application across the whole lecture.\n"
+            "Return ONLY a JSON array, no extra text or markdown fences:\n"
+            '[{"id": 1, "difficulty": 1, "question": "..."}, '
+            '{"id": 2, "difficulty": 1, "question": "..."}, ...]'
+        )
+        user_content = f"[Lecture Transcript]\n\n{transcript}"
+        raw, tokens = self._complete(system_prompt, user_content, max_tokens=4096)
+        questions = self._parse_questions(raw)
+        return questions, tokens
+
+    @staticmethod
+    def _parse_questions(raw: str) -> list[dict]:
+        """E: Robust JSON array extraction from LLM output
+        C: 从 LLM 输出中稳健提取 JSON 数组"""
+        if not raw:
+            return []
+        text = raw.strip()
+        # E: Strip markdown code fences / C: 去除 markdown 代码围栏
+        if text.startswith("```"):
+            text = re.sub(r"^```[a-zA-Z]*\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+        try:
+            data = json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            # E: Fallback — locate the outermost [...] block / C: 回退 — 定位最外层 [...] 块
+            start, end = text.find("["), text.rfind("]")
+            if start == -1 or end <= start:
+                return []
+            try:
+                data = json.loads(text[start:end + 1])
+            except (json.JSONDecodeError, TypeError):
+                return []
+        if not isinstance(data, list):
+            return []
+        questions = []
+        for i, item in enumerate(data, 1):
+            if not isinstance(item, dict):
+                continue
+            q_text = str(item.get("question", "")).strip()
+            if not q_text:
+                continue
+            try:
+                difficulty = int(item.get("difficulty", 1))
+            except (TypeError, ValueError):
+                difficulty = 1
+            difficulty = max(1, min(5, difficulty))
+            questions.append({"id": i, "difficulty": difficulty, "question": q_text})
+            if len(questions) >= 20:
+                break
+        return questions
+
+    # ---------------------------------------------------------
+    # E: Step 4 — mindmap agent answers based ONLY on the generated tree
+    # C: 步骤 4 — mindmap agent 仅基于生成的一棵树（导图）回答
+    # ---------------------------------------------------------
+    def _answer_from_tree(self, questions: list[dict], tree_text: str) -> tuple[list[str], int]:
+        """
+        E: Answer questions using ONLY the serialized mind map (student prompt,
+            prior knowledge prohibited) — no transcript or other material.
+        C: 仅使用导图序列化文本回答问题（student prompt，禁止先验知识）—
+            不提供转录或其他材料。
+
+        Returns (answers, tokens); answers length == len(questions).
+        返回 (answers, tokens)；answers 长度与问题数一致。
+        """
+        system_prompt = (
+            "You are a student who has just attended a lecture.\n"
+            "Your only source of information is the [provided mind map].\n"
+            "Answer each question based solely on that material.\n"
+            "If the material contains no relevant information, respond with "
+            "\"Cannot determine from the provided material.\" Do not use prior knowledge.\n"
+            'Respond with exactly one answer per line, prefixed "A{id}: ".'
+        )
+        qtext = "\n".join(f"Q{q['id']}: {q['question']}" for q in questions)
+        user_content = (
+            f"[Provided Mind Map]\n\n{tree_text}\n\n"
+            f"Questions:\n{qtext}\n\n"
+            "Please answer each question concisely and accurately."
+        )
+        raw, tokens = self._complete(system_prompt, user_content, max_tokens=4096)
+        answers = self._parse_answers(raw, len(questions))
+        return answers, tokens
+
+    @staticmethod
+    def _parse_answers(raw: str, count: int) -> list[str]:
+        """E: Parse one answer per line (A{n}: ... or bare lines)
+        C: 逐行解析答案（A{n}: ... 或裸行）"""
+        if not raw:
+            return [""] * count
+        answers: list[str] = []
+        for line in raw.splitlines():
+            s = line.strip()
+            if not s:
+                continue
+            # E: Skip question lines / C: 跳过问题行
+            if s.startswith("Q") and ":" in s[:4]:
+                continue
+            # E: Strip "A{n}:" / "A:" prefixes (anchored, so "A1: x" keeps the text)
+            # C: 去除 "A{n}:" / "A:" 前缀（锚定匹配，避免误食编号）
+            if re.match(r"^A\s*\d*\s*[:.]\s*", s, re.IGNORECASE):
+                s = re.sub(r"^A\s*\d*\s*[:.]\s*", "", s, count=1, flags=re.IGNORECASE)
+            answers.append(s)
+        while len(answers) < count:
+            answers.append("")
+        return answers[:count]
+
+    # ---------------------------------------------------------
+    # E: Step 5 — scoring AI grades each answer 1-5 (transcript as reference)
+    # C: 步骤 5 — 评分 AI 以转录为参考答案逐题 1-5 评分
+    # ---------------------------------------------------------
+    def _score_answers(self, questions: list[dict], answers: list[str], transcript: str) -> tuple[list[int], int]:
+        """
+        E: Scoring AI grades each answer on a 1-5 scale using the transcript
+            as the reference answer.
+        C: 评分 AI 以转录为参考答案，逐题按 1-5 分评分。
+
+        Returns (scores, tokens); scores length == len(questions).
+        返回 (scores, tokens)；scores 长度与问题数一致。
+        """
+        system_prompt = (
+            "You are a strict grader. Grade each student answer against the provided "
+            "lecture transcript on a 1-5 scale:\n"
+            "1 = completely wrong or empty, 2 = mostly wrong, 3 = partially correct, "
+            "4 = mostly correct, 5 = fully correct and complete.\n"
+            "Return ONLY a JSON array of integers, one per question, e.g. [5, 3, 4]."
+        )
+        items = []
+        for q, a in zip(questions, answers):
+            items.append(
+                f'Q{q["id"]} (difficulty {q["difficulty"]}): {q["question"]}\n'
+                f'Answer: {a or "(no answer)"}'
+            )
+        user_content = (
+            f"[Lecture Transcript (reference)]\n\n{transcript}\n\n"
+            f"[Q&A]\n\n" + "\n\n".join(items)
+        )
+        raw, tokens = self._complete(system_prompt, user_content, max_tokens=1024)
+        scores = self._parse_scores(raw, len(questions))
+        return scores, tokens
+
+    @staticmethod
+    def _parse_scores(raw: str, count: int) -> list[int]:
+        """E: Robust 1-5 integer array extraction, clamped to [1, 5]
+        C: 稳健的 1-5 整数数组提取，并限制在 [1, 5] 范围"""
+        if not raw:
+            return [1] * count
+        # E: Prefer a JSON integer array (grader output) / C: 优先提取 JSON 整数数组
+        try:
+            start, end = raw.find("["), raw.rfind("]")
+            if start != -1 and end > start:
+                data = json.loads(raw[start:end + 1])
+                if isinstance(data, list):
+                    nums = [int(x) for x in data if isinstance(x, (int, float)) and 1 <= x <= 5]
+                    scores = nums[:count]
+                    while len(scores) < count:
+                        scores.append(1)
+                    return scores
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass
+        # E: Fallback — bare 1-5 integers anywhere / C: 回退 — 任意位置的裸 1-5 整数
+        nums = [int(x) for x in re.findall(r"\b([1-5])\b", raw)]
+        scores = nums[:count]
+        # E: Missing scores default to 1 (conservative) / C: 缺失评分默认 1 分（保守）
+        while len(scores) < count:
+            scores.append(1)
+        return scores
+
+    # ---------------------------------------------------------
+    # E: Main entry / C: 主入口
+    # ---------------------------------------------------------
     def evaluate(
         self,
         transcript: str,
         gen_map_nodes: list[dict],
-        questions: list[dict],
+        questions: Optional[list[dict]] = None,
     ) -> QAMetrics:
         """
-        E: Execute QA comparative evaluation
-        C: 执行 QA 对比评估
+        E: Execute the refactored audio-driven QA flow
+        C: 执行重构后的音频驱动 QA 流程
 
         流程 / Flow:
-        1. 对照组：使用完整逐字稿回答问题
-           Control group: answer questions using full transcript
-        2. 实验组：仅使用生成导图回答问题
-           Experiment group: answer questions using generated map only
-        3. 计算 BLEU-4 / ROUGE-L / BERTScore 加权综合分
-           Compute weighted composite of BLEU-4 / ROUGE-L / BERTScore
-        4. 重复 3 次取均值
-           Repeat 3 times and average
+        1. questions: auto-generated by an independent AI when not provided
+           问题：未提供时由独立 AI 自动生成（20 题，难度由浅入深）
+        2. answers: based ONLY on the generated mind map (mindmap agent)
+           回答：仅基于生成的导图（mindmap agent 视角）
+        3. scores: independent AI grades each answer 1-5 (transcript as reference)
+           评分：独立 AI 以转录为参考答案逐题 1-5 评分
+        4. aggregate: qa_score = mean(scores) / 5
+           汇总：qa_score = 平均分 / 5（归一化 [0,1]）
 
-        参数 / Args:
-            transcript: 原始逐字稿全文 / Full transcript text
+        Args / 参数:
+            transcript: 原始逐字稿全文（STT 结果）/ Full STT transcript
             gen_map_nodes: 生成导图节点列表 / Generated map nodes list
-            questions: 问题列表 [{id, question, answer}, ...]
+            questions: 可选预置问题 [{id, difficulty, question}]；缺省自动生成
+                       Optional preset questions; auto-generated when omitted
 
-        返回 / Returns:
-            QAMetrics: QA 评估结果
+        Returns / 返回:
+            QAMetrics
         """
-        if not self._initialized or self.client is None:
-            print("[QA] LLM 客户端未初始化，无法执行评估")
-            print("[QA] LLM client not initialized, cannot execute evaluation")
+        if not self._initialized:
+            print(T(
+                "[QA] LLM 客户端未初始化，无法执行评估",
+                "[QA] LLM client not initialized, cannot execute evaluation",
+            ))
             return QAMetrics()
 
+        if not transcript or not transcript.strip():
+            print(T(
+                "[QA] 转录文本为空，跳过评估",
+                "[QA] Transcript empty, skipping evaluation",
+            ))
+            return QAMetrics()
+
+        if not gen_map_nodes:
+            print(T(
+                "[QA] 生成导图为空，跳过评估",
+                "[QA] Generated map empty, skipping evaluation",
+            ))
+            return QAMetrics()
+
+        # E: Step 1-3 — independent AI generates 20 questions / 独立 AI 生成 20 题
         if not questions:
-            print("[QA] 问题集为空，跳过评估 / Question set empty, skipping")
+            print(T(
+                "[QA] 独立 AI 生成问题...",
+                "[QA] Independent AI generating 20 questions...",
+            ))
+            questions, q_tokens = self._generate_questions(transcript)
+        else:
+            q_tokens = 0
+        if not questions:
+            print(T(
+                "[QA] 问题生成为空，跳过评估",
+                "[QA] Question generation empty, skipping evaluation",
+            ))
             return QAMetrics()
-
-        # E: Extract question texts and gold answers / C: 提取问题文本和标准答案
-        question_texts = [q.get('question', '') for q in questions]
-        gold_answers = [q.get('answer', '') for q in questions]
         num_q = len(questions)
+        print(T(
+            f"[QA] 问题数: {num_q}",
+            f"[QA] Questions: {num_q}",
+        ))
 
-        # E: Build System Prompt (§3.4 unified template)
-        # C: 构建 System Prompt（§3.4 统一模板）
-        system_prompt = (
-            "You are a student who has just attended a lecture.\n"
-            "Your only source of information is the [provided material].\n"
-            "Answer each question based solely on that material.\n"
-            "If the material contains no relevant information, respond with\n"
-            "\"Cannot determine from the provided material.\" Do not use prior knowledge."
-        )
+        # E: Step 4 — answer based ONLY on the generated tree / 仅基于导图回答
+        tree_text = _serialize_map_to_text(gen_map_nodes)
+        print(T(
+            "[QA] 基于导图回答...",
+            "[QA] Answering from the generated map only...",
+        ))
+        answers, a_tokens = self._answer_from_tree(questions, tree_text)
 
-        # E: Serialize map to text / C: 序列化导图文本
-        map_text = _serialize_map_to_text(gen_map_nodes)
+        # E: Step 5 — scoring AI grades 1-5 with transcript as reference
+        # C: 评分 AI 以转录为参考答案逐题 1-5 评分
+        print(T(
+            "[QA] AI 逐题评分 1-5...",
+            "[QA] AI grading each answer 1-5...",
+        ))
+        scores, s_tokens = self._score_answers(questions, answers, transcript)
 
-        # E: Build question list text / C: 构建问题列表文本
-        questions_text = "\n".join(
-            f"Q{i + 1}: {q}" for i, q in enumerate(question_texts)
-        )
+        # E: Step 6 — aggregate / 汇总
+        avg_raw = sum(scores) / num_q
+        per_question = [
+            {
+                "id": q["id"],
+                "difficulty": q["difficulty"],
+                "question": q["question"],
+                "answer": answers[i] if i < len(answers) else "",
+                "score": scores[i] if i < len(scores) else 1,
+            }
+            for i, q in enumerate(questions)
+        ]
+        total_tokens = q_tokens + a_tokens + s_tokens
 
-        # E: Build user content / C: 构建用户内容
-        control_content = (
-            f"[Provided Material: Full Transcript]\n\n{transcript}\n\n"
-            f"Questions:\n{questions_text}\n\n"
-            "Please answer each question concisely and accurately."
-        )
-        experiment_content = (
-            f"[Provided Material: Mind Map Structure]\n\n{map_text}\n\n"
-            f"Questions:\n{questions_text}\n\n"
-            "Please answer each question concisely and accurately."
-        )
-
-        num_runs = 3
-        control_all_answers = []
-        experiment_all_answers = []
-
-        print(f"[QA] 开始评估 / Starting evaluation: {num_q} 问题/questions, {num_runs} 轮/runs")
-
-        for run_idx in range(num_runs):
-            # E: Control group / C: 对照组
-            print(f"[QA]  运行 {run_idx + 1}/{num_runs} 对照组 / Control group...")
-            control_answers = _call_llm_for_qa(
-                self.client, self.model, system_prompt, control_content
-            )
-            # E: Pad to match question count / C: 补齐长度
-            while len(control_answers) < num_q:
-                control_answers.append("")
-            control_all_answers.append(control_answers[:num_q])
-
-            # E: Experiment group / C: 实验组
-            print(f"[QA]  运行 {run_idx + 1}/{num_runs} 实验组 / Experiment group...")
-            experiment_answers = _call_llm_for_qa(
-                self.client, self.model, system_prompt, experiment_content
-            )
-            while len(experiment_answers) < num_q:
-                experiment_answers.append("")
-            experiment_all_answers.append(experiment_answers[:num_q])
-
-        # E: Compute accuracy (exact match) / C: 计算准确率（精确匹配）
-        control_accuracies = []
-        experiment_accuracies = []
-        for run_idx in range(num_runs):
-            ca = _exact_match_accuracy(control_all_answers[run_idx], gold_answers)
-            ea = _exact_match_accuracy(experiment_all_answers[run_idx], gold_answers)
-            control_accuracies.append(ca)
-            experiment_accuracies.append(ea)
-
-        avg_control_accuracy = sum(control_accuracies) / num_runs
-        avg_experiment_accuracy = sum(experiment_accuracies) / num_runs
-
-        # E: Compute BLEU-4 / ROUGE-L / BERTScore (using concatenated answers across runs)
-        # C: 计算 BLEU-4 / ROUGE-L / BERTScore（使用所有轮次的答案拼接）
-        all_control_flat = []
-        all_experiment_flat = []
-        for run_idx in range(num_runs):
-            all_control_flat.extend(control_all_answers[run_idx])
-            all_experiment_flat.extend(experiment_all_answers[run_idx])
-
-        # E: Repeat gold answers to match multi-run / C: 重复金标准答案以匹配多轮次
-        repeated_gold = gold_answers * num_runs
-
-        bleu4 = _compute_bleu4(repeated_gold, all_control_flat)
-        rouge_l = _compute_rouge_l(repeated_gold, all_control_flat)
-        bert_s = _compute_bert_score(repeated_gold, all_control_flat)
-
-        # E: Weighted composite: 0.3*BLEU-4 + 0.4*ROUGE-L + 0.3*BERTScore
-        # C: 加权综合分：0.3*BLEU-4 + 0.4*ROUGE-L + 0.3*BERTScore
-        qa_composite = 0.3 * bleu4 + 0.4 * rouge_l + 0.3 * bert_s
-
-        # E: QA retention rate / C: QA 保留率（实验组相对对照组）
-        qa_retention = 0.0
-        if avg_control_accuracy > 0:
-            qa_retention = avg_experiment_accuracy / avg_control_accuracy
-
-        print(f"[QA] 评估完成 / Evaluation complete")
-        print(f"[QA]   对照组准确率 / Control accuracy: {avg_control_accuracy:.4f}")
-        print(f"[QA]   实验组准确率 / Experiment accuracy: {avg_experiment_accuracy:.4f}")
-        print(f"[QA]   综合评分 / Composite: {qa_composite:.4f}")
-
-        # E: Rough token count estimation (4 chars ≈ 1 token for English, 1.5 chars ≈ 1 token for Chinese)
-        # C: 粗略 token 估算（英文 4 字符 ≈ 1 token，中文 1.5 字符 ≈ 1 token）
-        transcript_len = len(transcript)
-        map_text_len = len(map_text)
-        # E: Weighted average: if mostly Chinese use 1.5, else 4
-        # C: 加权平均：中文为主用 1.5，否则用 4
-        zh_chars = sum(1 for ch in transcript if '\u4e00' <= ch <= '\u9fff')
-        zh_ratio = zh_chars / max(transcript_len, 1)
-        chars_per_token = 1.5 if zh_ratio > 0.3 else 4
-        est_transcript_tokens = transcript_len / chars_per_token
-        est_map_tokens = map_text_len / chars_per_token
-        token_reduction = 1.0 - (est_map_tokens / max(est_transcript_tokens, 1))
+        print(T(
+            f"[QA] 评估完成: avg raw={avg_raw:.2f}/5, qa_score={avg_raw / 5.0:.4f}, tokens={total_tokens}",
+            f"[QA] Evaluation complete: avg raw={avg_raw:.2f}/5, qa_score={avg_raw / 5.0:.4f}, tokens={total_tokens}",
+        ))
 
         return QAMetrics(
-            control_accuracy=avg_control_accuracy,
-            experiment_accuracy=avg_experiment_accuracy,
-            qa_retention=qa_retention,
-            token_reduction=token_reduction,
-            bleu_4=bleu4,
-            rouge_l=rouge_l,
-            bert_score=bert_s,
-            qa_composite=qa_composite,
+            qa_score=round(avg_raw / 5.0, 4),
+            avg_raw_score=round(avg_raw, 4),
             num_questions=num_q,
-            num_runs=num_runs,
+            scores=scores,
+            per_question=per_question,
+            total_tokens=total_tokens,
         )

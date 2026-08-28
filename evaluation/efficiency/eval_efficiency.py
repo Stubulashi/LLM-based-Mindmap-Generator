@@ -17,6 +17,8 @@ import json
 import os
 import time as time_module
 
+from evaluation.i18n import T
+
 # E: Lazy imports — auto-degrade when external libraries missing
 # C: 延迟导入 — 外部库缺失时自动降级
 _JIWER_AVAILABLE = False
@@ -74,6 +76,7 @@ class EfficiencyStandards:
 
     def __init__(self, standards_path: Optional[str] = None):
         self.raw: dict = dict(DEFAULT_STANDARDS)
+        self.path = standards_path
         if standards_path and os.path.isfile(standards_path):
             try:
                 with open(standards_path, "r", encoding="utf-8") as f:
@@ -85,9 +88,15 @@ class EfficiencyStandards:
                             "p50_target": float(entry["p50_target"]),
                             "p95_target": float(entry["p95_target"]),
                         }
-                print(f"[Efficiency] Loaded standards from / 已从文件加载标准: {standards_path}")
+                print(T(
+                    f"[Efficiency] 已从文件加载标准: {standards_path}",
+                    f"[Efficiency] Loaded standards from: {standards_path}",
+                ))
             except Exception as e:
-                print(f"[Efficiency] Failed to load standards / 加载标准失败: {e}, using defaults / 使用默认值")
+                print(T(
+                    f"[Efficiency] 加载标准失败: {e}，使用默认值",
+                    f"[Efficiency] Failed to load standards: {e}, using defaults",
+                ))
 
     def get_p50_target(self, stage: str) -> float:
         return self.raw.get(stage, {}).get("p50_target", float('inf'))
@@ -205,9 +214,15 @@ class EfficiencyMetrics:
     standards_used: str = "default"
 
     # E: 4.2 STT Quality / C: 4.2 STT 质量
-    wer: float = 0.0
-    ktrr: float = 0.0
+    wer: Optional[float] = None
+    ktrr: Optional[float] = None
     num_stt_samples: int = 0
+
+    # E: STT status + anomaly markers (schema §4 validation)
+    # C: STT 状态 + 异常标记（schema §4 校验）
+    stt_status: str = "ok"
+    anomalies: list = field(default_factory=list)
+    audio_duration_sec: Optional[float] = None
 
     # E: 4.2.3 Correlation analysis / C: 4.2.3 关联分析
     correlation_r: float = 0.0
@@ -230,9 +245,12 @@ class EfficiencyMetrics:
             'num_repetitions': self.num_repetitions,
             'standards_comparison': self.standards_comparison,
             'standards_used': self.standards_used,
-            'wer': round(self.wer, 4),
-            'ktrr': round(self.ktrr, 4),
+            'wer': round(self.wer, 4) if self.wer is not None else None,
+            'ktrr': round(self.ktrr, 4) if self.ktrr is not None else None,
             'num_stt_samples': self.num_stt_samples,
+            'stt_status': self.stt_status,
+            'anomalies': list(self.anomalies),
+            'audio_duration_sec': self.audio_duration_sec,
             'correlation_r': round(self.correlation_r, 4),
             'correlation_rho': round(self.correlation_rho, 4),
             'correlation_interpretation': self.correlation_interpretation,
@@ -326,23 +344,27 @@ def _compute_wer(stt_text: str, ground_truth_text: str) -> tuple[float, str]:
     if not stt_text:
         return 1.0, "empty_stt"
     if not _JIWER_AVAILABLE:
-        return 0.0, "jiwer_unavailable"
+        return None, "jiwer_unavailable"
     try:
         zh_count = sum(1 for ch in ground_truth_text if '\u4e00' <= ch <= '\u9fff')
         is_chinese = zh_count > len(ground_truth_text) * 0.3
         if is_chinese and _JIEBA_AVAILABLE:
             stt_seg = " ".join(jieba.cut(stt_text))
             gt_seg = " ".join(jieba.cut(ground_truth_text))
-            wer_val = jiwer.wer(gt_seg, stt_seg)
+            wer_raw = jiwer.wer(gt_seg, stt_seg)
             method = "jieba_segmented"
         else:
-            wer_val = jiwer.wer(ground_truth_text, stt_text)
+            wer_raw = jiwer.wer(ground_truth_text, stt_text)
             method = "direct"
-        wer_val = max(0.0, min(1.0, wer_val))
+        # E: Range check — flag values outside [0,1] instead of silently clamping
+        # C: 范围校验 — 越界值标记而非静默钳制
+        if not (0.0 <= wer_raw <= 1.0):
+            method += "_clamped"
+        wer_val = max(0.0, min(1.0, wer_raw))
         return wer_val, method
     except Exception as e:
         print(f"[Efficiency] WER compute failed / WER 计算失败: {e}")
-        return 0.0, "error"
+        return None, "error"
 
 
 # ============================================================
@@ -360,7 +382,14 @@ def _compute_latency(timing_logs: list[dict]) -> dict:
     stage_durations: dict[str, list[float]] = {}
     for log in timing_logs:
         stage = log.get('stage', 'unknown')
-        duration = log.get('duration', 0)
+        # E: Normalize snapshots lacking 'duration' (produced before the field
+        #    was introduced) by deriving it from start/end.
+        # C: 对缺少 'duration' 字段的快照（该字段引入前产生的数据）做归一化，
+        #    用 start/end 推导时长。
+        raw_dur = log.get('duration')
+        if raw_dur is None:
+            raw_dur = max(0.0, log.get('end', 0) - log.get('start', 0))
+        duration = float(raw_dur)
         if stage not in stage_durations:
             stage_durations[stage] = []
         stage_durations[stage].append(duration)
@@ -388,6 +417,16 @@ def _compute_latency(timing_logs: list[dict]) -> dict:
     if total_p50 > 0 and stt_durations:
         stt_p50 = _compute_percentile(stt_durations, 50)
         stt_ratio = stt_p50 / total_p50
+
+    # E: Expose a synthetic 'total' stage so reports render the total-latency
+    #    row with its standards comparison (DEFAULT_STANDARDS has a total entry).
+    # C: 暴露合成的 'total' 阶段，使报告渲染总延迟行并参与标准对比
+    #    （DEFAULT_STANDARDS 中已含 total 目标）。
+    staged_timing['total'] = {
+        "p50": round(total_p50, 2),
+        "p95": round(total_p95, 2),
+        "samples": len(timing_logs),
+    }
 
     return {"t_total_p50": total_p50, "t_total_p95": total_p95, "stt_ratio": stt_ratio, "staged_timing": staged_timing}
 
@@ -496,26 +535,69 @@ def evaluate_efficiency(
     # E: Standards comparison / C: 标准对比
     standards_comparison = _compare_with_standards(latency["staged_timing"], standards)
 
+    # E: Basic validation — timing snapshot completeness / anomalies
+    # C: 基本校验 — 计时快照完整性 / 异常收集
+    anomalies: list[str] = []
+    for i, snap in enumerate(timing_snapshots or []):
+        if not isinstance(snap, dict):
+            anomalies.append(f"timing_snapshot_not_dict (index {i})")
+            continue
+        if snap.get("start") is None or snap.get("end") is None or snap.get("duration") is None:
+            anomalies.append(f"timing_snapshot_incomplete (stage={snap.get('stage', '?')})")
+
     # E: 4.2.1 WER / C: 4.2.1 WER
-    wer_val = 0.0
+    # E: None means unavailable (no ground truth) — never a placeholder 0.0,
+    #    which would render as WER 0.000 ✅PASS in reports.
+    # C: None 表示不可用（无 ground truth）— 绝不使用占位 0.0，否则报告会
+    #    显示 WER 0.000 ✅PASS 的误导结果。
+    wer_val: Optional[float] = None
     wer_method = "unavailable"
     if stt_text and ground_truth_text:
         wer_val, wer_method = _compute_wer(stt_text, ground_truth_text)
+        if wer_val is None:
+            anomalies.append(f"wer_unavailable ({wer_method})")
+        elif wer_method.endswith("_clamped"):
+            anomalies.append("wer_out_of_range_clamped")
+    elif stt_text and not ground_truth_text:
+        wer_method = "ground truth required / 待提供标准文本"
 
     # E: 4.2.2 KTRR / C: 4.2.2 KTRR
-    ktrr_val = 0.0
+    ktrr_val: Optional[float] = None
     ktrr_method = "unavailable"
     if key_terms and stt_text:
         ktrr_val = _compute_ktrr(key_terms, stt_text)
         ktrr_method = "fuzzy_1char"
-    elif key_terms:
-        ktrr_method = "stt_text required / 待提供STT文本"
+        if ktrr_val is not None and not (0.0 <= ktrr_val <= 1.0):
+            anomalies.append("ktrr_out_of_range")
+            ktrr_val = max(0.0, min(1.0, ktrr_val))
+    elif key_terms and not stt_text:
+        ktrr_method = "empty_stt"
+        anomalies.append("empty_stt_ktrr_unavailable")
+    elif stt_text:
+        ktrr_method = "key_terms required / 待提供关键术语"
+
+    # E: STT status — derived from the available transcript text
+    # C: STT 状态 — 依据可用转录文本推导
+    stt_status = "empty" if not (stt_text or "").strip() else "ok"
+
+    # E: Audio duration from the stt snapshot (schema §4.1 anomaly detection)
+    # C: 从 stt 快照提取音频时长（schema §4.1 异常检测）
+    audio_duration_sec = None
+    for snap in (timing_snapshots or []):
+        if isinstance(snap, dict) and snap.get("stage") == "stt" and snap.get("audio_duration_sec") is not None:
+            audio_duration_sec = snap["audio_duration_sec"]
+            break
 
     # E: 4.2.3 Correlation / C: 4.2.3 关联分析
     r_val, rho_val, interpretation = _compute_correlation(
         wer_scores_for_correlation or [],
         entity_recall_scores or [],
     )
+
+    # E: standards_used — custom only when a real custom file path was loaded
+    # C: standards_used — 仅当实际加载了自定义标准文件路径时标记为 custom
+    _custom_path = getattr(standards, 'path', None)
+    standards_used = "custom" if (_custom_path and os.path.isfile(_custom_path)) else "default"
 
     return EfficiencyMetrics(
         t_total_p50=latency["t_total_p50"],
@@ -524,7 +606,7 @@ def evaluate_efficiency(
         staged_timing=latency["staged_timing"],
         num_repetitions=num_repetitions,
         standards_comparison=standards_comparison,
-        standards_used="custom" if standards and os.path.isfile(getattr(standards, 'path', '')) else "default",
+        standards_used=standards_used,
         wer=wer_val,
         ktrr=ktrr_val,
         num_stt_samples=1 if stt_text else 0,
@@ -534,4 +616,7 @@ def evaluate_efficiency(
         wer_method=wer_method,
         ktrr_method=ktrr_method,
         raw_timing_logs=timing_snapshots or [],
+        stt_status=stt_status,
+        anomalies=anomalies,
+        audio_duration_sec=audio_duration_sec,
     )

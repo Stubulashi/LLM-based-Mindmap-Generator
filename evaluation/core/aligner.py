@@ -112,8 +112,12 @@ class HungarianAligner:
 
         gold_labels = [n.get('label', '') for n in gold_nodes]
         gen_labels = [n.get('label', '') for n in gen_nodes]
-        gold_ids = [n.get('id', '') for n in gold_nodes]
-        gen_ids = [n.get('id', '') for n in gen_nodes]
+        # E: Normalize ids to str — matches tree_utils edge/depth extraction, so
+        #    int ids (e.g. from JSON) never cause silent Edge-TP=0 / UAS/LAR inflation.
+        # C: id 统一 str 化 — 与 tree_utils 的边/深度提取口径一致，避免整数 id 导致
+        #    Edge-TP 恒 0、UAS/LAR 虚高（None==None 误判）的静默失真。
+        gold_ids = [str(n.get('id', '')) for n in gold_nodes]
+        gen_ids = [str(n.get('id', '')) for n in gen_nodes]
 
         if not gold_labels or not gen_labels:
             # E: Empty set handling / C: 空集处理

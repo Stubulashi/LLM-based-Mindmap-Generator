@@ -1,0 +1,55 @@
+{
+  "nodes": [
+    { "id": "n0", "label": "Explanation part", "parent_id": null },
+    { "id": "n1", "label": "Dictionaries", "parent_id": "n0" },
+    { "id": "n2", "label": "Detailed definitions", "parent_id": "n1" },
+    { "id": "n3", "label": "Word gender", "parent_id": "n1" },
+    { "id": "n4", "label": "Encyclopedias", "parent_id": "n0" },
+    { "id": "n5", "label": "Extra definitions", "parent_id": "n4" },
+    { "id": "n6", "label": "Synonyms", "parent_id": "n4" },
+    { "id": "n7", "label": "Benefits", "parent_id": "n0" },
+    { "id": "n8", "label": "Collocations", "parent_id": "n7" },
+    { "id": "n9", "label": "Memorize more", "parent_id": "n7" }
+  ],
+  "links": [
+    { "source": "n0", "target": "n1" },
+    { "source": "n0", "target": "n4" },
+    { "source": "n0", "target": "n7" },
+    { "source": "n1", "target": "n2" },
+    { "source": "n1", "target": "n3" },
+    { "source": "n4", "target": "n5" },
+    { "source": "n4", "target": "n6" },
+    { "source": "n7", "target": "n8" },
+    { "source": "n7", "target": "n9" }
+  ],
+  "tree": {
+    "id": "n0",
+    "label": "Explanation part",
+    "children": [
+      {
+        "id": "n1",
+        "label": "Dictionaries",
+        "children": [
+          { "id": "n2", "label": "Detailed definitions" },
+          { "id": "n3", "label": "Word gender" }
+        ]
+      },
+      {
+        "id": "n4",
+        "label": "Encyclopedias",
+        "children": [
+          { "id": "n5", "label": "Extra definitions" },
+          { "id": "n6", "label": "Synonyms" }
+        ]
+      },
+      {
+        "id": "n7",
+        "label": "Benefits",
+        "children": [
+          { "id": "n8", "label": "Collocations" },
+          { "id": "n9", "label": "Memorize more" }
+        ]
+      }
+    ]
+  }
+}

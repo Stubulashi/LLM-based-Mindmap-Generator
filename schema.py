@@ -37,8 +37,8 @@ class Link(BaseModel):
     source: str = Field(..., description="C: 起始节点的ID / E: ID of the starting node")
     # C: 目标节点的ID / E: ID of the target node
     target: str = Field(..., description="C: 目标节点的ID / E: ID of the target node")
-    # C: 连线类型：solid=父子实线, dashed=间接虚线, dotted=弱关联点线, reference=引用, contrast=对比
-    # E: Link type: solid=parent-child, dashed=indirect, dotted=weak, reference=citation, contrast=opposition
+    # C: 连线类型（见 LINK_TYPE_SCHEMA，合法值由 VALID_LINK_TYPES 约束）
+    # E: Link type (see LINK_TYPE_SCHEMA; valid values constrained by VALID_LINK_TYPES)
     link_type: str = Field(default="solid", description="C: 连线类型 / E: Link type")
     # C: 连线上的说明文字（可选） / E: Optional label on the link
     label: Optional[str] = Field(default=None, description="C: 连线标签 / E: Link label")
@@ -73,3 +73,48 @@ NODE_COLOR_SCHEMA: dict[str, str] = {
     'var(--node-teal)':   '#e0f7f4',
     'var(--node-pink)':   '#fde8f0',
 }
+
+# =========================================================
+# C: 连线类型映射表 — 前后端共享的单一事实来源
+#    前端 index.html 的 LINK_TYPE_SCHEMA（JS 常量）必须与此表保持同步
+#    hierarchical=True 表示该类型计入父子层级边（树语义，影响评估 Edge-F1/UAS）
+#    dash/arrow 用于 G6 渲染（dash 为 SVG dasharray，[] 表示实线）
+# E: Link type schema — single source of truth shared by frontend and backend
+#    Frontend LINK_TYPE_SCHEMA (JS const) in index.html MUST stay in sync
+#    hierarchical=True means the type counts as a tree edge (affects eval Edge-F1/UAS)
+#    dash/arrow drive G6 rendering (dash is SVG dasharray, [] = solid line)
+# =========================================================
+LINK_TYPE_SCHEMA: dict[str, dict] = {
+    'solid': {
+        'name_zh': '父子关系', 'name_en': 'Parent-child',
+        'color': '#3b82f6', 'dash': [], 'arrow': False, 'hierarchical': True,
+    },
+    'dashed': {
+        'name_zh': '间接关联', 'name_en': 'Indirect',
+        'color': '#94a3b8', 'dash': [6, 4], 'arrow': False, 'hierarchical': True,
+    },
+    'containment': {
+        'name_zh': '包含', 'name_en': 'Containment',
+        'color': '#06b6d4', 'dash': [], 'arrow': False, 'hierarchical': True,
+    },
+    'dotted': {
+        'name_zh': '弱关联', 'name_en': 'Weak',
+        'color': '#a78bfa', 'dash': [2, 4], 'arrow': False, 'hierarchical': False,
+    },
+    'reference': {
+        'name_zh': '引用', 'name_en': 'Reference',
+        'color': '#10b981', 'dash': [], 'arrow': True, 'hierarchical': False,
+    },
+    'contrast': {
+        'name_zh': '对比', 'name_en': 'Contrast',
+        'color': '#f59e0b', 'dash': [], 'arrow': True, 'hierarchical': False,
+    },
+    'causal': {
+        'name_zh': '因果', 'name_en': 'Causal',
+        'color': '#ef4444', 'dash': [6, 4], 'arrow': True, 'hierarchical': False,
+    },
+}
+
+# C: 合法连线类型集合（由 LINK_TYPE_SCHEMA 派生，禁止各处硬编码）
+# E: Valid link type set (derived from LINK_TYPE_SCHEMA; no hardcoding elsewhere)
+VALID_LINK_TYPES: frozenset[str] = frozenset(LINK_TYPE_SCHEMA.keys())

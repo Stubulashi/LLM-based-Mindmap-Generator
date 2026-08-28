@@ -1,0 +1,54 @@
+{
+  "nodes": [
+    { "id": "n0", "label": "Interesting & Motivating Features", "parent_id": null },
+    { "id": "n1", "label": "Star marking", "parent_id": "n0" },
+    { "id": "n2", "label": "Add words", "parent_id": "n1" },
+    { "id": "n3", "label": "Draws attention", "parent_id": "n1" },
+    { "id": "n4", "label": "Tags hard words", "parent_id": "n1" },
+    { "id": "n5", "label": "Efficient", "parent_id": "n1" },
+    { "id": "n6", "label": "Time tracking", "parent_id": "n0" },
+    { "id": "n7", "label": "Record duration", "parent_id": "n6" },
+    { "id": "n8", "label": "Set goals", "parent_id": "n6" },
+    { "id": "n9", "label": "Slogans", "parent_id": "n0" }
+  ],
+  "links": [
+    { "source": "n0", "target": "n1" },
+    { "source": "n0", "target": "n6" },
+    { "source": "n0", "target": "n9" },
+    { "source": "n1", "target": "n2" },
+    { "source": "n1", "target": "n3" },
+    { "source": "n1", "target": "n4" },
+    { "source": "n1", "target": "n5" },
+    { "source": "n6", "target": "n7" },
+    { "source": "n6", "target": "n8" }
+  ],
+  "tree": {
+    "id": "n0",
+    "label": "Interesting & Motivating Features",
+    "children": [
+      {
+        "id": "n1",
+        "label": "Star marking",
+        "children": [
+          { "id": "n2", "label": "Add words" },
+          { "id": "n3", "label": "Draws attention" },
+          { "id": "n4", "label": "Tags hard words" },
+          { "id": "n5", "label": "Efficient" }
+        ]
+      },
+      {
+        "id": "n6",
+        "label": "Time tracking",
+        "children": [
+          { "id": "n7", "label": "Record duration" },
+          { "id": "n8", "label": "Set goals" }
+        ]
+      },
+      {
+        "id": "n9",
+        "label": "Slogans",
+        "children": []
+      }
+    ]
+  }
+}

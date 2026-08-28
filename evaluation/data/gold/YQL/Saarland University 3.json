@@ -1,0 +1,35 @@
+{
+  "nodes": [
+    { "id": "n0", "label": "Time saving", "parent_id": null },
+    { "id": "n1", "label": "Fast reading", "parent_id": "n0" },
+    { "id": "n2", "label": "Millions per second", "parent_id": "n1" },
+    { "id": "n3", "label": "Fast marking", "parent_id": "n0" },
+    { "id": "n4", "label": "Short time", "parent_id": "n3" }
+  ],
+  "links": [
+    { "source": "n0", "target": "n1" },
+    { "source": "n0", "target": "n3" },
+    { "source": "n1", "target": "n2" },
+    { "source": "n3", "target": "n4" }
+  ],
+  "tree": {
+    "id": "n0",
+    "label": "Time saving",
+    "children": [
+      {
+        "id": "n1",
+        "label": "Fast reading",
+        "children": [
+          { "id": "n2", "label": "Millions per second" }
+        ]
+      },
+      {
+        "id": "n3",
+        "label": "Fast marking",
+        "children": [
+          { "id": "n4", "label": "Short time" }
+        ]
+      }
+    ]
+  }
+}

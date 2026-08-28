@@ -51,6 +51,7 @@ mcp = FastMCP(
 # E: Global model initialization (loaded once at startup)
 # ---------------------------------------------------------
 whisper_model = None
+_whisper_disabled = False  # C: SKIP_HEAVY_INIT 模式时设为 True，禁止懒加载 / E: True in SKIP_HEAVY_INIT mode to block lazy loading
 llm_client = None
 polish_client = None  # C: 润色专用轻量客户端（None = 未配置，使用主力模型） / E: Polish lightweight client (None=not configured, use main model)
 map_agent = None
@@ -65,22 +66,46 @@ _wiki_rate_lock = None
 _wiki_last_call_ts = 0.0
 
 
-def _init_models():
-    global whisper_model, llm_client, polish_client, map_agent, map_pipeline
-    logger.info("C: 正在加载 Whisper 模型 (small)...")
-    logger.info("E: Loading Whisper model (small)...")
-    whisper_model = whisper.load_model("small")
-    logger.info(
-        f"C: Whisper 就绪，运行设备: {next(whisper_model.parameters()).device}"
-    )
-    logger.info(
-        f"E: Whisper ready on device: {next(whisper_model.parameters()).device}"
-    )
+def _get_whisper_model():
+    """C: 线程安全的 Whisper 懒加载访问器（首次 transcribe_audio 调用时才加载）
+    E: Thread-safe Whisper lazy-loading accessor (loaded on first transcribe_audio call)"""
+    global whisper_model
+    if whisper_model is None and not _whisper_disabled:
+        import threading as _th
+        with _get_whisper_model_lock:
+            if whisper_model is None and not _whisper_disabled:
+                logger.info("C: 正在加载 Whisper 模型 (small)...（首次调用 transcribe_audio）")
+                logger.info("E: Loading Whisper model (small)... (first transcribe_audio call)")
+                whisper_model = whisper.load_model("small")
+                logger.info(
+                    f"C: Whisper 就绪，运行设备: {next(whisper_model.parameters()).device}"
+                )
+                logger.info(
+                    f"E: Whisper ready on device: {next(whisper_model.parameters()).device}"
+                )
+    return whisper_model
+
+_get_whisper_model_lock = threading.Lock()
+
+
+def _init_common():
+    """C: 初始化 LLM 客户端、管线 Agent、Wikipedia 客户端（不含 Whisper）
+    供 _init_models 和 Inspector 调试模式共用。
+    E: Initialize LLM clients, pipeline agents, Wikipedia client (excl. Whisper)
+    Shared by _init_models and Inspector debug mode."""
+    global llm_client, polish_client, map_agent, map_pipeline
+    global light_llm_client, _wiki_wiki, _wiki_rate_lock, _wiki_last_call_ts
+
+    # C: 配置一致性校验（仅警告，不阻断）
+    # E: Config consistency check (warnings only, non-blocking)
+    for _w in Config.validate():
+        logger.warning(f"C: [Config Check] {_w}")
 
     # C: 初始化 LLM 客户端（兼容 OpenAI API 的任意提供商）
     # E: Initialize LLM client (compatible with any OpenAI API provider)
     llm_client = OpenAI(
-        api_key=Config.LLM_API_KEY, base_url=Config.LLM_BASE_URL
+        api_key=Config.LLM_API_KEY, base_url=Config.LLM_BASE_URL,
+        timeout=Config.API_TIMEOUT,
     )
     logger.info(f"C: LLM 客户端就绪，模型={Config.LLM_MODEL}")
     logger.info(f"E: LLM client ready, model={Config.LLM_MODEL}")
@@ -90,7 +115,8 @@ def _init_models():
     if Config.POLISH_MODEL:
         polish_client = OpenAI(
             api_key=Config.POLISH_API_KEY,
-            base_url=Config.POLISH_BASE_URL
+            base_url=Config.POLISH_BASE_URL,
+            timeout=Config.API_TIMEOUT,
         )
         logger.info(
             f"C: 润色轻量客户端就绪，模型={Config.POLISH_MODEL}，迭代次数={Config.POLISH_ITERATIONS}"
@@ -109,18 +135,8 @@ def _init_models():
     # ---------------------------------------------------------
     # C: 初始化多模型管线（三阶段协作导图生成）
     #    所有模型均可独立配置，未配置时自动降级为单模型 ReAct。
-    #    - 阶段1 概念提取: CONCEPT_MODEL（轻量）
-    #    - 阶段2 概念分组: HIERARCHY_MODEL（中等）
-    #    - 阶段3 Delta生成: DELTA_MODEL（主力）
     # E: Initialize multi-model pipeline (3-stage collaborative map generation)
-    #    All models independently configurable, auto-degrade to single-model ReAct when not set.
-    #    - Stage 1 concept extraction: CONCEPT_MODEL (lightweight)
-    #    - Stage 2 concept grouping: HIERARCHY_MODEL (medium)
-    #    - Stage 3 delta generation: DELTA_MODEL (main)
     # ---------------------------------------------------------
-
-    # C: 阶段1 — 概念提取 Agent（None = 未配置，管线会降级到 legacy）
-    # E: Stage 1 — Concept extraction agent (None = not configured, pipeline degrades to legacy)
     concept_agent = None
     if Config.CONCEPT_MODEL:
         concept_agent = ConceptExtractionAgent(
@@ -143,15 +159,16 @@ def _init_models():
             f"E: CONCEPT_MODEL not set, concept extraction uses main model={Config.LLM_MODEL}"
         )
 
-    # C: 阶段2 — 概念分组 Agent（None = 跳过阶段2，管线降为两阶段）
-    #    与阶段1一致：未配置 HIERARCHY_MODEL 时回退到 LLM_MODEL，默认启用三阶段模式。
-    #    如需跳过阶段2，显式设置 HIERARCHY_MODEL="" 或环境变量 HIERARCHY_SKIP=true。
-    # E: Stage 2 — Concept grouping agent (falls back to LLM_MODEL for full 3-stage by default)
-    #    To skip stage 2, explicitly set HIERARCHY_MODEL="" or env HIERARCHY_SKIP=true.
+    # C: 阶段2 — 概念分组 Agent
+    #    修复：HIERARCHY_MODEL 仅当“显式设置为空字符串”时才跳过阶段2；
+    #    未设置时回退 LLM_MODEL 启用三阶段（原 os.environ.get 默认值 '' 导致恒跳过）
+    # E: Stage 2 — concept grouping agent
+    #    Fix: skip stage 2 ONLY when HIERARCHY_MODEL is explicitly set to '';
+    #    unset falls back to LLM_MODEL (3-stage). (old get() default '' caused permanent skip)
     hierarchy_agent = None
     hierarchy_skip = (
         os.environ.get('HIERARCHY_SKIP', '').lower() in ('true', '1', 'yes')
-        or os.environ.get('HIERARCHY_MODEL', '') == ''
+        or ('HIERARCHY_MODEL' in os.environ and os.environ['HIERARCHY_MODEL'] == '')
     )
     if not hierarchy_skip:
         hierarchy_agent = HierarchyPlanningAgent(
@@ -170,7 +187,6 @@ def _init_models():
         )
 
     # C: 阶段3 — Delta 生成 Agent（始终配置，默认复用主力模型）
-    # E: Stage 3 — Delta generation agent (always configured, defaults to main model)
     delta_agent = DeltaGenerationAgent(
         api_key=Config.DELTA_API_KEY,
         base_url=Config.DELTA_BASE_URL,
@@ -180,7 +196,6 @@ def _init_models():
     logger.info(f"E: Delta generation agent ready, model={Config.DELTA_MODEL}")
 
     # C: 组装管线编排器
-    # E: Assemble pipeline orchestrator
     map_pipeline = MindMapPipelineOrchestrator(
         concept_agent=concept_agent,
         hierarchy_agent=hierarchy_agent,
@@ -191,14 +206,14 @@ def _init_models():
     logger.info("E: Multi-model map pipeline orchestrator ready")
 
     # ---------------------------------------------------------
-    # C: 任务4 — 轻量 LLM 客户端（用于 get_definition / lookup_dictionary）
-    # E: Task 4 — lightweight LLM client (for get_definition / lookup_dictionary)
+    # C: 轻量 LLM 客户端（用于 get_definition / lookup_dictionary）
+    # E: Lightweight LLM client (for get_definition / lookup_dictionary)
     # ---------------------------------------------------------
-    global light_llm_client
     if Config.LLM_LIGHT_ENABLED and Config.LLM_LIGHT_MODEL:
         light_llm_client = OpenAI(
             api_key=Config.LLM_LIGHT_API_KEY,
             base_url=Config.LLM_LIGHT_BASE_URL,
+            timeout=Config.API_TIMEOUT,
         )
         logger.info(
             f"C: 轻量 LLM 客户端就绪，模型={Config.LLM_LIGHT_MODEL}"
@@ -212,16 +227,14 @@ def _init_models():
         logger.info("E: LLM_LIGHT_MODEL not set → light tasks fallback to main model")
 
     # ---------------------------------------------------------
-    # C: 任务3 — Wikipedia 官方库实例
-    # E: Task 3 — Wikipedia official lib instance
+    # C: Wikipedia 官方库实例
+    # E: Wikipedia official lib instance
     # ---------------------------------------------------------
-    global _wiki_wiki, _wiki_rate_lock, _wiki_last_call_ts
     import threading as _th
     _wiki_rate_lock = _th.Lock()
     _wiki_last_call_ts = 0.0
     try:
-        import wikipediaapi as _wikipediaapi
-        _wiki_wiki = _wikipediaapi.Wikipedia(
+        _wiki_wiki = wikipediaapi.Wikipedia(
             user_agent=Config.WIKIPEDIA_USER_AGENT,
             language=Config.WIKIPEDIA_LANGUAGE,
         )
@@ -238,8 +251,13 @@ def _init_models():
         logger.error(f"E: Wikipedia client init failed: {e}")
         _wiki_wiki = None
 
-    logger.info("C: MCP Server 模型全部就绪")
-    logger.info("E: MCP Server all models ready")
+
+def _init_models():
+    """C: 初始化所有模型和客户端（Whisper 使用懒加载）
+    E: Initialize all models and clients (Whisper uses lazy loading)"""
+    _init_common()
+    logger.info("C: MCP Server 全部就绪（Whisper 将在首次转录请求时加载）")
+    logger.info("E: MCP Server all ready (Whisper will load on first transcription request)")
 
 
 # ---------------------------------------------------------
@@ -286,35 +304,70 @@ def chat_generate(messages: list) -> dict:
 def transcribe_audio(file_path: str) -> dict:
     """C: 使用 Whisper 模型将音频文件转录为文本，自动检测语言。
     参数 file_path: 音频文件的绝对路径。
-    返回: {"raw_text": "转录文本", "detected_language": "zh"}
+    返回: {"raw_text": "转录文本", "detected_language": "zh",
+           "duration_sec": 音频时长（秒）, "timing": 分阶段耗时（毫秒）}
     E: Transcribe an audio file to text using Whisper model, auto-detect language.
     Args file_path: Absolute path to the audio file.
-    Returns: {"raw_text": "transcribed text", "detected_language": "en"}
+    Returns: {"raw_text": "transcribed text", "detected_language": "en",
+              "duration_sec": audio duration (s), "timing": per-stage ms}
     """
     logger.info(f"C: [transcribe_audio] 开始转录: {file_path}")
     logger.info(f"E: [transcribe_audio] Starting transcription: {file_path}")
 
-    # C: Whisper 未加载时优雅报错（Inspector 调试模式）
-    # E: Graceful error when Whisper not loaded (Inspector debug mode)
-    if whisper_model is None:
+    # C: Whisper 未加载时优雅报错（SKIP_HEAVY_INIT 调试模式）
+    # E: Graceful error when Whisper not loaded (SKIP_HEAVY_INIT debug mode)
+    _whisper = _get_whisper_model()
+    if _whisper is None:
         msg_cn = "Whisper 模型未加载（SKIP_HEAVY_INIT 调试模式）。请通过完整服务（python main.py）使用转录功能。"
         msg_en = "Whisper model not loaded (SKIP_HEAVY_INIT debug mode). Use full service (python main.py) for transcription."
         logger.warning(f"C: [transcribe_audio] {msg_cn}")
         logger.warning(f"E: [transcribe_audio] {msg_en}")
         return {"raw_text": "", "detected_language": "en", "warning": f"{msg_cn} | {msg_en}"}
 
-    result = whisper_model.transcribe(file_path)
+    # C: 分阶段打点（高精度计时，供 §4 效率评估使用）：音频加载 / 语音识别 / 文本后处理
+    # E: Per-stage timing with high-precision clock (for §4 efficiency):
+    #    audio load / speech recognition / text post-processing
+    t0 = time.perf_counter()
+    try:
+        audio = whisper.load_audio(file_path)
+    except Exception as load_err:
+        msg_cn = f"音频文件无法解码或读取: {load_err}"
+        msg_en = f"Audio file cannot be decoded or read: {load_err}"
+        logger.error(f"C: [transcribe_audio] {msg_cn}")
+        logger.error(f"E: [transcribe_audio] {msg_en}")
+        return {"raw_text": "", "detected_language": "en", "warning": f"{msg_cn} | {msg_en}"}
+    t1 = time.perf_counter()
+
+    result = _whisper.transcribe(audio)
+    t2 = time.perf_counter()
+
     raw_text = result["text"].strip()
     detected_language = result.get("language", "en")
+    t3 = time.perf_counter()
+
+    duration_sec = round(len(audio) / 16000.0, 3)
+    timing = {
+        "audio_load_ms": round((t1 - t0) * 1000.0, 3),
+        "stt_ms": round((t2 - t1) * 1000.0, 3),
+        "postprocess_ms": round((t3 - t2) * 1000.0, 3),
+        "total_ms": round((t3 - t0) * 1000.0, 3),
+    }
 
     logger.info(
-        f"C: [transcribe_audio] 转录完成，语言={detected_language}，文本长度={len(raw_text)}"
+        f"C: [transcribe_audio] 转录完成，语言={detected_language}，文本长度={len(raw_text)}，"
+        f"音频时长={duration_sec}s，总耗时={timing['total_ms']}ms"
     )
     logger.info(
-        f"E: [transcribe_audio] Done, lang={detected_language}, text_len={len(raw_text)}"
+        f"E: [transcribe_audio] Done, lang={detected_language}, text_len={len(raw_text)}, "
+        f"duration={duration_sec}s, total={timing['total_ms']}ms"
     )
 
-    return {"raw_text": raw_text, "detected_language": detected_language}
+    return {
+        "raw_text": raw_text,
+        "detected_language": detected_language,
+        "duration_sec": duration_sec,
+        "timing": timing,
+    }
 
 
 # ---------------------------------------------------------
@@ -751,6 +804,15 @@ def modify_mind_map_v2(chat_history: str, current_map: dict,
             chat_history=chat_history, current_map=current_map,
             session_ts=session_ts
         )
+        # C: 透传管线错误标记（如空图 final_empty）— 不再静默返回
+        # E: Pass through pipeline error markers (e.g., final_empty) — no silent returns
+        if updated_map.get("error"):
+            logger.warning(
+                f"C: [modify_mind_map_v2] 管线返回错误标记: {updated_map['error']}"
+            )
+            logger.warning(
+                f"E: [modify_mind_map_v2] Pipeline returned error marker: {updated_map['error']}"
+            )
         logger.info(
             f"C: [modify_mind_map_v2] 绘图完成，节点数={len(updated_map.get('nodes', []))}"
         )
@@ -761,7 +823,12 @@ def modify_mind_map_v2(chat_history: str, current_map: dict,
     except Exception as e:
         logger.error(f"C: [modify_mind_map_v2] 失败: {e}")
         logger.error(f"E: [modify_mind_map_v2] Failed: {e}")
-        return current_map
+        # C: 返回原图作为降级方案，并附显式错误标记（评估侧可显式 FAIL）
+        # E: Return original map as fallback with explicit error marker
+        result = dict(current_map) if isinstance(current_map, dict) else {"nodes": [], "links": []}
+        result.setdefault("_degradation", {})["mcp_exception"] = True
+        result["error"] = f"MCP tool exception: {e}"
+        return result
 
 
 # =========================================================
@@ -822,39 +889,83 @@ def _call_llm_tool(system_prompt: str, user_prompt: str,
                    max_tokens: int = 4096,
                    client=None, model: str | None = None) -> dict:
     """C: 通用 LLM function calling 封装。默认 llm_client + LLM_MODEL。
-    E: Generic LLM function calling wrapper. Defaults to llm_client + LLM_MODEL."""
+    含纯文本 JSON 降级（提供商不支持 function calling）。
+    E: Generic LLM function calling wrapper. Defaults to llm_client + LLM_MODEL.
+    Includes plain-text JSON fallback (providers without function calling)."""
     if client is None:
         client = llm_client
     if model is None:
         model = Config.LLM_MODEL
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        tools=tools,
-        tool_choice={"type": "function", "function": {"name": tool_choice_name}},
-        max_tokens=max_tokens,
-    )
+    def _do_call(messages: list, use_tools: bool = True):
+        """C: 单次调用 / E: Single call."""
+        kwargs = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+        }
+        if use_tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = {
+                "type": "function", "function": {"name": tool_choice_name}
+            }
+        return client.chat.completions.create(**kwargs)
+
+    response = _do_call([
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ])
     if not response.choices[0].message.tool_calls:
         # C: 重试一次，附加工具调用提醒
         # E: Retry once with tool-call reminder
         retry_user_prompt = user_prompt + "\n\n" + (
-            "C: 【重要】你必须调用 annotate_terms 工具来提交结果，不能直接返回文本。\n"
-            "E: [IMPORTANT] You MUST call the annotate_terms tool to submit results, do NOT return plain text."
+            f"C: 【重要】你必须调用 {tool_choice_name} 工具来提交结果，不能直接返回文本。\n"
+            f"E: [IMPORTANT] You MUST call the {tool_choice_name} tool to submit results, do NOT return plain text."
         )
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": retry_user_prompt},
-            ],
-            tools=tools,
-            tool_choice={"type": "function", "function": {"name": tool_choice_name}},
-            max_tokens=max_tokens,
+        response = _do_call([
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": retry_user_prompt},
+        ])
+
+    # C: 纯文本 JSON 降级 — 提供商不支持 function calling（两次带工具调用均无 tool_calls）
+    # E: Plain-text JSON fallback — provider lacks function calling (no tool_calls in both attempts)
+    if not response.choices[0].message.tool_calls and Config.LLM_JSON_FALLBACK:
+        logger.warning(
+            "C: [_call_llm_tool] 两次调用均未返回 tool_calls，降级为纯文本 JSON 输出模式"
         )
+        logger.warning(
+            "E: [_call_llm_tool] No tool_calls in both attempts, degrading to plain-text JSON mode"
+        )
+        fallback_prompt = (
+            user_prompt + "\n\n"
+            f"C: 【降级模式】当前环境不支持函数调用。请直接输出一个合法的 JSON 对象"
+            f"（不要使用 markdown 代码块，不要输出任何解释或前后缀文本），"
+            f"其内容为调用 {tool_choice_name} 工具时应提交的完整参数。\n"
+            f"E: [Fallback Mode] Function calling is unavailable here. Output ONLY a valid raw JSON object"
+            f" (no markdown fences, no explanation, no surrounding text) containing the full arguments"
+            f" you would pass to the {tool_choice_name} tool."
+        )
+        response = _do_call([
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": fallback_prompt},
+        ], use_tools=False)
+        content = response.choices[0].message.content
+        if content:
+            try:
+                repaired = _safe_json_parse(content)
+                logger.info(
+                    "C: [_call_llm_tool] 纯文本 JSON 降级解析成功"
+                )
+                logger.info(
+                    "E: [_call_llm_tool] Plain-text JSON fallback parsed successfully"
+                )
+                return repaired
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"C: LLM 不支持工具调用且纯文本 JSON 无法解析: {e}\n原始: {content[:500]}"
+                    f"\nE: LLM tool calls unavailable and plain-text JSON unparseable: {e}\nRaw: {content[:500]}"
+                ) from e
+
     if not response.choices[0].message.tool_calls:
         raise ValueError(
             "C: LLM 两次调用均未返回 tool_calls\n"
@@ -1121,9 +1232,24 @@ def _detect_term_language(term: str) -> str:
 
 
 # ---------------------------------------------------------
-# C: Helper — 拼音生成(LLM) / E: Helper — Pinyin generation (LLM)
+# C: Helper — 拼音生成（优先本地 pypinyin，回退 LLM）/ E: Helper — Pinyin (local pypinyin first, LLM fallback)
 # ---------------------------------------------------------
+try:
+    import pypinyin  # C: 可选依赖，用于离线拼音 / E: optional dep for offline pinyin
+    _PYPINYIN_AVAILABLE = True
+except ImportError:
+    _PYPINYIN_AVAILABLE = False
+
+
 def _generate_pinyin_via_llm(term: str) -> str:
+    # C: 本地 pypinyin 优先（带声调、离线、零成本）；不可用时回退 LLM
+    # E: Local pypinyin first (toned, offline, zero cost); fall back to LLM when unavailable
+    if _PYPINYIN_AVAILABLE:
+        try:
+            from pypinyin import Style, lazy_pinyin
+            return ' '.join(lazy_pinyin(term, style=Style.TONE))
+        except Exception:
+            pass
     if llm_client is None:
         return ""
     try:
@@ -1804,87 +1930,8 @@ if __name__ == "__main__":
     if skip_heavy:
         logger.info("C: SKIP_HEAVY_INIT=1 → 跳过 Whisper 模型加载（Inspector 调试模式）")
         logger.info("E: SKIP_HEAVY_INIT=1 → skipping Whisper model load (Inspector debug mode)")
-        # C: 仅初始化 LLM 客户端，跳过 Whisper
-        # E: Only init LLM clients, skip Whisper
-        llm_client = OpenAI(
-            api_key=Config.LLM_API_KEY, base_url=Config.LLM_BASE_URL
-        )
-        logger.info(f"C: LLM 客户端就绪（Inspector 模式），模型={Config.LLM_MODEL}")
-        logger.info(f"E: LLM client ready (Inspector mode), model={Config.LLM_MODEL}")
-        if Config.POLISH_MODEL:
-            polish_client = OpenAI(
-                api_key=Config.POLISH_API_KEY,
-                base_url=Config.POLISH_BASE_URL
-            )
-            logger.info(f"C: 润色客户端就绪（Inspector 模式），模型={Config.POLISH_MODEL}")
-            logger.info(f"E: Polish client ready (Inspector mode), model={Config.POLISH_MODEL}")
-        map_agent = MindMapSpecialistAgent()
-        # C: 组装管线编排器（与 _init_models 逻辑相同）
-        # E: Assemble pipeline orchestrator (same logic as _init_models)
-        from mindmap_agent import (
-            MindMapPipelineOrchestrator,
-            ConceptExtractionAgent,
-            HierarchyPlanningAgent,
-            DeltaGenerationAgent,
-        )
-        concept_agent = None
-        if Config.CONCEPT_MODEL:
-            concept_agent = ConceptExtractionAgent(
-                api_key=Config.CONCEPT_API_KEY,
-                base_url=Config.CONCEPT_BASE_URL,
-                model=Config.CONCEPT_MODEL
-            )
-        else:
-            concept_agent = ConceptExtractionAgent(
-                api_key=Config.LLM_API_KEY,
-                base_url=Config.LLM_BASE_URL,
-                model=Config.LLM_MODEL
-            )
-        hierarchy_agent = None
-        hierarchy_skip = (
-            os.environ.get('HIERARCHY_SKIP', '').lower() in ('true', '1', 'yes')
-            or os.environ.get('HIERARCHY_MODEL', '') == ''
-        )
-        if not hierarchy_skip:
-            hierarchy_agent = HierarchyPlanningAgent(
-                api_key=Config.HIERARCHY_API_KEY,
-                base_url=Config.HIERARCHY_BASE_URL,
-                model=Config.HIERARCHY_MODEL or Config.LLM_MODEL
-            )
-        delta_agent = DeltaGenerationAgent(
-            api_key=Config.DELTA_API_KEY,
-            base_url=Config.DELTA_BASE_URL,
-            model=Config.DELTA_MODEL
-        )
-        map_pipeline = MindMapPipelineOrchestrator(
-            concept_agent=concept_agent,
-            hierarchy_agent=hierarchy_agent,
-            delta_agent=delta_agent,
-            legacy_agent=map_agent
-        )
-        # C: 任务4 — Inspector 模式也初始化轻量 LLM
-        # E: Task 4 — Inspector mode also inits light LLM
-        if Config.LLM_LIGHT_ENABLED and Config.LLM_LIGHT_MODEL:
-            light_llm_client = OpenAI(
-                api_key=Config.LLM_LIGHT_API_KEY,
-                base_url=Config.LLM_LIGHT_BASE_URL,
-            )
-        else:
-            light_llm_client = None
-        # C: 任务3 — Inspector 模式也初始化 Wikipedia 客户端
-        # E: Task 3 — Inspector mode also inits Wikipedia client
-        _wiki_rate_lock = threading.Lock()
-        _wiki_last_call_ts = 0.0
-        try:
-            _wiki_wiki = wikipediaapi.Wikipedia(
-                user_agent=Config.WIKIPEDIA_USER_AGENT,
-                language=Config.WIKIPEDIA_LANGUAGE,
-            )
-        except Exception as e:
-            logger.error(f"C: Inspector 模式 Wikipedia 初始化失败: {e}")
-            logger.error(f"E: Inspector mode Wikipedia init failed: {e}")
-            _wiki_wiki = None
-        whisper_model = None  # C: 标记为未加载 / E: Mark as not loaded
+        _whisper_disabled = True
+        _init_common()
         logger.info("C: MCP Server Inspector 调试模式就绪（无 Whisper）")
         logger.info("E: MCP Server Inspector debug mode ready (no Whisper)")
     else:

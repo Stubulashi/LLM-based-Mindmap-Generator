@@ -29,6 +29,11 @@ def compute_similarity_matrix(
     Returns: similarity matrix of shape (len(gold_labels), len(gen_labels))
     C: 返回: (len(gold_labels), len(gen_labels)) 的相似度矩阵
     """
+    # C: 空列表保护 — 空标签集时返回空矩阵（避免 encode([]) 崩溃）
+    # E: Empty-list guard — return empty matrix for empty label sets (avoid encode([]) crash)
+    if not gold_labels or not gen_labels:
+        return np.zeros((len(gold_labels), len(gen_labels)))
+
     model = get_embedding_model(model_name)
     gold_embs = model.encode(gold_labels, normalize_embeddings=normalize)
     gen_embs = model.encode(gen_labels, normalize_embeddings=normalize)

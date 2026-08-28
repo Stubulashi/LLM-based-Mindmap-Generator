@@ -43,9 +43,16 @@ class LabelMetrics:
     entity_total: int = 0
 
     def to_dict(self) -> dict:
+        # E: node_p/node_r are the keys consumed by THRESHOLD_MAP and the report
+        #    renderer; node_precision/node_recall are kept for backward compatibility
+        #    with persisted eval_result.json files.
+        # C: node_p/node_r 是 THRESHOLD_MAP 与报告渲染器使用的键；
+        #    node_precision/node_recall 保留以兼容已持久化的 eval_result.json。
         return {
             'node_precision': round(self.node_precision, 4),
             'node_recall': round(self.node_recall, 4),
+            'node_p': round(self.node_precision, 4),
+            'node_r': round(self.node_recall, 4),
             'node_f1': round(self.node_f1, 4),
             'label_sim': round(self.label_sim, 4),
             'entity_recall': round(self.entity_recall, 4),
@@ -68,6 +75,7 @@ def evaluate_label_quality(
     gen_map: MindMapData,
     aligner: HungarianAligner,
     essential_concepts: Optional[list[str]] = None,
+    alignment: Optional[AlignmentResult] = None,
 ) -> LabelMetrics:
     """
     E: Compute all §1 label quality metrics.
@@ -88,12 +96,17 @@ def evaluate_label_quality(
             Can be loaded from a standardized Es.json file (see evaluation/data/concepts/),
             or generated from comma-separated input in the interactive CLI.
             If None or empty, the framework auto-extracts from gold standard node labels.
+        alignment: 已计算的对齐结果（可选）— 传入时跳过内部重复对齐，
+            兑现规范 §1.1“所有边级指标共享同一 M_τ”的定位，避免重复 embedding。
+            / Optional pre-computed alignment — skips internal realignment so label
+            and hierarchy metrics share the same M_τ (spec §1.1).
 
     返回 / Returns:
         LabelMetrics: 包含所有 §1 指标
     """
     # --- 1.1 Hungarian Node Alignment / 匈牙利节点对齐 ---
-    alignment = aligner.align(gold_map.nodes, gen_map.nodes)
+    if alignment is None:
+        alignment = aligner.align(gold_map.nodes, gen_map.nodes)
     M_tau = alignment.filtered_matches
 
     # --- 1.2 Node-P/R/F1 / 节点精确率/召回率/F1 ---

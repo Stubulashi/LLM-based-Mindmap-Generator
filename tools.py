@@ -2,6 +2,23 @@
 # E: /home/akku/ai-mindmap-agent/tools.py
 # C: MindMap 工具定义 — 为 LLM function calling 提供 modify_mind_map 的 JSON Schema
 # E: MindMap tool definitions — provides modify_mind_map JSON Schema for LLM function calling
+# C: 连线类型由 schema.LINK_TYPE_SCHEMA 派生，避免此处硬编码
+# E: Link types derived from schema.LINK_TYPE_SCHEMA to avoid hardcoding here
+from schema import LINK_TYPE_SCHEMA, VALID_LINK_TYPES
+
+# C: 中英双语类型描述（供 tools schema 与提示词复用）
+# E: Bilingual link type descriptions (reused by tools schema and prompts)
+def _link_type_description() -> str:
+    parts_cn = []
+    parts_en = []
+    for t, meta in LINK_TYPE_SCHEMA.items():
+        arrow_cn = '（箭头）' if meta['arrow'] else ''
+        arrow_en = ' (arrow)' if meta['arrow'] else ''
+        parts_cn.append(f"{t}={meta['name_zh']}{arrow_cn}")
+        parts_en.append(f"{t}={meta['name_en']}{arrow_en}")
+    return "C: " + ", ".join(parts_cn) + "\nE: " + ", ".join(parts_en)
+
+
 def get_mindmap_tools():
     # C: 返回完整的工具列表，包含 add_nodes / update_nodes / add_links / delete_nodes 四个能力
     # E: Return the complete tool list, containing all four capabilities: add_nodes, update_nodes, add_links, delete_nodes
@@ -48,7 +65,15 @@ def get_mindmap_tools():
                                 "properties": {
                                     "source": {"type": "string", "description": "父节点ID"},
                                     "target": {"type": "string", "description": "子节点ID"},
-                                    "type": {"type": "string", "enum": ["solid", "dashed", "dotted", "reference", "contrast"], "description": "solid=父子实线, dashed=间接虚线, dotted=弱关联点线, reference=引用/依赖, contrast=对比/对立"}
+                                    "type": {
+                                        "type": "string",
+                                        "enum": sorted(VALID_LINK_TYPES),
+                                        "description": _link_type_description()
+                                    },
+                                    "label": {
+                                        "type": "string",
+                                        "description": "C: 连线上的说明文字（可选，如'导致'、'包含'等），用于展示具体语义关系\nE: Optional label on the link (e.g. 'causes', 'includes') for showing the semantic relation"
+                                    }
                                 },
                                 "required": ["source", "target", "type"]
                             }

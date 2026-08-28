@@ -1,0 +1,46 @@
+{
+  "nodes": [
+    { "id": "n0", "label": "Additional features", "parent_id": null },
+    { "id": "n1", "label": "Current version", "parent_id": "n0" },
+    { "id": "n2", "label": "Meets basic needs", "parent_id": "n1" },
+    { "id": "n3", "label": "Suggested feature", "parent_id": "n0" },
+    { "id": "n4", "label": "AI daily quizzes", "parent_id": "n3" },
+    { "id": "n5", "label": "Review previous day", "parent_id": "n4" },
+    { "id": "n6", "label": "Create exercises", "parent_id": "n4" }
+  ],
+  "links": [
+    { "source": "n0", "target": "n1" },
+    { "source": "n0", "target": "n3" },
+    { "source": "n1", "target": "n2" },
+    { "source": "n3", "target": "n4" },
+    { "source": "n4", "target": "n5" },
+    { "source": "n4", "target": "n6" }
+  ],
+  "tree": {
+    "id": "n0",
+    "label": "Additional features",
+    "children": [
+      {
+        "id": "n1",
+        "label": "Current version",
+        "children": [
+          { "id": "n2", "label": "Meets basic needs" }
+        ]
+      },
+      {
+        "id": "n3",
+        "label": "Suggested feature",
+        "children": [
+          {
+            "id": "n4",
+            "label": "AI daily quizzes",
+            "children": [
+              { "id": "n5", "label": "Review previous day" },
+              { "id": "n6", "label": "Create exercises" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -330,6 +330,8 @@ $$
 
 **参考阈值 / Reference Threshold**：nTED $\leq 0.25$
 
+> **语义澄清 / Semantic Clarification（v1.6）**：§2.3–§2.5 为**单一阈值**语义 — 指标值低于优秀边界即判 FAIL（PASS/FAIL 仅以优秀边界为通过线）；实现侧不得自造“良好”带使低于阈值的值显示 PASS。
+
 **实现建议 / Implementation**：推荐 `zss`（Zhang-Shasha）或 `apted`（APTED）Python 库。
 
 ---
@@ -354,6 +356,8 @@ $$
 
 **参考阈值 / Reference Threshold**：PC-F1 $\geq 0.75$
 
+> **语义澄清 / Semantic Clarification（v1.6）**：单一阈值语义，低于 $0.75$ 即 FAIL（见 §2.3 说明）。
+
 ---
 
 ### 2.5 层级对齐率（Level Alignment Rate, LAR）
@@ -374,6 +378,8 @@ $$
 
 **参考阈值 / Reference Threshold**：LAR $\geq 0.70$
 
+> **语义澄清 / Semantic Clarification（v1.6）**：单一阈值语义，低于 $0.70$ 即 FAIL（见 §2.3 说明）。
+
 ---
 
 ## 3. 下游任务测试：开卷问答效能（Downstream Task: QA Utility）
@@ -386,101 +392,92 @@ $$
 
 ---
 
-### 3.1 实验设计（Experimental Design）
+### 3.1 实验设计（Experimental Design，重构后 / Refactored）
 
-| 组别 | 输入内容 | 要求 | 记录指标 |
-|---|---|---|---|
-| **对照组** (Control) | 原始逐字稿全文 + 10 道测验题 | LLM 阅读全文后逐一作答 | 准确率、Token 消耗、推理时间 |
-| **实验组** (Experimental) | 仅生成导图 JSON + 相同 10 题 | LLM 仅基于导图信息作答 | 准确率、Token 消耗、推理时间 |
-| **变体组 [可选]** (Variant) | 导图 JSON + 原始逐字稿；或不同润色程度的导图 | 考察导图的额外增益 / 润色价值 | 同上 |
+| 步骤 | 内容 | 输出 |
+|---|---|---|
+| 1 | 系统引导上传音频并执行 STT 转录 / Upload audio & run STT | 转录全文 |
+| 2 | 转录接入完全独立的 AI（干净对话窗口，零历史） / Feed transcript to a fully independent AI (clean window, no history) | — |
+| 3 | 独立 AI 依据转录生成 20 个问题，难度由浅入深 / Independent AI generates 20 questions (easy → hard) | 20 题 {id, difficulty 1-5, question} |
+| 4 | mindmap agent 先对该音频执行 STT，再仅基于生成的一棵树（导图）回答 / Mindmap agent answers based solely on the generated tree | 20 个回答 |
+| 5 | AI 以转录为参考答案，对每个回答按 1-5 分评分 / AI grades each answer 1-5 (transcript as reference) | 20 个分数 |
+| 6 | 评分综合后计入系统总分（归一化 [0,1]，§7.2 分量 qa_score） / Aggregated into the total score | qa_score |
 
 **统一控制变量 / Controlled Variables**：
 
-- [ ] 同一 LLM（推荐 GPT-4o 或同等能力模型）
-- [ ] 同一 Prompt 模板（仅输入内容不同）
+- [ ] 独立 AI 每次调用使用全新客户端与全新消息列表（无历史累积）
+- [ ] 问题、回答、评分均使用同一模型配置（Config.LLM_*，可经 llm_config 覆盖）
 - [ ] `temperature = 0`（确保可复现）
-- [ ] 同一评分标准
+- [ ] 回答仅基于导图，禁止先验知识；评分以转录为参考答案
 
 ---
 
 ### 3.2 题型设计原则（Question Design Principles）
 
-三类题型按 `40% : 40% : 20%` 比例混合：
+由独立 AI 依据音频内容自动生成 20 题，覆盖由浅入深的难度梯度（difficulty 1-5）：
 
-| 题型类别 | 占比 | 示例 | 考察维度 |
-|---|---|---|---|
-| **事实检索型** (Fact Retrieval) | 40% | "MCP 协议的全称是什么？"、"ReAct 的四个步骤分别是什么？" | 导图是否覆盖了关键事实信息 |
-| **关系推理型** (Relation Inference) | 40% | "Agent 和 MCP 之间是什么关系？"、"如果去掉 Embedding 层，哪些下游任务会受影响？" | 导图是否保留了概念间的逻辑关系 |
-| **综合应用型** (Synthesis) | 20% | "根据本课内容，设计一个基于 MCP 的问答系统架构。" | 导图是否能支撑高层次的综合推理 |
-
-**题目设计约束 / Design Constraints**：
-
-1. 所有题目必须可仅通过原始逐字稿回答（确保对照组基线有效）
-2. 题目难度需经 2 位领域专家背对背评审
-3. 每题有且仅有一个客观正确答案
+| 难度 | 考察维度 |
+|---|---|
+| 1 | 显式事实回忆 / Recall of explicit facts |
+| 2-3 | 概念关系理解 / Relation & concept understanding |
+| 4-5 | 跨内容综合与应用 / Synthesis & application across the lecture |
 
 ---
 
 ### 3.3 评分标准（Scoring Criteria）
 
-**自动化评分（主指标） / Automated Scoring (Primary)**：
+**AI 评分（主指标） / AI Grading (Primary)**：
 
-采用三指标加权综合：
+每个回答按 1-5 分评分（以转录为参考答案）：
+
+| 分数 | 标准 |
+|---|---|
+| 5 | 完全正确且完整 / Fully correct and complete |
+| 4 | 基本正确，少量遗漏 / Mostly correct, minor omissions |
+| 3 | 部分正确 / Partially correct |
+| 2 | 大部分错误 / Mostly wrong |
+| 1 | 完全错误或未作答 / Completely wrong or empty |
 
 $$
-\text{QA-Score} = 0.3 \times \text{BLEU-4} + 0.4 \times \text{ROUGE-L} + 0.3 \times \text{BERTScore}
+\text{QA-Score} = \frac{\text{mean(per-answer scores)}}{5} \in [0, 1]
 $$
 
-| 指标 / Metric | 说明 / Description | 权重 / Weight |
-|---|---|---|
-| BLEU-4 | 4-gram 精度，衡量生成答案与标准答案的 n-gram 重合度 / 4-gram precision measuring n-gram overlap | 0.3 |
-| ROUGE-L | 最长公共子序列召回率，对长答案更友好 / longest common subsequence recall, friendly to long answers | 0.4 |
-| BERTScore | 基于 contextual embedding 的语义相似度，弥补 BLEU/ROUGE 对近义词的盲区 / semantic similarity based on contextual embedding | 0.3 |
-
-**人工评判（辅助验证） / Human Judgment (Auxiliary Validation)**：
-
-随机抽取 30% 的问答对，由 3 位注释者采用三盲法（triple-blind）独立评分：
-
-- **3 分**：答案完全正确，无歧义
-- **2 分**：答案部分正确，有少量遗漏或近似正确
-- **1 分**：答案基本错误或严重不完整
-- **0 分**：完全错误或未作答
-
-计算 Fleiss' $\kappa$ 衡量评分者间一致性（目标 $\kappa \geq 0.75$）。
+QA-Score 作为 §7.2 综合评分的 qa_score 分量（默认权重 0.10）。
 
 ---
 
 ### 3.4 Prompt 设计要求（Prompt Design Requirements）
 
-为确保实验公平，需使用统一 Prompt 模板：
+**问题生成 AI（独立、干净窗口）**：
+
+```text
+System: You are a course instructor who has just delivered a lecture.
+Based solely on the provided lecture transcript, generate exactly 20 quiz
+questions. Questions must progress from easy to hard (difficulty 1 = recall
+of explicit facts, difficulty 5 = synthesis / application). Return ONLY a
+JSON array: [{"id", "difficulty", "question"}, ...].
+```
+
+**回答（mindmap agent，仅基于导图）**：
 
 ```text
 System: You are a student who has just attended a lecture.
-Your only source of information is the [provided material].
+Your only source of information is the [provided mind map].
 Answer each question based solely on that material.
 If the material contains no relevant information, respond with
 "Cannot determine from the provided material." Do not use prior knowledge.
-
-User: [Provided Material: Full Transcript / Mind Map JSON / Mind Map JSON + Full Transcript]
-
-Questions:
-1. ...
-2. ...
-...
-10. ...
-
-Please answer each question concisely and accurately.
 ```
 
-**关键约束 / Critical Constraints**：
+**评分 AI（以转录为参考答案）**：
 
-- [ ] System Prompt 需明确禁止 LLM 使用先验知识（prior knowledge）
-- [ ] 所有组使用相同的 System Prompt 和 Question 文本
-- [ ] 答案顺序随机化（避免位置偏差）
-- [ ] 每组至少重复 3 次实验取平均值（减少 LLM 随机性影响）
+```text
+System: You are a strict grader. Grade each student answer against the
+provided lecture transcript on a 1-5 scale. Return ONLY a JSON array of
+integers, one per question.
+```
 
 > **预期结论方向 / Expected Outcome Direction**：
-> 若实验组准确率 $\geq$ 对照组的 90%，且 Token 消耗降低 $\geq 70\%$，则证明导图结构具有高效的信息压缩能力，显著优于原始逐字稿。
+> 若 QA-Score ≥ 0.75 且导图 token 消耗显著低于转录，证明导图结构具有高效的信息压缩能力，显著优于原始逐字稿。
 
 ---
 
@@ -672,25 +669,41 @@ Noise Level (p)  | WER    | Entity Recall | PC-F1  | Recall Drop |
 
 > **目标 / Goal**：
 >
-> **中文**：补充自动化指标无法覆盖的主观体验维度（可读性、布局合理性、教学实用性），并通过自动化-人工相关性分析验证自动化指标是否有意义——即自动化高分是否对应人类评估者认为的"好导图"。
+> **中文**：通过交互式人工评分补充自动化指标无法覆盖的主观体验维度，并将人工评分作为 §2 层级结构正确率的补偿机制计入总分——降低层级指标 False Negative（误判失败）对最终总分的误伤，提升评分鲁棒性。
 >
-> **English**: Supplement automated metrics with subjective experience dimensions, and validate that automated metrics are meaningful through correlation analysis — i.e., whether high automated scores correspond to maps that humans consider "good".
+> **English**: Supplement automated metrics with interactive human scoring, and use it as a compensation mechanism for §2 Hierarchy Accuracy in the total score, guarding against hierarchy False Negatives dominating the final total.
 
 ---
 
-### 6.1 评分维度与量表（Scoring Dimensions & Rubric）
+### 6.1 问卷式评分流程（Questionnaire-Based Scoring Flow）
 
-采用 5 点 Likert 量表（1=非常差, 5=非常好），评估者 $\geq 5$ 人，需包含至少 2 名目标用户（学生）。
+**中文流程 / Chinese Flow**：
 
-| 维度 / Dimension | 评估问题 / Evaluation Question | 1 分锚定 / Score 1 Anchor | 5 分锚定 / Score 5 Anchor |
-|---|---|---|---|
-| **可读性** / Readability | 文字标签是否清晰易懂？ / Are labels clear and understandable? | 晦涩难懂，需反复阅读 / Obscure, requires repeated reading | 一目了然，信息完整 / Clear at a glance, complete information |
-| **布局合理性** / Layout | 空间位置是否合理？有无重叠？ / Are spatial positions reasonable? Any overlaps? | 大量重叠、连线交叉混乱 / Heavy overlaps, chaotic crossing lines | 层次分明、视觉流畅 / Clear hierarchy, smooth visuals |
-| **信息密度** / Information Density | 是否高效传达了核心内容？ / Does it efficiently convey core content? | 信息稀疏，缺少关键内容 / Sparse information, missing key content | 密度适中，概念与细节平衡 / Balanced density, concepts and details |
-| **教学实用性** / Pedagogical Utility | 作为复习资料的使用意愿？ / Willingness to use as review material? | 不会使用——缺乏组织 / Won't use—lack of organization | 非常愿意——结构清晰 / Very willing—clear structure |
-| **层级直觉性** / Hierarchy Intuitiveness | 父子从属关系是否符合直觉？ / Do parent-child relationships follow intuition? | 大量反直觉或不合理 / Mostly counter-intuitive or unreasonable | 完全符合认知 / Fully aligned with cognition |
+1. 评估系统列出所有待评估音频文件名，并明确提示"这是问卷一"（每份问卷由一位第三方评分者填写）；
+2. 针对每一个音频，依次询问两个 **0-10 分**评分（10=完全符合，0=不符合；维度为树与音频内容的**关联性 / 代表程度**）：
+   - 对"系统生成的 JSON 导图"的评分；
+   - 对"人类标注的 JSON 导图"的评分（来源 GTC/YQL 择优选取）；
+3. 一份问卷录入完成后，询问"继续录入下一份问卷 / 直接基于现有数据生成报告"；
+4. 系统支持**多份问卷结果一起输入**（交互逐份录入 + 问卷 JSON 文件批量导入，单文件可含 `{"questionnaires": [...]}` 多份）；
+5. 全部问卷数据自动统计：跨问卷逐音频求均值 → 总得分（Human-Score），计入完整的 evaluation 总分。
 
-**评分者间一致性 / Inter-rater Reliability**：计算 ICC(3,k) 或 Kendall's W，目标 $\geq 0.70$。
+**English Flow**：
+
+1. List all pending audio files and announce "This is Questionnaire 1" (each questionnaire is filled by one third-party rater);
+2. For each audio, ask two **0-10 scores** (10 = fully matching, 0 = not at all; dimension: relevance / representativeness of the tree to the audio):
+   - the system-generated JSON mind map;
+   - the human-annotated JSON mind map (picked from GTC/YQL);
+3. After each questionnaire, ask "continue with the next questionnaire / generate the report from current data";
+4. Multiple questionnaires may be entered together (interactive loop + JSON file import; a single file may hold `{"questionnaires": [...]}`);
+5. All scores are aggregated — per-audio means across questionnaires → total (Human-Score) → final evaluation total.
+
+**汇总公式 / Aggregation**：
+
+$$
+\text{Human-Score} = \frac{\text{mean(gen\_scores, human\_scores across all questionnaires)}}{10} \in [0, 1]
+$$
+
+Human-Score 作为 §7.2 综合评分的 human_score 分量（默认权重 0.20），承接 §2 层级结构正确率下调释放的权重，构成针对层级指标的补偿机制；多份问卷可降低单一评分者主观性对最终得分的影响。
 
 ---
 
@@ -774,7 +787,7 @@ Sample: n=36 maps (12 Excellent, 12 Good, 12 Needs Improvement)
 | 5.1 | 多语言 / Multilingual | $\Delta$Recall | $\max_{recall} - \min_{recall}$ | $\leq 0.15$ | 建议 / Suggested |
 | 5.2 | 鲁棒性 / Robustness | Recall Drop | baseline $-$ recall$_{noisy}$ | $\leq 10\%$ | 建议 / Suggested |
 | 6.2 | 对齐效度 / Alignment Validity | Pearson $r$ | Node-F1 vs Human Readability | $\geq 0.70$ | **必须 / Required** |
-| 6 | 人工 / Human | Overall Mean | mean(all dims) | $\geq 4.0/5.0$ | **必须 / Required** |
+| 6 | 人工 / Human | Human-Score | mean(gen, human) $/ 10$ | $\geq 0.70$ | **必须 / Required** |
 
 > **表注 / Table Notes**：
 >
@@ -784,19 +797,21 @@ Sample: n=36 maps (12 Excellent, 12 Good, 12 Needs Improvement)
 
 ---
 
-### 7.2 综合评分公式（Composite Score）[可选]
+### 7.2 综合评分公式（Composite Score，权重已重构）
 
-若需将多维指标聚合为单一分数用于排行榜或模型选型：
+若需将多维指标聚合为单一分数用于排行榜或模型选型（重构后 / refactored）：
 
 $$
-\text{Composite} = 0.20 \times \text{Node-F1} + 0.15 \times \text{Edge-F1} + 0.10 \times \text{LabelSim} + 0.10 \times \text{EntityRecall} + 0.15 \times (1 - \text{nTED}) + 0.10 \times \text{UAS} + 0.10 \times \text{PC-F1} + 0.10 \times \text{QA-Relative}
+\text{Composite} = 0.20 \times \text{Node-F1} + 0.08 \times \text{Edge-F1} + 0.10 \times \text{LabelSim} + 0.10 \times \text{EntityRecall} + 0.08 \times (1 - \text{nTED}) + 0.07 \times \text{UAS} + 0.07 \times \text{PC-F1} + 0.10 \times \text{QA-Score} + 0.20 \times \text{Human-Score}
 $$
 
-其中 $\text{QA-Relative} = \text{QA-Score}_{\text{实验组}} / \text{QA-Score}_{\text{对照组}}$，衡量相对于基线的下游任务保留率。
+**权重设计说明 / Weight Rationale**：
 
-**其中 $\text{QA-Relative}$ 为实验组与对照组的 QA-Score 比值，衡量相对于基线的下游任务保留率。**
+- §2 层级结构正确率（Edge-F1 / nTED / UAS / PC-F1）权重由 0.50 降至 **0.30**，降低层级指标 False Negative 对总分的误伤；
+- §6 人工评分（Human-Score，权重 **0.20**）作为针对层级结构的**补偿机制**，承接其释放的权重，提升评分鲁棒性；
+- §3 QA 以重构后的逐题 1-5 评分归一化分量（QA-Score，权重 **0.10**）取代旧 QA-Relative。
 
-Where $\text{QA-Relative} = \text{QA-Score}_{\text{experimental}} / \text{QA-Score}_{\text{control}}$, measuring downstream task retention relative to baseline.
+其中 $\text{QA-Score} = \text{mean(per-answer scores)}/5$（§3.3），$\text{Human-Score} = \text{mean(gen, human)}/10$（§6.1）。
 
 > **权重调整建议 / Weight Tuning Advice**：
 >
@@ -853,10 +868,13 @@ Where $\text{QA-Relative} = \text{QA-Score}_{\text{experimental}} / \text{QA-Sco
 |-----------------|------|------|-------|-------|
 | Entity Recall   | 0.XX | 0.XX | 0.XX  | 0.XX  |
 
-## 6. Human Alignment / 人工对齐效度
-| Metric / 指标                          | Value / 值 | Threshold / 阈值 | Status / 状态 |
-|-------------------------------|-------|-----------|--------|
-| Pearson r (Node-F1 vs Readability) | 0.XX  | ≥ 0.70    | PASS/FAIL |
+## 6. Human Evaluation / 人工评估（问卷式）
+| Metric / 指标                              | Value / 值 |
+|-----------------------------------|-------|
+| Questionnaires / 问卷份数            | 0.XX  |
+| System Map Mean / 系统导图平均分      | 0.XX / 10 |
+| Human Map Mean / 人类标注平均分       | 0.XX / 10 |
+| Overall Normalized / 归一化          | 0.XX  |
 
 ## 7. Overall / 综合评分
 Composite Score / 综合评分: 0.XX / 1.00
@@ -1005,7 +1023,8 @@ print(f"Pearson r={r:.3f} (p={r_pval:.4f}), Spearman rho={rho:.3f} (p={rho_pval:
 > | v1.2 | 2026-06-22 | 视觉优化：目录改为中英双语条目；目标/参数说明使用引用块强调；并列步骤重构为有序/无序列表；表格内容精简对齐；3.1 实验设计改用表格呈现 |
 > | v1.3 | 2026-06-22 | 语言级别对等修正：中文与英文具有同等地位；移除"中文为正文，英文为对照注释"等不当表述；将所有英文斜体注释改为独立完整的中英文并列表述 |
 > | v1.4 | 2026-06-29 | 重构评估框架：新增 §1.1 匈牙利节点对齐作为共享基础设施；新增 §1.2 Node-P/R/F1（TP/FP/FN 混淆矩阵框架）；新增 §2.1 Edge-P/R/F1；新增 §2.2 UAS（无标签依存得分，参考 Jurafsky & Martin, 2023）；新增 §6.2 自动化-人工相关性分析（Pearson r / Spearman ρ）；§6 从可选升级为必须；§7.1 速查表新增 Node-F1/Edge-F1/UAS/Pearson r 四项指标 |
-| v1.5 | 2026-06-29 | 增强自解释性与可复现性：修复 §5.1 交叉引用编号（旧版编号更新为新版 §1.3/§1.4/§2.4）；统一 §2.3–§2.5 模板格式，补全目标/方法/注意块；替换 §7.3 报告模板为新指标体系；新增 §8 实现建议附录（含 embedding 选型表、匈牙利匹配/UAS/相关性分析的完整 Python 代码） |
+> | v1.5 | 2026-06-29 | 增强自解释性与可复现性：修复 §5.1 交叉引用编号（旧版编号更新为新版 §1.3/§1.4/§2.4）；统一 §2.3–§2.5 模板格式，补全目标/方法/注意块；替换 §7.3 报告模板为新指标体系；新增 §8 实现建议附录（含 embedding 选型表、匈牙利匹配/UAS/相关性分析的完整 Python 代码） |
+> | v1.6 | 2026-08-15 | 语义澄清与实现对齐：§2.3–§2.5 明确单一阈值即通过线（低于优秀边界即 FAIL）；§2.1 Edge-P/R 无规范阈值（§7.1 仅定义 Edge-F1）；nTED 树构建须与 Edge/UAS/LAR 使用同一边源（parent_id → links → tree 兜底）；空对齐（$|\mathcal{M}_\tau|=0$）时 UAS/LAR 显式记 0.0 而非 1.0 |
 >
 > | Version | Date | Changes |
 > |---|---|---|

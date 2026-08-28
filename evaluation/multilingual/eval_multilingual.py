@@ -114,24 +114,27 @@ def _compute_multilingual_comparison(
 # E: 5.2 — Noise injection and attenuation measurement
 # C: 5.2 — 噪声注入与衰减测量
 # =========================================================
-def _inject_noise(text: str, noise_prob: float) -> str:
+def _inject_noise(text: str, noise_prob: float, seed: int = 42) -> str:
     """
     E: Character-level noise injection
     C: 字符级噪声注入
 
     Replace, delete, or insert characters at random positions with probability p
     以概率 p 对随机位置的字符进行替换、删除或插入操作
+
+    E: seed fixed for reproducibility (default 42) / C: seed 固定保证可复现（默认 42）
     """
     if not text or noise_prob <= 0.0:
         return text
 
+    rng = random.Random(seed)
     chars = list(text)
     result = []
     i = 0
 
     while i < len(chars):
-        if random.random() < noise_prob:
-            op = random.choice(['replace', 'delete', 'insert'])
+        if rng.random() < noise_prob:
+            op = rng.choice(['replace', 'delete', 'insert'])
             if op == 'delete':
                 # E: Delete current character / C: 删除当前字符
                 i += 1
@@ -141,19 +144,19 @@ def _inject_noise(text: str, noise_prob: float) -> str:
                 if '一' <= chars[i] <= '鿿':
                     # E: Chinese character → replace with another Chinese character
                     # C: 中文字符 → 用另一个中文字符替换
-                    result.append(chr(random.randint(0x4e00, 0x9fff)))
+                    result.append(chr(rng.randint(0x4e00, 0x9fff)))
                 else:
                     # E: Non-Chinese → replace with ASCII character
                     # C: 非中文 → 用 ASCII 字符替换
-                    result.append(chr(random.randint(33, 126)))
+                    result.append(chr(rng.randint(33, 126)))
                 i += 1
             elif op == 'insert':
                 # E: Insert a random character before current character
                 # C: 在当前字符前插入一个随机字符
                 if '一' <= chars[i] <= '鿿':
-                    result.append(chr(random.randint(0x4e00, 0x9fff)))
+                    result.append(chr(rng.randint(0x4e00, 0x9fff)))
                 else:
-                    result.append(chr(random.randint(33, 126)))
+                    result.append(chr(rng.randint(33, 126)))
                 # E: Keep current character / C: 不跳过当前字符
                 result.append(chars[i])
                 i += 1

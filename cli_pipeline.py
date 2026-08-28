@@ -86,7 +86,8 @@ def init_models() -> dict:
     # C: LLM 客户端
     # E: LLM client
     llm_client = OpenAI(
-        api_key=Config.LLM_API_KEY, base_url=Config.LLM_BASE_URL
+        api_key=Config.LLM_API_KEY, base_url=Config.LLM_BASE_URL,
+        timeout=Config.API_TIMEOUT,
     )
     logger.info(f"C: LLM 客户端就绪，模型={Config.LLM_MODEL}")
     logger.info(f"E: LLM client ready, model={Config.LLM_MODEL}")
@@ -98,6 +99,7 @@ def init_models() -> dict:
         polish_client = OpenAI(
             api_key=Config.POLISH_API_KEY,
             base_url=Config.POLISH_BASE_URL,
+            timeout=Config.API_TIMEOUT,
         )
         logger.info(
             f"C: 润色客户端就绪，模型={Config.POLISH_MODEL}"
@@ -138,10 +140,14 @@ def init_models() -> dict:
         )
 
     # C: 阶段2 — 层级规划 Agent（可能为 None = 两阶段模式）
+    #    注意：与 mcp_server 保持一致 —— 仅当 HIERARCHY_MODEL 显式设为空串或
+    #    HIERARCHY_SKIP=true 时才跳过阶段2；未设置时回退 LLM_MODEL 启用三阶段。
     # E: Stage 2 — Hierarchy planning agent (None = 2-stage mode)
+    #    Note: consistent with mcp_server — skip ONLY when HIERARCHY_MODEL is
+    #    explicitly empty or HIERARCHY_SKIP=true; unset falls back to LLM_MODEL.
     hierarchy_skip = (
         os.environ.get("HIERARCHY_SKIP", "").lower() in ("true", "1", "yes")
-        or os.environ.get("HIERARCHY_MODEL", "") == ""
+        or ('HIERARCHY_MODEL' in os.environ and os.environ['HIERARCHY_MODEL'] == '')
     )
     hierarchy_agent = None
     if not hierarchy_skip:
@@ -698,6 +704,11 @@ def check_dependencies():
 # E: CLI entry point
 # =========================================================
 def main():
+    # C: 配置一致性校验（仅警告，不阻断）
+    # E: Config consistency check (warnings only, non-blocking)
+    for _w in Config.validate():
+        logger.warning(f"C: [Config Check] {_w}")
+
     parser = argparse.ArgumentParser(
         description=(
             "CLI Mind Map Generator — 纯命令行思维导图生成管线\n"

@@ -1,0 +1,60 @@
+{
+  "nodes": [
+    { "id": "n0", "label": "Quiz errors", "parent_id": null },
+    { "id": "n1", "label": "Problems", "parent_id": "n0" },
+    { "id": "n2", "label": "No AI integration", "parent_id": "n1" },
+    { "id": "n3", "label": "No thorough analysis", "parent_id": "n2" },
+    { "id": "n4", "label": "No objective scoring", "parent_id": "n2" },
+    { "id": "n5", "label": "Solutions", "parent_id": "n0" },
+    { "id": "n6", "label": "Introduce APIs", "parent_id": "n5" },
+    { "id": "n7", "label": "AI evaluation", "parent_id": "n5" },
+    { "id": "n8", "label": "Configure criteria", "parent_id": "n7" },
+    { "id": "n9", "label": "Clearer feedback", "parent_id": "n7" }
+  ],
+  "links": [
+    { "source": "n0", "target": "n1" },
+    { "source": "n0", "target": "n5" },
+    { "source": "n1", "target": "n2" },
+    { "source": "n2", "target": "n3" },
+    { "source": "n2", "target": "n4" },
+    { "source": "n5", "target": "n6" },
+    { "source": "n5", "target": "n7" },
+    { "source": "n7", "target": "n8" },
+    { "source": "n7", "target": "n9" }
+  ],
+  "tree": {
+    "id": "n0",
+    "label": "Quiz errors",
+    "children": [
+      {
+        "id": "n1",
+        "label": "Problems",
+        "children": [
+          {
+            "id": "n2",
+            "label": "No AI integration",
+            "children": [
+              { "id": "n3", "label": "No thorough analysis" },
+              { "id": "n4", "label": "No objective scoring" }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "n5",
+        "label": "Solutions",
+        "children": [
+          { "id": "n6", "label": "Introduce APIs" },
+          {
+            "id": "n7",
+            "label": "AI evaluation",
+            "children": [
+              { "id": "n8", "label": "Configure criteria" },
+              { "id": "n9", "label": "Clearer feedback" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

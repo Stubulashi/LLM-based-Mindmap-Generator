@@ -54,9 +54,16 @@ ENTITY_RECALL = ThresholdBand(excellent=0.90, good=0.75)
 # E: §2 Hierarchy Structure Accuracy / C: §2 层级结构正确率
 EDGE_F1 = ThresholdBand(excellent=0.80, good=0.65)
 UAS = ThresholdBand(excellent=0.85, good=0.70)
-NTED = ThresholdBand(excellent=0.25, good=0.40, higher_is_better=False)
-PC_F1 = ThresholdBand(excellent=0.75, good=0.60)
-LAR = ThresholdBand(excellent=0.70, good=0.50)
+# E: Spec §2.3-§2.5 define single thresholds — anything below the excellent
+#    boundary is FAIL. The good band is intentionally identical to excellent,
+#    so PASS/FAIL matches the spec exactly (previously self-invented good bands
+#    made e.g. LAR=0.500 display ✅PASS while the threshold column said ≥0.70).
+# C: 规范 §2.3-§2.5 为单一阈值 — 低于优秀边界即 FAIL。good 带与优秀边界保持
+#    一致，使 PASS/FAIL 与规范完全一致（此前自造的 good 带会让 LAR=0.500
+#    显示 ✅PASS，而阈值列却标注 ≥0.70，自相矛盾）。
+NTED = ThresholdBand(excellent=0.25, good=0.25, higher_is_better=False)
+PC_F1 = ThresholdBand(excellent=0.75, good=0.75)
+LAR = ThresholdBand(excellent=0.70, good=0.70)
 
 # E: §4 STT Quality / C: §4 STT 质量
 WER = ThresholdBand(excellent=0.15, good=0.30, higher_is_better=False)

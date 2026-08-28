@@ -2,10 +2,10 @@
 E: Test that link_type is preserved through flatten_to_tree ↔ flatten_from_tree round-trip"""
 import json
 from mindmap_agent import flatten_to_tree, flatten_from_tree, state_merge_with_tree
+from schema import VALID_LINK_TYPES  # C: 由 LINK_TYPE_SCHEMA 派生（7 种）/ E: derived from LINK_TYPE_SCHEMA (7 types)
 
 
-# C: 有效的 link_type 集合 / E: Valid link_type set
-VALID_LINK_TYPES = {"solid", "dashed", "dotted", "reference", "contrast"}
+# C: 有效的 link_type 集合（从 schema 单一事实来源导入）/ E: Valid link_type set (imported from schema single source)
 
 
 def test_link_type_roundtrip():
@@ -215,6 +215,92 @@ def test_validate_map_link_type():
     print("  _validate_map link_type validation: PASSED")
 
 
+def test_link_label_roundtrip():
+    """C: 验证连线说明文字（label）在 flatten_to_tree ↔ flatten_from_tree 往返中不丢失
+    E: Verify link label survives flatten_to_tree ↔ flatten_from_tree round-trip"""
+    print("\n--- Test 5: link label round-trip ---")
+    nodes = [
+        {"id": "root", "label": "Root", "color": "var(--node-blue)"},
+        {"id": "child", "label": "Child", "color": "var(--node-green)"},
+        {"id": "grand", "label": "Grand", "color": "var(--node-red)"},
+    ]
+    links = [
+        {"source": "root", "target": "child", "type": "causal", "label": "导致"},
+        {"source": "child", "target": "grand", "type": "solid"},
+    ]
+
+    tree = flatten_to_tree(nodes, links)
+
+    def find_label(roots, nid):
+        for r in roots:
+            if r['id'] == nid:
+                return r.get('link_label')
+            found = find_label(r.get('children', []), nid)
+            if found is not None:
+                return found
+        return None
+
+    assert find_label(tree, 'child') == '导致', "link_label should be preserved on tree node"
+    assert find_label(tree, 'grand') is None, "link with no label should not carry link_label"
+
+    fn, fl = flatten_from_tree(tree)
+    by_key = {(l['source'], l['target']): l for l in fl}
+    assert by_key[('root', 'child')].get('label') == '导致', "label should survive back to flat links"
+    assert 'label' not in by_key[('child', 'grand')], "link without label should not emit a label field"
+    assert by_key[('root', 'child')]['link_type'] == 'causal', "link_type should also survive"
+
+    print("  link label round-trip: PASSED")
+
+
+def test_new_link_types_validation():
+    """C: 新增类型 containment/causal 应通过 _validate_map 校验
+    E: New types containment/causal should pass _validate_map"""
+    from main import _validate_map
+    print("\n--- Test 6: new link types validation ---")
+    links = [
+        {"source": "a", "target": "b", "link_type": "containment"},
+        {"source": "c", "target": "d", "link_type": "causal"},
+    ]
+    passed, result = _validate_map({"nodes": [], "links": links})
+    assert passed
+    assert result["links"][0]["link_type"] == "containment"
+    assert result["links"][1]["link_type"] == "causal"
+    print("  new link types validation: PASSED")
+
+
+def test_postprocess_keeps_link_type_and_label():
+    """C: 验证 postprocess_map_structure 重建 links 时保留 link_type 与 label
+    E: Verify postprocess_map_structure keeps link_type and label when rebuilding links"""
+    from mindmap_agent import postprocess_map_structure
+    print("\n--- Test 7: postprocess keeps link_type and label ---")
+    nodes = [
+        {"id": "root", "label": "Root", "color": "var(--node-blue)", "parent_id": None},
+        {"id": "child", "label": "Child", "color": "var(--node-green)", "parent_id": "root"},
+        {"id": "grand", "label": "Grand", "color": "var(--node-red)", "parent_id": "child"},
+    ]
+    links = [
+        {"source": "root", "target": "child", "link_type": "causal", "label": "导致"},
+        {"source": "child", "target": "grand", "link_type": "dashed"},
+    ]
+
+    result = postprocess_map_structure({"nodes": nodes, "links": links, "tree": []})
+    by_key = {(l["source"], l["target"]): l for l in result["links"]}
+
+    assert by_key[("root", "child")]["link_type"] == "causal", "link_type should survive postprocess"
+    assert by_key[("root", "child")]["label"] == "导致", "label should survive postprocess"
+    assert by_key[("child", "grand")]["link_type"] == "dashed"
+    assert "label" not in by_key[("child", "grand")], "link without label should not emit label field"
+
+    # C: 二次往返 — postprocess 输出再次进入 flatten_to_tree，链路仍应完整
+    # E: Second round-trip — postprocess output into flatten_to_tree, chain stays complete
+    tree = flatten_to_tree(result["nodes"], result["links"])
+    fn, fl = flatten_from_tree(tree)
+    by_key2 = {(l["source"], l["target"]): l for l in fl}
+    assert by_key2[("root", "child")]["link_type"] == "causal"
+    assert by_key2[("root", "child")]["label"] == "导致", "label should survive full round-trip"
+    print("  postprocess link_type/label retention: PASSED")
+
+
 if __name__ == "__main__":
     print("=" * 50)
     print("Test 1: Multi-type link round-trip")
@@ -235,5 +321,20 @@ if __name__ == "__main__":
     print("Test 4: _validate_map link_type validation")
     print("=" * 50)
     test_validate_map_link_type()
+
+    print("\n" + "=" * 50)
+    print("Test 5: link label round-trip")
+    print("=" * 50)
+    test_link_label_roundtrip()
+
+    print("\n" + "=" * 50)
+    print("Test 6: new link types validation")
+    print("=" * 50)
+    test_new_link_types_validation()
+
+    print("\n" + "=" * 50)
+    print("Test 7: postprocess keeps link_type and label")
+    print("=" * 50)
+    test_postprocess_keeps_link_type_and_label()
 
     print("\n=== ALL TESTS COMPLETE ===")

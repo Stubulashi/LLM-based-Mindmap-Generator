@@ -251,7 +251,7 @@
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-2">
                     <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase">{{ t('appTitle') }}</span>
-                    <span v-if="isRecording" class="text-xs text-red-500 font-bold flex items-center gap-1 animate-pulse"><span class="w-2 h-2 rounded-full bg-red-500"></span> REC</span>
+                    <span v-if="isRecording" class="text-xs text-red-500 font-bold flex items-center gap-1 animate-pulse"><span class="w-2 h-2 rounded-full bg-red-500"></span> {{ t('rec') }}</span>
                 </div>
                 <button @click="showSettings = true" class="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors text-gray-500">
                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c-.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -304,7 +304,7 @@
                 <!-- C: 音频处理中提示 / E: Audio processing indicator -->
                 <div v-if="isProcessingAudio" class="mb-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs text-amber-700">
                     <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    <span>{{ processingStatus === 'transcribing' ? 'Transcribing audio...' : 'Polishing text...' }}</span>
+                    <span>{{ processingStatus === 'transcribing' ? t('transcribing') : t('polishing') }}</span>
                 </div>
                 <div class="flex gap-2 items-end relative" ref="uploadMenuContainer">
                     <transition name="fade">
@@ -370,8 +370,8 @@
                             <div v-if="editingIndex === getTranscriptIndex(t)">
                                 <textarea v-model="editText" class="w-full bg-white border border-blue-300 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500 mt-1" rows="2"></textarea>
                                 <div class="flex gap-2 mt-1.5 justify-end">
-                                    <button @click.stop="cancelEdit" class="text-xs px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium">Cancel</button>
-                                    <button @click.stop="saveTranscript(getTranscriptIndex(t))" class="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium">Save</button>
+                                    <button @click.stop="cancelEdit" class="text-xs px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium">{{ t('cancel') }}</button>
+                                    <button @click.stop="saveTranscript(getTranscriptIndex(t))" class="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium">{{ t('save') }}</button>
                                 </div>
                             </div>
                             <!-- C: 显示模式 / E: Display mode -->
@@ -381,15 +381,15 @@
                                 <div class="flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button v-if="t.audioUrl" @click.stop="downloadAudio(t.audioUrl, t.speaker + '_' + t.time)" class="text-xs px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center gap-1">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                        Audio
+                                        {{ t('audio') }}
                                     </button>
                                     <button @click.stop="startEditTranscript(getTranscriptIndex(t))" class="text-xs px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center gap-1">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                                        Edit
+                                        {{ t('edit') }}
                                     </button>
                                     <button @click.stop="deleteTranscript(getTranscriptIndex(t))" class="text-xs px-2 py-0.5 rounded-md bg-red-50 text-red-500 hover:bg-red-100 flex items-center gap-1">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                        Delete
+                                        {{ t('delete') }}
                                     </button>
                                 </div>
                             </div>
@@ -420,10 +420,10 @@
                 <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
                     <h3 class="font-bold text-lg text-gray-800">{{ activeNode.label }}</h3>
                     <div class="flex gap-2 items-center">
-                        <button @click="startSubtreeConversation" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-blue-50 text-blue-500 transition-colors" title="Subtree Conversation">
+                        <button @click="startSubtreeConversation" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-blue-50 text-blue-500 transition-colors" :title="t('subtreeMode')">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                         </button>
-                        <button @click="deleteActiveNode" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 text-red-500 transition-colors" title="Delete Node">
+                        <button @click="deleteActiveNode" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 text-red-500 transition-colors" :title="t('deleteNode')">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
                         <button @click="activeNode = null" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 transition-colors">×</button>
@@ -443,19 +443,31 @@
             <span class="bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-xs text-gray-500 shadow-sm border border-gray-100">{{ t('dragToPan') }}</span>
 
             <!-- C: 术语标注按钮 / E: Term annotation button -->
-            <button @click="triggerAnnotation" class="w-12 h-12 bg-white rounded-full shadow-lg border border-blue-100 hover:bg-blue-50 flex items-center justify-center text-blue-500 transition-transform active:scale-95" title="Annotate Terms">
+            <button @click="triggerAnnotation" class="w-12 h-12 bg-white rounded-full shadow-lg border border-blue-100 hover:bg-blue-50 flex items-center justify-center text-blue-500 transition-transform active:scale-95" :title="t('annotateTerms')">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
             </button>
 
             <!-- C: 保存/加载按钮 / E: Save/Load buttons -->
-            <button @click="saveCurrentMap" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" title="Save Map">
+            <button @click="saveCurrentMap" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" :title="t('saveMap')">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
             </button>
-            <button @click="showMapList = true; fetchMapList()" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" title="Load Map">
+            <button @click="showMapList = true; fetchMapList()" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" :title="t('loadMap')">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
             </button>
+
+            <!-- C: 导出/导入按钮 / E: Export/Import buttons -->
+            <button @click="exportPNG" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" :title="t('exportPNG')">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </button>
+            <button @click="exportJSON" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" :title="t('exportJSON')">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            </button>
+            <button @click="triggerImportJSON" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" :title="t('importJSON')">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            </button>
+            <input type="file" ref="jsonImportInput" @change="handleJSONImport" accept=".json,application/json" class="hidden">
             
-            <button @click="clearAllNodes" class="w-12 h-12 bg-white rounded-full shadow-lg border border-red-100 hover:bg-red-50 flex items-center justify-center text-red-500 transition-transform active:scale-95" title="Clear All Nodes">
+            <button @click="clearAllNodes" class="w-12 h-12 bg-white rounded-full shadow-lg border border-red-100 hover:bg-red-50 flex items-center justify-center text-red-500 transition-transform active:scale-95" :title="t('clearAllNodes')">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             </button>
 
@@ -480,7 +492,11 @@
                          class="p-4 rounded-xl border border-gray-100 mb-3 hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all">
                         <div class="flex justify-between items-center">
                             <div class="font-medium text-gray-800">{{ m.name }}</div>
-                            <div class="text-xs text-gray-400">{{ m.node_count }} nodes</div>
+                            <div class="flex items-center gap-2">
+                                <div class="text-xs text-gray-400">{{ m.node_count }} {{ t('nodesUnit') }}</div>
+                                <button @click.stop="renameSavedMap(m)" class="text-xs px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 hover:bg-gray-200" :title="t('renameMap')">{{ t('renameMap') }}</button>
+                                <button @click.stop="deleteSavedMap(m)" class="text-xs px-2 py-0.5 rounded-md bg-red-50 text-red-500 hover:bg-red-100" :title="t('deleteMap')">{{ t('deleteMap') }}</button>
+                            </div>
                         </div>
                         <div class="text-xs text-gray-400 mt-1">{{ m.updated_at }}</div>
                     </div>
@@ -501,19 +517,19 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('language') }}</label>
                         <select v-model="settings.language" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 transition-all">
-                            <option value="en">English</option>
-                            <option value="zh">简体中文</option>
+                            <option value="en">{{ t('langEn') }}</option>
+                            <option value="zh">{{ t('langZh') }}</option>
                         </select>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('typography') }}</label>
                         <select v-model="settings.fontFamily" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 transition-all">
-                            <option value="'Inter', sans-serif">Inter (Modern Sans)</option>
-                            <option value="'Roboto', sans-serif">Roboto (Android Default)</option>
-                            <option value="'Noto Sans SC', sans-serif">思源黑体 (Chinese Standard)</option>
-                            <option value="system-ui, sans-serif">System Default</option>
-                            <option value="serif">Serif (Classic)</option>
+                            <option value="'Inter', sans-serif">{{ t('fontInter') }}</option>
+                            <option value="'Roboto', sans-serif">{{ t('fontRoboto') }}</option>
+                            <option value="'Noto Sans SC', sans-serif">{{ t('fontNoto') }}</option>
+                            <option value="system-ui, sans-serif">{{ t('fontSystem') }}</option>
+                            <option value="serif">{{ t('fontSerif') }}</option>
                         </select>
                     </div>
 
@@ -530,21 +546,21 @@
 
                     <!-- C: 标注密度设置 / E: Annotation density setting -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">标注密度 (Annotation Density)</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('annotationDensity') }}</label>
                         <div class="flex bg-gray-100 rounded-xl p-1">
-                            <button @click="annotationDensity = 'low'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'low'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ settings.language === 'zh' ? '少' : 'Low' }}</button>
-                            <button @click="annotationDensity = 'medium'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'medium'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ settings.language === 'zh' ? '中' : 'Medium' }}</button>
-                            <button @click="annotationDensity = 'high'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'high'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ settings.language === 'zh' ? '多' : 'High' }}</button>
+                            <button @click="annotationDensity = 'low'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'low'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('sparse') }}</button>
+                            <button @click="annotationDensity = 'medium'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'medium'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('mediumLevel') }}</button>
+                            <button @click="annotationDensity = 'high'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'high'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('dense') }}</button>
                         </div>
                     </div>
 
                     <!-- C: 定义详细度设置 / E: Definition detail setting -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">定义详细度 (Definition Detail)</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('annotationDetail') }}</label>
                         <div class="flex bg-gray-100 rounded-xl p-1">
-                            <button @click="annotationDetail = 'brief'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'brief'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ settings.language === 'zh' ? '简要' : 'Brief' }}</button>
-                            <button @click="annotationDetail = 'medium'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'medium'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ settings.language === 'zh' ? '中等' : 'Medium' }}</button>
-                            <button @click="annotationDetail = 'detailed'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'detailed'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ settings.language === 'zh' ? '详细' : 'Detailed' }}</button>
+                            <button @click="annotationDetail = 'brief'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'brief'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('brief') }}</button>
+                            <button @click="annotationDetail = 'medium'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'medium'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('mediumLevel') }}</button>
+                            <button @click="annotationDetail = 'detailed'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'detailed'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('detailed') }}</button>
                         </div>
                     </div>
 
@@ -594,41 +610,41 @@
           <h3 class="font-bold text-lg text-gray-800">{{ definitionPopup.term }}</h3>
           <button @click="closeDefinition" class="text-gray-400 hover:text-gray-600 text-lg leading-none" @mousedown.stop>&times;</button>
         </div>
-        <div v-if="definitionPopup.loading" class="text-gray-400 text-sm py-2">Loading definition...</div>
+        <div v-if="definitionPopup.loading" class="text-gray-400 text-sm py-2">{{ t('loadingDef') }}</div>
         <template v-else>
           <!-- C: 📖 Wikipedia 定义 / E: 📖 Wikipedia definition -->
           <div v-if="definitionPopup.wikipedia_definition" class="def-section">
-            <span class="detail-header">📖 <strong>Wikipedia 定义</strong></span>
+            <span class="detail-header">📖 <strong>{{ t('wikiDef') }}</strong></span>
             <div class="text-sm text-gray-700 leading-relaxed" v-html="renderAnnotatedDefinition(truncatedWikiDefinition)"></div>
             <div v-if="wikiDefinitionIsTruncated" class="mt-2 flex items-center gap-2">
-              <span class="text-xs text-gray-400">{{ wikiDefinitionFullLength }} 字符</span>
-              <a v-if="definitionPopup.wikipedia_url" :href="definitionPopup.wikipedia_url" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:underline font-medium">查看完整条目 →</a>
+              <span class="text-xs text-gray-400">{{ wikiDefinitionFullLength }} {{ t('chars') }}</span>
+              <a v-if="definitionPopup.wikipedia_url" :href="definitionPopup.wikipedia_url" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:underline font-medium">{{ t('viewFullEntry') }}</a>
             </div>
             <a v-else-if="definitionPopup.wikipedia_url" :href="definitionPopup.wikipedia_url" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:underline mt-1 inline-block">{{ definitionPopup.wikipedia_url }}</a>
           </div>
           <!-- C: 🤖 LLM 定义 / E: 🤖 LLM definition -->
           <div v-if="definitionPopup.llm_definition" class="def-section">
-            <span class="detail-header">🤖 <strong>LLM 模型定义</strong></span>
+            <span class="detail-header">🤖 <strong>{{ t('llmDef') }}</strong></span>
             <div class="text-sm text-gray-700 leading-relaxed" v-html="renderAnnotatedDefinition(definitionPopup.llm_definition)"></div>
           </div>
           <!-- C: 🔊 发音 / E: Pronunciation (language-aware) -->
           <div v-if="definitionPopup.ipa || definitionPopup.pinyin || definitionPopup.romanization" class="def-section">
-            <span class="detail-header">🔊 <strong>发音</strong></span>
+            <span class="detail-header">🔊 <strong>{{ t('pronunciation') }}</strong></span>
             <!-- C: 中文 → 拼音 / E: Chinese → Pinyin -->
             <div v-if="definitionPopup.pinyin" class="text-sm text-gray-700 mb-1">
-              <span class="text-xs text-gray-400">拼音:</span> {{ definitionPopup.pinyin }}
+              <span class="text-xs text-gray-400">{{ t('pinyin') }}</span> {{ definitionPopup.pinyin }}
             </div>
             <!-- C: 非拉丁 → 罗马化 / E: Non-Latin → Romanization -->
             <div v-if="definitionPopup.romanization" class="text-sm text-gray-700 mb-1">
-              <span class="text-xs text-gray-400">转写:</span> {{ definitionPopup.romanization }}
+              <span class="text-xs text-gray-400">{{ t('romanization') }}</span> {{ definitionPopup.romanization }}
             </div>
             <!-- C: IPA 严式 / E: IPA narrow -->
             <div v-if="definitionPopup.ipa_narrow" class="text-sm text-gray-700 mb-1">
-              <span class="text-xs text-gray-400">严式 IPA:</span> /{{ definitionPopup.ipa_narrow }}/
+              <span class="text-xs text-gray-400">{{ t('ipaNarrow') }}</span> /{{ definitionPopup.ipa_narrow }}/
             </div>
             <!-- C: IPA 宽式 / E: IPA broad -->
             <div v-if="definitionPopup.ipa_broad" class="text-sm text-gray-700 mb-1">
-              <span class="text-xs text-gray-400">宽式 IPA:</span> /{{ definitionPopup.ipa_broad }}/
+              <span class="text-xs text-gray-400">{{ t('ipaBroad') }}</span> /{{ definitionPopup.ipa_broad }}/
             </div>
             <!-- C: 回退：仅显示单 IPA / E: Fallback: single IPA only -->
             <div v-if="definitionPopup.ipa && !definitionPopup.ipa_narrow && !definitionPopup.ipa_broad && !definitionPopup.pinyin && !definitionPopup.romanization" class="text-sm text-gray-700">
@@ -637,12 +653,12 @@
           </div>
           <!-- C: 📝 字面含义 / E: 📝 Literal meaning -->
           <div v-if="definitionPopup.literal_meaning" class="def-section">
-            <span class="detail-header">📝 <strong>字面含义</strong></span>
+            <span class="detail-header">📝 <strong>{{ t('literalMeaning') }}</strong></span>
             <div class="text-sm text-gray-700">{{ definitionPopup.literal_meaning }}</div>
           </div>
           <!-- C: 无任何数据时显示 / E: Show when no data available -->
-          <div v-if="!definitionPopup.wikipedia_definition && !definitionPopup.llm_definition && !definitionPopup.ipa && !definitionPopup.literal_meaning" class="text-sm text-gray-400 py-2">No definition available.</div>
-          <div class="source-tag">Source: {{ definitionPopup.source }}<span v-if="definitionPopup.from_cache" class="cache-hit-tag">(cache hit)</span></div>
+          <div v-if="!definitionPopup.wikipedia_definition && !definitionPopup.llm_definition && !definitionPopup.ipa && !definitionPopup.literal_meaning" class="text-sm text-gray-400 py-2">{{ t('noDef') }}</div>
+          <div class="source-tag">{{ t('source') }} {{ definitionPopup.source }}<span v-if="definitionPopup.from_cache" class="cache-hit-tag">{{ t('cacheHit') }}</span></div>
         </template>
       </div>
     </transition>
@@ -650,7 +666,7 @@
     <!-- C: 边类型图例 / E: Edge type legend -->
     <div v-if="showEdgeLegend" class="edge-legend" :style="{left: edgeLegendPos.x + 'px', top: edgeLegendPos.y + 'px'}" @mousedown.stop>
       <div class="edge-legend-header" @mousedown.stop="startDragEdgeLegend">
-        <span>📐 线段类型</span>
+        <span>📐 {{ t('linkLegendTitle') }}</span>
         <span class="edge-legend-close" @click="showEdgeLegend = false">&times;</span>
       </div>
       <div v-for="item in edgeLegendItems" :key="item.type" class="edge-legend-item">
@@ -669,12 +685,43 @@
             </defs>
           </svg>
         </div>
-        <span class="edge-legend-label">{{ item.label }}</span>
+        <span class="edge-legend-label">{{ t(item.labelKey) }}</span>
       </div>
     </div>
     <button v-else class="edge-legend-toggle" @click="showEdgeLegend = true">
-      📐 图例
+      📐 {{ t('linkLegendToggle') }}
     </button>
+
+    <!-- C: 连线编辑面板 — 点击画布上的连线弹出 / E: Link edit panel — opens on edge click -->
+    <transition name="fade">
+      <div v-if="linkEditor" class="definition-popup" :style="{left: linkEditor.x + 'px', top: linkEditor.y + 'px'}" @mousedown.stop>
+        <div class="flex justify-between items-start mb-3" style="cursor:move;user-select:none" @mousedown.stop="startDragLinkPopup">
+          <h3 class="font-bold text-lg text-gray-800">{{ t('linkEdit') }}</h3>
+          <button @click="linkEditor = null" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+        </div>
+        <div class="space-y-3 text-sm">
+          <div class="text-gray-600 flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-md text-xs font-bold" :style="{backgroundColor: '#e8f0fe'}">{{ linkEditor.sourceLabel }}</span>
+            <span class="text-gray-400">→</span>
+            <span class="px-2 py-0.5 rounded-md text-xs font-bold" :style="{backgroundColor: '#e8f0fe'}">{{ linkEditor.targetLabel }}</span>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('linkType') }}</label>
+            <select v-model="linkEditor.link_type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 transition-all">
+              <option v-for="item in edgeLegendItems" :key="item.type" :value="item.type">{{ t(item.labelKey) }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('linkLabel') }}</label>
+            <input v-model="linkEditor.link_label" type="text" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 transition-all" :placeholder="t('linkLabel')">
+          </div>
+          <div class="flex gap-2 justify-end pt-1">
+            <button @click="deleteLinkFromEditor" class="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 font-medium">{{ t('linkDelete') }}</button>
+            <button @click="saveLinkFromEditor" class="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium">{{ t('linkSave') }}</button>
+          </div>
+        </div>
+      </div>
+    </transition>
 
 </div>
 
@@ -683,11 +730,12 @@
 
     const locales = {
         en: {
-            appTitle: 'Audio Agent', totalTime: 'Total', transcript: 'Transcript', agentChat: 'Agent Chat',
+            appTitle: 'Audio Agent', browserTitle: 'AI MindMap Agent - Real Audio Analysis', totalTime: 'Total', transcript: 'Transcript', agentChat: 'Agent Chat',
             syncOn: 'Sync On', uploadAudio: 'Load Audio File', msgPlaceholder: 'Message AI...',
             allSpeakers: 'All Speakers', searchPlaceholder: 'Search keywords...', noTranscripts: 'No matching transcripts found.',
             preferences: 'Preferences', typography: 'Typography (Font Family)', interfaceSize: 'Interface Size',
             small: 'Small', medium: 'Default', large: 'Large', language: 'Interface Language',
+            langEn: 'English', langZh: 'Simplified Chinese',
             syncToMap: 'Sync Chat to Map', syncDesc: 'AI dynamically updates map based on chat.',
             autoScroll: 'Auto-scroll Chat', autoScrollDesc: 'Always scroll to newest messages.',
             done: 'Done', dragToPan: 'Drag to pan',
@@ -702,14 +750,62 @@
             mapList: 'Saved Maps',
             noSavedMaps: 'No saved maps yet.',
             mapSaved: 'Map saved successfully!',
-            confirmLoad: 'Load this map? Current changes will be lost.'
+            mapSavedId: 'Map saved successfully! (ID: {id})',
+            confirmLoad: 'Load this map? Current changes will be lost.',
+            // C: 设置面板新增项 / E: settings panel additions
+            annotationDensity: 'Annotation Density', annotationDetail: 'Definition Detail',
+            sparse: 'Sparse', mediumLevel: 'Medium', dense: 'Dense', brief: 'Brief', detailed: 'Detailed',
+            fontInter: 'Inter (Modern Sans)', fontRoboto: 'Roboto (Android Default)',
+            fontNoto: 'Noto Sans SC (Chinese Standard)', fontSystem: 'System Default', fontSerif: 'Serif (Classic)',
+            // C: 连线类型（与 schema.LINK_TYPE_SCHEMA 的 name_en 同步）/ E: link types (sync with schema name_en)
+            linkLegendTitle: 'Link Types', linkLegendToggle: 'Legend',
+            linkSolid: 'Parent-child', linkDashed: 'Indirect', linkContainment: 'Containment',
+            linkDotted: 'Weak', linkReference: 'Reference', linkContrast: 'Contrast', linkCausal: 'Causal',
+            linkType: 'Link Type', linkLabel: 'Link Label', linkEdit: 'Edit Link',
+            linkDelete: 'Delete Link', linkDeleteConfirm: 'Delete this link?', linkSave: 'Save',
+            // C: 定义弹窗 / E: definition popup
+            wikiDef: 'Wikipedia Definition', llmDef: 'LLM Definition', pronunciation: 'Pronunciation',
+            pinyin: 'Pinyin:', romanization: 'Romanization:', ipaNarrow: 'Narrow IPA:', ipaBroad: 'Broad IPA:',
+            literalMeaning: 'Literal Meaning', viewFullEntry: 'View full entry →', chars: 'chars',
+            loadingDef: 'Loading definition...', noDef: 'No definition available.',
+            defLoadFailed: 'Failed to load definition.',
+            source: 'Source:', cacheHit: '(cache hit)',
+            // C: 转录面板操作 / E: transcript actions
+            cancel: 'Cancel', save: 'Save', edit: 'Edit', delete: 'Delete', audio: 'Audio',
+            transcribing: 'Transcribing audio...', polishing: 'Polishing text...',
+            rec: 'REC',
+            deleteNode: 'Delete Node', annotateTerms: 'Annotate Terms', clearAllNodes: 'Clear All Nodes',
+            loadAudioFirst: 'Please load audio first.', micDenied: 'Microphone access denied.',
+            nodesUnit: 'nodes',
+            // C: 导图管理 / E: map management
+            mapNamePrompt: 'Map name:', renameMap: 'Rename', renameMapPrompt: 'New map name:',
+            confirmDeleteMap: 'Delete this map?', deleteMap: 'Delete',
+            // C: 导出导入 / E: export & import
+            exportPNG: 'Export PNG', exportJSON: 'Export JSON', importJSON: 'Import JSON',
+            importFailed: 'Import failed: invalid JSON format.',
+            // C: 系统消息 / E: system messages
+            sysMsgRecording: 'Recording started...',
+            sysMsgNoSpeech: '[STT] No speech detected in the audio.',
+            sysMsgSTTError: '[STT] Processing failed: {msg}. (Open F12 Console for details)',
+            sysMsgSTTSaved: '[STT ({lang})] Transcription saved to Transcript panel.',
+            sysMsgAnnotation: '[Annotation] {nodes} nodes, {terms} terms cached (density: {density}).',
+            annotationFailed: 'Annotation failed: {msg}',
+            sysMsgSubtreeFocus: '[Subtree Mode] Focused on "{label}". Your changes will be scoped to this node.',
+            sysMsgSubtreeExit: '[Subtree Mode] Exited subtree mode. Back to full map view.',
+            sysMsgCleared: 'Canvas has been cleared manually.',
+            sysMsgLoaded: 'Loaded map: {name} ({count} nodes)',
+            sysMsgSaveFailed: 'Save failed: {msg}',
+            sysMsgLoadFailed: 'Load failed: {msg}',
+            sysMsgNodeRemoved: 'Node removed manually. AI will acknowledge this change.',
+            connectionFailed: 'Connection failed.'
         },
         zh: {
-            appTitle: '语音智能体', totalTime: '总时长', transcript: '会议转录', agentChat: '智能对话',
+            appTitle: '语音智能体', browserTitle: 'AI 思维导图助手 - 实时音频分析', totalTime: '总时长', transcript: '会议转录', agentChat: '智能对话',
             syncOn: '同步已开启', uploadAudio: '上传本地音频', msgPlaceholder: '发送指令给 AI...',
             allSpeakers: '所有发言人', searchPlaceholder: '搜索关键词...', noTranscripts: '未找到匹配的转录内容。',
-            preferences: '全局参数设置', typography: '界面字体 (Font Family)', interfaceSize: '全局缩放',
+            preferences: '全局参数设置', typography: '界面字体', interfaceSize: '全局缩放',
             small: '小', medium: '标准', large: '大', language: '界面语言',
+            langEn: '英语', langZh: '简体中文',
             syncToMap: '对话同步至导图', syncDesc: 'AI 将根据您的聊天指令实时修改右侧导图。',
             autoScroll: '对话自动滚动', autoScrollDesc: '收到新消息时强制滚动到底部。',
             done: '完成设置', dragToPan: '拖拽空白处移动画布',
@@ -724,21 +820,95 @@
             mapList: '已保存的导图',
             noSavedMaps: '暂无已保存的导图。',
             mapSaved: '导图已保存！',
-            confirmLoad: '加载此导图？当前内容将被替换。'
+            mapSavedId: '导图已保存！（ID：{id}）',
+            confirmLoad: '加载此导图？当前内容将被替换。',
+            // C: 设置面板新增项 / E: settings panel additions
+            annotationDensity: '标注密度', annotationDetail: '定义详细度',
+            sparse: '少', mediumLevel: '中', dense: '多', brief: '简要', detailed: '详细',
+            fontInter: 'Inter（现代无衬线）', fontRoboto: 'Roboto（Android 默认）',
+            fontNoto: '思源黑体（中文标准）', fontSystem: '系统默认', fontSerif: '衬线体（经典）',
+            // C: 连线类型 / E: link types
+            linkLegendTitle: '连线类型', linkLegendToggle: '图例',
+            linkSolid: '父子关系', linkDashed: '间接关联', linkContainment: '包含',
+            linkDotted: '弱关联', linkReference: '引用', linkContrast: '对比', linkCausal: '因果',
+            linkType: '连线类型', linkLabel: '连线说明', linkEdit: '编辑连线',
+            linkDelete: '删除连线', linkDeleteConfirm: '确定删除这条连线？', linkSave: '保存',
+            // C: 定义弹窗 / E: definition popup
+            wikiDef: 'Wikipedia 定义', llmDef: 'LLM 模型定义', pronunciation: '发音',
+            pinyin: '拼音：', romanization: '转写：', ipaNarrow: '严式 IPA：', ipaBroad: '宽式 IPA：',
+            literalMeaning: '字面含义', viewFullEntry: '查看完整条目 →', chars: '字符',
+            loadingDef: '正在加载定义...', noDef: '暂无可用定义。',
+            defLoadFailed: '定义加载失败。',
+            source: '来源：', cacheHit: '（缓存命中）',
+            // C: 转录面板操作 / E: transcript actions
+            cancel: '取消', save: '保存', edit: '编辑', delete: '删除', audio: '音频',
+            transcribing: '正在转写音频...', polishing: '正在润色文本...',
+            rec: '录音中',
+            deleteNode: '删除节点', annotateTerms: '标注术语', clearAllNodes: '清空全部节点',
+            loadAudioFirst: '请先加载音频。', micDenied: '麦克风访问被拒绝。',
+            nodesUnit: '个节点',
+            // C: 导图管理 / E: map management
+            mapNamePrompt: '导图名称：', renameMap: '重命名', renameMapPrompt: '新名称：',
+            confirmDeleteMap: '确定删除此导图？', deleteMap: '删除',
+            // C: 导出导入 / E: export & import
+            exportPNG: '导出 PNG', exportJSON: '导出 JSON', importJSON: '导入 JSON',
+            importFailed: '导入失败：JSON 格式无效。',
+            // C: 系统消息 / E: system messages
+            sysMsgRecording: '录音已开始...',
+            sysMsgNoSpeech: '[STT] 音频中未检测到语音。',
+            sysMsgSTTError: '[STT] 处理失败：{msg}。（请打开 F12 Console 查看详细错误）',
+            sysMsgSTTSaved: '[STT（{lang}）] 转录已保存到转录面板。',
+            sysMsgAnnotation: '[标注] 已缓存 {nodes} 个节点、{terms} 个术语（密度：{density}）。',
+            annotationFailed: '标注失败：{msg}',
+            sysMsgSubtreeFocus: '[子树模式] 正在聚焦“{label}”，本次修改将限定在该节点范围内。',
+            sysMsgSubtreeExit: '[子树模式] 已退出，恢复全图视图。',
+            sysMsgCleared: '画布已手动清空。',
+            sysMsgLoaded: '已加载导图：{name}（{count} 个节点）',
+            sysMsgSaveFailed: '保存失败：{msg}',
+            sysMsgLoadFailed: '加载失败：{msg}',
+            sysMsgNodeRemoved: '节点已手动删除，AI 将感知此变更。',
+            connectionFailed: '连接失败。'
         }
     }
 
     createApp({
         setup() {
-            const settings = reactive({ 
-                language: 'en', 
-                fontFamily: "'Inter', sans-serif", 
-                fontSize: '16px', 
-                syncToMap: true, 
-                autoScroll: true 
+            // C: 设置持久化 — localStorage 读写，刷新后保留用户偏好
+            // E: Settings persistence via localStorage — keeps user preferences across reloads
+            const _defaultSettings = () => ({
+                language: 'en', fontFamily: "'Inter', sans-serif", fontSize: '16px',
+                syncToMap: true, autoScroll: true, languageManual: false
             })
+            let _savedSettings = null
+            try { _savedSettings = JSON.parse(localStorage.getItem('mindmap-settings') || 'null') } catch (e) { _savedSettings = null }
+            const settings = reactive(Object.assign(_defaultSettings(), _savedSettings || {}))
 
-            const t = (key) => locales[settings.language][key] || key
+            // C: 设置变更即写回 localStorage
+            // E: Persist settings to localStorage on any change
+            watch(settings, (v) => {
+                try { localStorage.setItem('mindmap-settings', JSON.stringify(v)) } catch (e) {}
+            }, { deep: true })
+
+            const t = (key) => (locales[settings.language] || locales.en)[key] || key
+
+            // C: 模板替换式翻译（系统消息等含动态占位符，如 {lang}/{label}）
+            // E: Template-replacement translation (system messages with placeholders like {lang}/{label})
+            const tf = (key, vars = {}) => {
+                let s = t(key)
+                for (const [k, v] of Object.entries(vars)) s = s.split('{' + k + '}').join(v)
+                return s
+            }
+
+            // C: 手动切换语言后置 languageManual=true，自动语言检测不再覆盖用户选择
+            // E: After manual language switch, auto language detection no longer overrides the user choice
+            watch(() => settings.language, () => { settings.languageManual = true })
+
+            // C: 语言切换时重渲染 G6（连线类型标签随语言变化）+ 同步浏览器标签页标题
+            // E: Re-render G6 on language change (edge type labels follow the language) + sync document title
+            watch(() => settings.language, () => {
+                document.title = t('browserTitle')
+                nextTick(() => updateG6Data())
+            })
 
             // C: Markdown 渲染 — 使用 marked.js 将用户和 AI 文本转为 HTML
             // E: Markdown rendering — converts user and AI text to HTML using marked.js
@@ -784,13 +954,8 @@
 
             // C: 边类型图例 / E: Edge type legend
             const showEdgeLegend = ref(true);
-            const edgeLegendItems = [
-                { type: 'solid', color: '#3b82f6', label: '默认连线', dash: [], arrow: false },
-                { type: 'dashed', color: '#94a3b8', label: '关联关系', dash: [6, 4], arrow: false },
-                { type: 'dotted', color: '#a78bfa', label: '弱关联', dash: [2, 4], arrow: false },
-                { type: 'reference', color: '#10b981', label: '引用关系', dash: [], arrow: true },
-                { type: 'contrast', color: '#f59e0b', label: '对比关系', dash: [], arrow: true },
-            ];
+            // C: 图例项由 LINK_TYPE_SCHEMA 生成（定义在下方 resolveColor 之后，见 LINK_TYPE_SCHEMA 声明处）
+            // E: Legend items generated from LINK_TYPE_SCHEMA (defined after LINK_TYPE_SCHEMA below)
             // C: 边类型图例初始位置 — 顶部右侧，避开底部操作按钮
             // E: Edge legend initial position — top-right, away from bottom controls
             const edgeLegendPos = reactive({ x: window.innerWidth - 210, y: 80 });
@@ -831,7 +996,7 @@
             });
 
             const userInput = ref('')
-            const chatHistory = ref([{ role: 'system', text: locales['en'].sysReady }])
+            const chatHistory = ref([{ role: 'system', text: t('sysReady') }])
             // C: 保持 flat nodes+links 用于与后端交互 / E: Keep flat nodes+links for backend interaction
             const nodes = ref([])
             const links = ref([])
@@ -933,7 +1098,7 @@
             // C: --- 播放/暂停控制 ---
             // E: --- Play/Pause control ---
             const togglePlay = async () => {
-                if (!audioPlayerEl.value || !audioPlayerEl.value.src) return alert("Please load audio first.");
+                if (!audioPlayerEl.value || !audioPlayerEl.value.src) return alert(t('loadAudioFirst'));
                 
                 initAudioContext();
                 
@@ -1011,9 +1176,9 @@
                         if (audioPlayerEl.value) audioPlayerEl.value.pause();
                         
                         updateVisualizer();
-                        chatHistory.value.push({ role: 'system', text: "Recording started..." });
+                        chatHistory.value.push({ role: 'system', text: tf('sysMsgRecording') });
                     } catch (err) {
-                        alert("Microphone access denied.");
+                        alert(t('micDenied'));
                     }
                 }
             };
@@ -1059,12 +1224,12 @@
                         showTrans.value = true;
                         chatHistory.value.push({
                             role: 'system',
-                            text: `[STT (${langLabel})] Transcription saved to Transcript panel.`
+                            text: tf('sysMsgSTTSaved', { lang: langLabel })
                         });
                     } else if (data.status === 'success' && !data.polished_text) {
                         chatHistory.value.push({
                             role: 'system',
-                            text: '[STT] No speech detected in the audio.'
+                            text: tf('sysMsgNoSpeech')
                         });
                     }
                 } catch (error) {
@@ -1073,8 +1238,7 @@
                     console.error("Error stack:", error.stack);
                     chatHistory.value.push({
                         role: 'system',
-                        text: `[STT] Processing failed: ${error.message}. ` +
-                              `(请打开浏览器 F12 → Console 查看详细错误)`
+                        text: tf('sysMsgSTTError', { msg: error.message })
                     });
                 } finally {
                     isProcessingAudio.value = false;
@@ -1164,6 +1328,99 @@
             }
             const resolveColor = (c) => CSS_COLOR_MAP[c] || c || '#e8f0fe'
 
+            // C: 连线类型渲染表 — 必须与后端 schema.LINK_TYPE_SCHEMA 保持同步
+            // E: Link type render table — MUST stay in sync with backend schema.LINK_TYPE_SCHEMA
+            const LINK_TYPE_SCHEMA = {
+                solid:       { name_zh: '父子关系', name_en: 'Parent-child', color: '#3b82f6', dash: [],     arrow: false },
+                dashed:      { name_zh: '间接关联', name_en: 'Indirect',     color: '#94a3b8', dash: [6, 4], arrow: false },
+                containment: { name_zh: '包含',     name_en: 'Containment',  color: '#06b6d4', dash: [],     arrow: false },
+                dotted:      { name_zh: '弱关联',   name_en: 'Weak',         color: '#a78bfa', dash: [2, 4], arrow: false },
+                reference:   { name_zh: '引用',     name_en: 'Reference',    color: '#10b981', dash: [],     arrow: true },
+                contrast:    { name_zh: '对比',     name_en: 'Contrast',     color: '#f59e0b', dash: [],     arrow: true },
+                causal:      { name_zh: '因果',     name_en: 'Causal',       color: '#ef4444', dash: [6, 4], arrow: true },
+            }
+            // C: 类型 key → locales key（如 solid → linkSolid）
+            // E: type key → locale key (e.g. solid → linkSolid)
+            const linkLocaleKey = (t) => 'link' + t.charAt(0).toUpperCase() + t.slice(1)
+
+            // C: 图例项由 LINK_TYPE_SCHEMA 生成（label 经 t() 动态取当前语言文案）
+            //    必须位于 LINK_TYPE_SCHEMA 定义之后（避免 TDZ 初始化顺序错误）
+            // E: Legend items generated from LINK_TYPE_SCHEMA (labels resolved via t())
+            //    MUST be defined after LINK_TYPE_SCHEMA (avoids TDZ init-order error)
+            const edgeLegendItems = Object.entries(LINK_TYPE_SCHEMA).map(([type, meta]) => ({
+                type,
+                color: meta.color,
+                dash: meta.dash,
+                arrow: meta.arrow,
+                labelKey: linkLocaleKey(type),
+            }))
+
+            // C: 收集树中每条父子边的连线属性（source->target → {link_type, link_label}）
+            // E: Collect link props per parent-child edge (source->target → {link_type, link_label})
+            const _collectEdgeProps = (root) => {
+                const map = {}
+                const walk = (node) => {
+                    for (const child of (node.children || [])) {
+                        const key = `${node.id}->${child.id}`
+                        map[key] = {
+                            link_type: child.link_type || 'solid',
+                            link_label: child.link_label || '',
+                        }
+                        walk(child)
+                    }
+                }
+                walk(root)
+                return map
+            }
+
+            // C: 自定义 树→图 转换 — 节点保留全部顶层字段；边显式携带 link_type/link_label。
+            //    【关键】G6 v5 的 treeToGraphData 生成的边只有 {source, target}，
+            //    会丢弃子节点上的 link_type/link_label，导致连线类型无法渲染/无法区分。
+            // E: Custom tree→graph conversion — nodes keep all top-level fields;
+            //    edges explicitly carry link_type/link_label.
+            //    [KEY] G6 v5 treeToGraphData produces edges with only {source, target},
+            //    dropping link_type/link_label from children, breaking link-type rendering.
+            const _treeToGraphData = (root) => {
+                const nodes = []
+                const edges = []
+                const walk = (node, parentId) => {
+                    const { children, ...rest } = node || {}
+                    nodes.push({ ...rest, children: (children || []).map(c => c.id) })
+                    if (parentId !== undefined) {
+                        edges.push({
+                            source: parentId,
+                            target: node.id,
+                            link_type: node.link_type || 'solid',
+                            link_label: node.link_label || '',
+                        })
+                    }
+                    for (const child of (children || [])) walk(child, node.id)
+                }
+                walk(root, undefined)
+                return { nodes, edges }
+            }
+
+            // C: 防御性读取连线类型/说明 — 兼容 G6 顶层字段与 data 包装两种形态
+            // E: Defensive read of link type/label — compatible with both top-level and data-wrapped fields
+            const _edgeLinkType = (d) => (d && (d.link_type || d.data?.link_type || d.type || d.data?.type)) || 'solid'
+            const _edgeLinkLabel = (d) => (d && (d.link_label || d.data?.link_label)) || ''
+
+            // C: 按 source->target 映射给边补齐 link_type/link_label（第二遍 setData 前调用），
+            //    避免 G6 将自定义字段归一到 data 后顶层读取再次失效。
+            // E: Patch link_type/link_label onto edges by source->target (before 2nd setData),
+            //    so top-level reads survive G6's data normalization.
+            const _patchEdgeProps = (edges, root) => {
+                const propsMap = _collectEdgeProps(root)
+                return (edges || []).map(e => {
+                    const props = propsMap[`${e.source}->${e.target}`]
+                    if (props) {
+                        e.link_type = e.link_type || e.data?.link_type || props.link_type
+                        e.link_label = e.link_label || e.data?.link_label || (props.link_label || undefined)
+                    }
+                    return e
+                })
+            }
+
             const initG6 = () => {
                 if (graph) { _g6log('graph 已存在，跳过初始化'); return }
 
@@ -1251,26 +1508,26 @@
                             type: 'cubic-horizontal',
                             style: {
                                 stroke: (d) => {
-                                    const lt = d.link_type || d.type || 'solid'
-                                    const colors = {solid: '#3b82f6', dashed: '#94a3b8', dotted: '#a78bfa', reference: '#10b981', contrast: '#f59e0b'}
-                                    return colors[lt] || '#3b82f6'
+                                    const lt = _edgeLinkType(d)
+                                    return (LINK_TYPE_SCHEMA[lt] || LINK_TYPE_SCHEMA.solid).color
                                 },
                                 lineWidth: 2,
                                 lineDash: (d) => {
-                                    const lt = d.link_type || d.type || 'solid'
-                                    if (lt === 'dashed') return [6, 4]
-                                    if (lt === 'dotted') return [2, 4]
-                                    return undefined
+                                    const lt = _edgeLinkType(d)
+                                    const dash = (LINK_TYPE_SCHEMA[lt] || LINK_TYPE_SCHEMA.solid).dash
+                                    return dash && dash.length ? dash : undefined
                                 },
                                 endArrow: (d) => {
-                                    const lt = d.link_type || d.type || 'solid'
-                                    return lt === 'reference' || lt === 'contrast'
+                                    const lt = _edgeLinkType(d)
+                                    return (LINK_TYPE_SCHEMA[lt] || LINK_TYPE_SCHEMA.solid).arrow
                                 },
                                 labelText: (d) => {
-                                    const lt = d.link_type || d.type || 'solid'
-                                    if (lt === 'solid') return ''
-                                    const labels = {dashed: '关联', dotted: '弱关联', reference: '引用', contrast: '对比'}
-                                    return labels[lt] || ''
+                                    // C: 优先显示连线说明文字（link_label），无则显示类型名（随界面语言）
+                                    // E: Prefer the link label; fall back to the localized type name
+                                    const lbl = _edgeLinkLabel(d)
+                                    if (lbl) return lbl
+                                    const lt = _edgeLinkType(d)
+                                    return t(linkLocaleKey(lt)) || ''
                                 },
                                 labelFontSize: 10,
                                 labelFill: '#64748b',
@@ -1294,6 +1551,14 @@
                         if (!nodeId || nodeId === '__virtual_root__' || nodeId === '__placeholder__') return
                         const found = findNodeInTree(treeRoots.value, nodeId)
                         if (found) activeNode.value = found
+                    })
+
+                    // C: 连线点击 → 打开连线编辑面板（查看/改类型/编辑说明/删除）
+                    // E: Edge click → open the link edit panel (view/retarget label/delete)
+                    graph.on('edge:click', (evt) => {
+                        const model = evt.item?.getModel?.()
+                        if (!model || !model.source || !model.target) return
+                        openLinkEditor(model.source, model.target, _edgeLinkType(model), _edgeLinkLabel(model), evt.canvas?.x, evt.canvas?.y)
                     })
 
                     // C: 展开/折叠事件 → 同步 collapsed 状态到响应式数据
@@ -1438,11 +1703,13 @@
                     }
                 } else {
                     // C: dagre 是图布局，需要 flat {nodes, edges} 格式，不能直接消费嵌套树
-                    //    使用 G6.treeToGraphData() 将嵌套树转为 flat 图数据
+                    //    使用自定义 _treeToGraphData() 转换（G6 v5 treeToGraphData 会丢弃边上的
+                    //    link_type/link_label，导致连线类型无法渲染，故必须本地显式补齐边字段）
                     // E: dagre is a graph layout, needs flat {nodes, edges} format
-                    //    Use G6.treeToGraphData() to convert nested tree to flat graph data
-                    const graphData = G6.treeToGraphData(rootData)
-                    _g6log('_setG6Data: treeToGraphData → nodes=', graphData.nodes?.length, 'edges=', graphData.edges?.length)
+                    //    Use custom _treeToGraphData() (G6 v5 treeToGraphData drops
+                    //    link_type/link_label on edges, so we convert locally with fields)
+                    const graphData = _treeToGraphData(rootData)
+                    _g6log('_setG6Data: _treeToGraphData → nodes=', graphData.nodes?.length, 'edges=', graphData.edges?.length)
                     // C: 预先收集 userPositioned 节点坐标（用于布局后恢复）
                     // E: Pre-collect userPositioned node coords (for post-layout restoration)
                     const positionedNodes = collectUserPositionedCoords(rawData[0])
@@ -1465,7 +1732,9 @@
                                 }
                             }
                             if (hasOverrides) {
-                                graph.setData({ nodes: nodeData, edges: graph.getEdgeData() })
+                                // C: 恢复坐标后重新补齐边字段，防止 G6 data 归一化导致顶层读取失效
+                                // E: Re-patch edge fields after coord restore, guarding against G6 data normalization
+                                graph.setData({ nodes: nodeData, edges: _patchEdgeProps(graph.getEdgeData(), rootData) })
                                 graph.render()
                                 _g6log('_setG6Data: 恢复', Object.keys(positionedNodes).length, '个 userPositioned 节点坐标')
                             }
@@ -1507,6 +1776,25 @@
                 graph.setData(testData)
                 graph.render()
                 console.log('%c✅ 测试数据已注入。如果右侧仍空白，请检查容器尺寸或 F12 Console 是否有红色错误。', 'color:#10b981;font-weight:bold')
+            }
+
+            // C: 连线类型测试函数 — 在浏览器控制台运行 __linkTypeTest() 验证 7 种连线类型的渲染
+            // E: Link-type test — run __linkTypeTest() in browser console to verify all 7 link-type renderings
+            window.__linkTypeTest = () => {
+                const mk = (id, label, link_type, link_label) => ({ id, label, color: 'var(--node-blue)', details: [], children: [], link_type, link_label })
+                treeRoots.value = [{
+                    id: 'lt_root', label: 'Root', color: 'var(--node-blue)', details: [], children: [
+                        mk('lt_c1', 'Solid', 'solid'),
+                        mk('lt_c2', 'Dashed', 'dashed'),
+                        mk('lt_c3', 'Containment', 'containment'),
+                        mk('lt_c4', 'Dotted', 'dotted'),
+                        mk('lt_c5', 'Reference', 'reference'),
+                        mk('lt_c6', 'Contrast', 'contrast'),
+                        mk('lt_c7', 'Causal', 'causal', '导致'),
+                    ]
+                }]
+                updateG6Data()
+                _g6log('__linkTypeTest: 已注入 7 种连线类型测试数据')
             }
 
             // C: 诊断当前G6状态 / E: Diagnose current G6 state
@@ -1551,6 +1839,129 @@
                     }
                     return true
                 })
+            }
+
+            // C: 前端重建 G6 嵌套树 — 镜像后端 flatten_to_tree（多根自动包裹虚拟根）
+            //    用于本地连线编辑后重建 treeRoots，避免依赖后端往返
+            // E: Frontend rebuild of the G6 nested tree — mirrors backend flatten_to_tree
+            //    (multi-root wrapped in a virtual root). Used after local link edits.
+            const rebuildTreeFromFlat = (flatNodes, flatLinks) => {
+                if (!flatNodes || !flatNodes.length) return []
+                const dict = {}
+                flatNodes.forEach(n => {
+                    dict[String(n.id)] = {
+                        id: String(n.id), label: n.label || '', color: n.color || '#e8f0fe',
+                        details: n.details || [], parent_id: n.parent_id || null,
+                        collapsed: !!n.collapsed, children: [], _isVirtual: false,
+                        _isRoot: false, _depth: 0, _hasChildren: false,
+                        x: (n.x !== undefined && n.x !== null) ? n.x : null,
+                        y: (n.y !== undefined && n.y !== null) ? n.y : null,
+                        userPositioned: !!n.userPositioned,
+                    }
+                })
+                const childrenMap = {}
+                ;(flatLinks || []).forEach(l => {
+                    const src = String(l.source); const tgt = String(l.target)
+                    if (!dict[src] || !dict[tgt]) return
+                    if (!childrenMap[src]) childrenMap[src] = []
+                    childrenMap[src].push({ id: tgt, link_type: l.link_type || l.type || 'solid', link_label: l.label || null })
+                    if (!dict[tgt].parent_id) dict[tgt].parent_id = src
+                })
+                const visited = new Set()
+                const build = (nid) => {
+                    const node = dict[nid]
+                    if (!node || visited.has(nid)) return null
+                    visited.add(nid)
+                    ;(childrenMap[nid] || []).forEach(c => {
+                        if (visited.has(c.id)) return
+                        const child = dict[c.id]
+                        if (child) {
+                            child.link_type = c.link_type
+                            if (c.link_label) child.link_label = c.link_label
+                            const built = build(c.id)
+                            if (built) node.children.push(built)
+                        }
+                    })
+                    return node
+                }
+                const roots = []
+                Object.keys(dict).forEach(nid => {
+                    if (!visited.has(nid)) {
+                        const r = build(nid)
+                        if (r) roots.push(r)
+                    }
+                })
+                if (roots.length > 1) {
+                    return [{ id: '__virtual_root__', label: '', children: roots, _isVirtual: true, _isRoot: true, _depth: 0, _hasChildren: true, collapsed: false }]
+                }
+                return roots
+            }
+
+            // C: 连线编辑面板状态与逻辑 / E: Link editor state and logic
+            const linkEditor = ref(null)
+
+            const findNodeLabel = (id) => {
+                const n = nodes.value.find(x => String(x.id) === String(id))
+                if (n) return n.label
+                const found = findNodeInTree(treeRoots.value, id)
+                return found ? found.label : String(id)
+            }
+
+            const openLinkEditor = (source, target, link_type, link_label, clientX, clientY) => {
+                const x = Math.min((clientX || window.innerWidth / 2) + 12, window.innerWidth - 400)
+                const y = Math.min((clientY || window.innerHeight / 3) + 18, window.innerHeight - 260)
+                linkEditor.value = {
+                    source, target,
+                    sourceLabel: findNodeLabel(source),
+                    targetLabel: findNodeLabel(target),
+                    link_type, link_label: link_label || '',
+                    x: Math.max(0, x), y: Math.max(0, y),
+                }
+            }
+
+            const saveLinkFromEditor = () => {
+                if (!linkEditor.value) return
+                const { source, target, link_type, link_label } = linkEditor.value
+                const link = links.value.find(l => String(l.source) === String(source) && String(l.target) === String(target))
+                if (link) {
+                    link.link_type = link_type
+                    if (link_label && link_label.trim()) link.label = link_label.trim()
+                    else delete link.label
+                }
+                treeRoots.value = rebuildTreeFromFlat(nodes.value, links.value)
+                nextTick(() => updateG6Data())
+                linkEditor.value = null
+            }
+
+            const deleteLinkFromEditor = () => {
+                if (!linkEditor.value) return
+                if (!confirm(t('linkDeleteConfirm'))) return
+                const { source, target } = linkEditor.value
+                links.value = links.value.filter(l => !(String(l.source) === String(source) && String(l.target) === String(target)))
+                treeRoots.value = rebuildTreeFromFlat(nodes.value, links.value)
+                nextTick(() => updateG6Data())
+                linkEditor.value = null
+            }
+
+            // C: 连线编辑面板拖拽 / E: Link editor drag
+            let linkPopupDragState = null
+            const startDragLinkPopup = (e) => {
+                if (!linkEditor.value || e.button !== 0) return
+                linkPopupDragState = { startX: e.clientX, startY: e.clientY, x: linkEditor.value.x, y: linkEditor.value.y }
+                document.addEventListener('mousemove', onDragLinkPopup)
+                document.addEventListener('mouseup', stopDragLinkPopup)
+            }
+            const onDragLinkPopup = (e) => {
+                if (!linkPopupDragState || !linkEditor.value) return
+                const dx = e.clientX - linkPopupDragState.startX
+                const dy = e.clientY - linkPopupDragState.startY
+                linkEditor.value.x = Math.max(0, Math.min(linkPopupDragState.x + dx, window.innerWidth - 400))
+                linkEditor.value.y = Math.max(0, Math.min(linkPopupDragState.y + dy, window.innerHeight - 100))
+            }
+            const stopDragLinkPopup = () => {
+                linkPopupDragState = null
+                document.removeEventListener('mousemove', onDragLinkPopup)
+                document.removeEventListener('mouseup', stopDragLinkPopup)
             }
 
             // C: --- 词典标注辅助函数 ---
@@ -1746,10 +2157,12 @@
                     const termCount = Object.keys(data.prefetched_cache || {}).length;
                     chatHistory.value.push({
                         role: 'system',
-                        text: `[Annotation] ${nodeCount} nodes, ${termCount} terms cached (density: ${annotationDensity.value}).`
+                        text: tf('sysMsgAnnotation', {
+                            nodes: nodeCount, terms: termCount, density: annotationDensity.value
+                        })
                     });
                 } catch (err) {
-                    chatHistory.value.push({ role: 'system', text: `Annotation failed: ${err.message}` });
+                    chatHistory.value.push({ role: 'system', text: tf('annotationFailed', { msg: err.message }) });
                 }
                 if (settings.autoScroll) scrollChat();
             };
@@ -1871,7 +2284,7 @@
                     definitionPopup.value = {
                         term, x: popupX, y: popupY, loading: false,
                         wikipedia_definition: null, wikipedia_url: null,
-                        llm_definition: 'Failed to load definition.',
+                        llm_definition: t('defLoadFailed'),
                         ipa: '', literal_meaning: '', source: 'error',
                         from_cache: false,
                     };
@@ -1971,6 +2384,11 @@
                 if (chatHistory.value.filter(m => m.role === 'user').length === 1) {
                     const hasCJK = /[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff]/.test(text);
                     detectedUserLanguage.value = hasCJK ? 'zh' : 'en';
+                    // C: 自动语言联动 — 用户未手动选择界面语言时，界面语言跟随输入语言
+                    // E: Auto language sync — follow input language unless the user picked one manually
+                    if (!settings.languageManual) {
+                        settings.language = detectedUserLanguage.value;
+                    }
                 }
                 if (settings.autoScroll) scrollChat();
 
@@ -2041,7 +2459,7 @@
                     }
                     if (settings.autoScroll) scrollChat();
                 } catch (error) {
-                    chatHistory.value.push({ role: 'ai', text: "Connection failed." });
+                    chatHistory.value.push({ role: 'ai', text: tf('connectionFailed') });
                 }
             };
 
@@ -2053,6 +2471,7 @@
 
             const onMountedWithG6 = () => {
                 document.addEventListener('click', handleClickOutside);
+                document.title = t('browserTitle')
                 nextTick(() => initG6());
                 // C: 窗口大小变化时自适应 / E: Resize G6 on window resize
                 window.addEventListener('resize', () => {
@@ -2126,7 +2545,7 @@
                     activeNode.value = null;
                     subtreeMode.value = false;
                     subtreeRootId.value = null;
-                    chatHistory.value.push({ role: 'system', text: 'Canvas has been cleared manually.' });
+                    chatHistory.value.push({ role: 'system', text: tf('sysMsgCleared') });
                     if (graph) {
                         try {
                             graph.setData({ nodes: [], edges: [] })
@@ -2154,7 +2573,7 @@
                 subtreeMode.value = true;
                 chatHistory.value.push({
                     role: 'system',
-                    text: `[Subtree Mode] Focused on "${activeNode.value.label}". Your changes will be scoped to this node.`
+                    text: tf('sysMsgSubtreeFocus', { label: activeNode.value.label })
                 });
                 if (settings.autoScroll) scrollChat();
             };
@@ -2167,7 +2586,7 @@
                 activeNode.value = null;
                 chatHistory.value.push({
                     role: 'system',
-                    text: '[Subtree Mode] Exited subtree mode. Back to full map view.'
+                    text: tf('sysMsgSubtreeExit')
                 });
                 if (settings.autoScroll) scrollChat();
             };
@@ -2176,7 +2595,7 @@
             // E: --- Save current map ---
             const saveCurrentMap = async () => {
                 const mapData = { nodes: nodes.value, links: links.value };
-                const name = prompt('Map name:', `mindmap_${new Date().toISOString().slice(0,10)}`);
+                const name = prompt(t('mapNamePrompt'), `mindmap_${new Date().toISOString().slice(0,10)}`);
                 // C: prompt() 是阻塞式对话框，可能导致 Canvas 上下文丢失。
                 //    无论用户确认或取消，都强制恢复 G6 渲染。
                 // E: prompt() is a blocking dialog that may cause Canvas context loss.
@@ -2191,10 +2610,10 @@
                     });
                     const data = await response.json();
                     if (data.status === 'success') {
-                        chatHistory.value.push({ role: 'system', text: `${t('mapSaved')} (ID: ${data.map_id})` });
+                        chatHistory.value.push({ role: 'system', text: tf('mapSavedId', { id: data.map_id }) });
                     }
                 } catch (err) {
-                    chatHistory.value.push({ role: 'system', text: `Save failed: ${err.message}` });
+                    chatHistory.value.push({ role: 'system', text: tf('sysMsgSaveFailed', { msg: err.message }) });
                 }
                 if (settings.autoScroll) scrollChat();
             };
@@ -2209,6 +2628,88 @@
                 } catch (err) {
                     console.error('Failed to list maps:', err);
                 }
+            };
+
+            // C: 删除/重命名已保存导图 / E: Delete/Rename saved maps
+            const deleteSavedMap = async (m) => {
+                if (!confirm(t('confirmDeleteMap'))) return;
+                try {
+                    const response = await fetch(`/delete_map?map_id=${m.map_id}`, { method: 'DELETE' });
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        savedMaps.value = savedMaps.value.filter(x => x.map_id !== m.map_id);
+                    }
+                } catch (err) {
+                    console.error('Delete map failed:', err);
+                }
+            };
+
+            const renameSavedMap = async (m) => {
+                const newName = prompt(t('renameMapPrompt'), m.name);
+                if (!newName || newName === m.name) return;
+                try {
+                    const response = await fetch('/rename_map', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ map_id: m.map_id, name: newName })
+                    });
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        m.name = newName;
+                        m.updated_at = data.updated_at || m.updated_at;
+                    }
+                } catch (err) {
+                    console.error('Rename map failed:', err);
+                }
+            };
+
+            // C: 导图导出 — PNG 截图 / JSON 文件 / JSON 导入
+            // E: Map export — PNG snapshot / JSON file / JSON import
+            const exportPNG = () => {
+                if (!graph) return;
+                try {
+                    const dataUrl = graph.toDataURL({ mode: 'cover', pixelRatio: 2 });
+                    const a = document.createElement('a');
+                    a.href = dataUrl;
+                    a.download = `mindmap_${new Date().toISOString().slice(0, 10)}.png`;
+                    a.click();
+                } catch (e) {
+                    _g6err('Export PNG failed:', e);
+                }
+            };
+
+            const exportJSON = () => {
+                const payload = { nodes: nodes.value, links: links.value };
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `mindmap_${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            };
+
+            const jsonImportInput = ref(null);
+            const triggerImportJSON = () => { if (jsonImportInput.value) jsonImportInput.value.click(); };
+            const handleJSONImport = (e) => {
+                const file = e.target.files && e.target.files[0];
+                e.target.value = '';
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const data = JSON.parse(reader.result);
+                        if (!Array.isArray(data.nodes) || !Array.isArray(data.links)) throw new Error('bad format');
+                        nodes.value = data.nodes;
+                        links.value = data.links;
+                        treeRoots.value = rebuildTreeFromFlat(nodes.value, links.value);
+                        annotations.value = {};
+                        nextTick(() => updateG6Data());
+                        chatHistory.value.push({ role: 'system', text: tf('sysMsgLoaded', { name: file.name, count: nodes.value.length }) });
+                    } catch (err) {
+                        alert(t('importFailed'));
+                    }
+                };
+                reader.readAsText(file);
             };
 
             // C: --- 加载指定导图 ---
@@ -2232,11 +2733,11 @@
                         treeRoots.value = data.map_data.tree || [];
                         showMapList.value = false;
                         activeNode.value = null;
-                        chatHistory.value.push({ role: 'system', text: `Loaded map: ${data.name} (${data.node_count} nodes)` });
+                        chatHistory.value.push({ role: 'system', text: tf('sysMsgLoaded', { name: data.name, count: data.node_count }) });
                         nextTick(() => updateG6Data());
                     }
                 } catch (err) {
-                    chatHistory.value.push({ role: 'system', text: `Load failed: ${err.message}` });
+                    chatHistory.value.push({ role: 'system', text: tf('sysMsgLoadFailed', { msg: err.message }) });
                 }
                 if (settings.autoScroll) scrollChat();
             };
@@ -2254,7 +2755,7 @@
                 activeNode.value = null;
                 nextTick(() => updateG6Data());
 
-                chatHistory.value.push({ role: 'system', text: `Node removed manually. AI will acknowledge this change.` });
+                chatHistory.value.push({ role: 'system', text: tf('sysMsgNodeRemoved') });
                 if (settings.autoScroll) scrollChat();
             };
 
@@ -2290,6 +2791,11 @@
                 showDefinition, closeDefinition, startDragPopup,
                 showEdgeLegend, edgeLegendItems, edgeLegendPos,
                 startDragEdgeLegend,
+                // C: 连线编辑面板 / E: link editor
+                linkEditor, saveLinkFromEditor, deleteLinkFromEditor, startDragLinkPopup,
+                // C: 导出导入与导图管理 / E: export/import and map management
+                exportPNG, exportJSON, triggerImportJSON, handleJSONImport, jsonImportInput,
+                deleteSavedMap, renameSavedMap,
                 // C: Wikipedia 定义截断相关
                 // E: Wikipedia definition truncation helpers
                 truncatedWikiDefinition, wikiDefinitionIsTruncated, wikiDefinitionFullLength
