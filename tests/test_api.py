@@ -1,3 +1,10 @@
+import os
+import sys
+
+# C: 确保项目根目录在 sys.path 中
+# E: Ensure project root in sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from openai import OpenAI
 from config import Config
 

@@ -357,7 +357,7 @@ The frontend is a single-file Vue.js 3 application (`index.html`) featuring:
 
 ### 🧪 Evaluation Framework
 
-See [`Evaluation_Schema.md`](./Evaluation_Schema.md) for the complete evaluation methodology (7 dimensions), which covers:
+See [`Evaluation_Schema.md`](./docs/design/Evaluation_Schema.md) for the complete evaluation methodology (7 dimensions), which covers:
 
 1. **Hierarchical Accuracy** — alignment with ground-truth lecture outlines (Tree Edit Distance)
 2. **Entity Recall** — how many "must-know" concepts are captured in the generated map
@@ -380,15 +380,16 @@ ai-mindmap-agent/
 ├── config.py               # Configuration class (all env vars)
 ├── tools.py                # Function-calling JSON schemas for all agent stages
 ├── schema.py               # Pydantic models + LINK_TYPE_SCHEMA (single source of truth for link types)
-├── test_api.py             # Quick API connection test
-├── test_core.py            # Core state-merge unit tests
-├── test_link_type.py       # Link type / label round-trip tests
-├── test_eval_fixes.py      # Eval-fix regression tests (ICC / Kendall's W / token_reduction …)
 ├── index.html              # Vue.js 3 + Tailwind CSS frontend
 ├── evaluation/             # Evaluation framework (7 dimensions: Node-F1, Edge-F1, UAS, etc.)
 ├── requirements.txt        # Python dependencies
 ├── .env.example            # (create your own .env from this template)
-├── Evaluation_Schema.md    # Quality evaluation criteria (bilingual)
+├── tests/                  # Unit tests (test_core / test_link_type / test_eval_fixes / …)
+├── docs/
+│   ├── design/             # Design docs (Evaluation_Schema, MCP architecture, …)
+│   ├── manuals/            # User manual
+│   ├── checklists/         # Work checklists
+│   └── reports/            # Analysis / audit reports
 ├── scripts/
 │   ├── inspect.sh          # MCP Inspector one-click launcher
 │   └── cleanup_debug.py    # debug_output stale-session cleanup
@@ -717,7 +718,7 @@ python scripts/cleanup_debug.py --days 7    # 删除早于 7 天的会话目录
 
 ### 🧪 评估与测试
 
-详见 [`Evaluation_Schema.md`](./Evaluation_Schema.md)，评估体系包含七个维度：
+详见 [`Evaluation_Schema.md`](./docs/design/Evaluation_Schema.md)，评估体系包含七个维度：
 
 1. **层级准确率** — 与真实大纲的结构对齐（树编辑距离）
 2. **核心概念召回率** — 必知必会概念的捕获比例
@@ -764,14 +765,15 @@ ai-mindmap-agent/
 ├── config.py               # 配置管理类
 ├── tools.py                # Function-calling JSON Schema
 ├── schema.py               # Pydantic 数据模型 + LINK_TYPE_SCHEMA 连线类型单一事实来源
-├── test_api.py             # API 连接测试脚本
-├── test_core.py            # 核心状态合并单元测试
-├── test_link_type.py       # 连线类型/标签往返测试
-├── test_eval_fixes.py      # 评估模块修复回归测试（ICC/KendallW/token_reduction 等）
 ├── index.html              # Vue.js 3 + Tailwind CSS 前端
 ├── evaluation/             # 评估框架（7个维度：Node-F1, Edge-F1, UAS 等）
 ├── requirements.txt        # Python 依赖
-├── Evaluation_Schema.md    # 质量评估标准（中英双语）
+├── tests/                  # 单元测试（test_core / test_link_type / test_eval_fixes 等）
+├── docs/
+│   ├── design/             # 设计文档（Evaluation_Schema、MCP 架构等）
+│   ├── manuals/            # 用户手册
+│   ├── checklists/         # 工作清单
+│   └── reports/            # 分析/审计报告
 ├── scripts/
 │   ├── inspect.sh          # MCP Inspector 一键启动脚本
 │   └── cleanup_debug.py    # debug_output 过期会话清理脚本

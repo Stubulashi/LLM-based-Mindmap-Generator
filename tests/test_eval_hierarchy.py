@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import importlib.util
 _HAS_ZSS = importlib.util.find_spec('zss') is not None

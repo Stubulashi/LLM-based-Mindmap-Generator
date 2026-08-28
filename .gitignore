@@ -49,6 +49,8 @@ debug_output/
 /evaluation/eval_report_*.md
 # 示例报告（示例演示模式导出）
 /evaluation/eval_report_example_*.md
+# 历史报告归档目录（新报告仍生成在 evaluation/ 根目录，保留上述规则）
+/evaluation/reports/
 # 根目录审计 / 分析报告（由 AI 生成的评估结果，非源码）
 evaluation_audit_report.md
 hungarian_label_evaluation.md

@@ -1,5 +1,12 @@
 """C: 测试 link_type 在 flatten_to_tree ↔ flatten_from_tree 往返中不丢失
 E: Test that link_type is preserved through flatten_to_tree ↔ flatten_from_tree round-trip"""
+import os
+import sys
+
+# C: 确保项目根目录在 sys.path 中
+# E: Ensure project root in sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import json
 from mindmap_agent import flatten_to_tree, flatten_from_tree, state_merge_with_tree
 from schema import VALID_LINK_TYPES  # C: 由 LINK_TYPE_SCHEMA 派生（7 种）/ E: derived from LINK_TYPE_SCHEMA (7 types)
