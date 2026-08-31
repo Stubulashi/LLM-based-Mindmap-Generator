@@ -86,6 +86,7 @@ report/
 
 test/
 
-videoplayback.m4aapi.env.bak
-*.env*
 videoplayback.m4a
+
+api.env.bak
+*.env*
