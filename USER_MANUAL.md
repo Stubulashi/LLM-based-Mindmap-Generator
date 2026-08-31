@@ -151,12 +151,23 @@ This project talks to an OpenAI-compatible LLM to actually generate the maps and
 
 Here's the key lookup order: `LLM_*` env vars → `DEEPSEEK_*` env vars → the defaults (DeepSeek). So filling in the `LLM_*` trio in `.env` is basically all you need to switch to any OpenAI-compatible provider.
 
+#### How to create the `.env` file
+
+The project does **not** ship a `.env.example` template (real keys are never committed), so you create it by hand. Steps:
+
+1. **Place it in the project root**: `.env` must sit in the same directory as `config.py` (which loads it from the relative path `./.env`). So `cd` into the project root before running anything, or the file won't be picked up.
+2. **Create the file**: run `touch .env` in the project root, or create an empty file named `.env` in any editor.
+3. **Fill in the minimal trio**: replace the placeholder `sk-xxxx` below with your real key and save.
+
 ```bash
-# Minimal .env example
+# .env minimal example
+# This single file is all you need; switch any OpenAI-compatible provider by editing it
 LLM_API_KEY=sk-xxxx
 LLM_BASE_URL=https://api.deepseek.com
 LLM_MODEL=deepseek-chat
 ```
+
+> About `api.env`: it holds the real keys, loaded at runtime (with override) by the CLI pipeline, the evaluation entry, and the web server. **At minimum you only need to create `.env`**; provide `api.env` (also in the project root) only when you want CLI / evaluation / web to use a different key than the default.
 
 > **Note:** Keys are written as placeholder `sk-xxxx` here; replace with your real key. Real keys exist only in your local `.env`/`api.env`, never commit them to Git.
 
@@ -885,12 +896,23 @@ pip install -r requirements.txt
 
 密钥查找的先后次序是这样的：`LLM_*` 环境变量 → `DEEPSEEK_*` 环境变量 → 默认值（DeepSeek）。所以你只要在 `.env` 里把 `LLM_*` 那套填好，就能切到任意一个 OpenAI 兼容的厂商，改都不用改代码。
 
+#### 如何创建 `.env` 文件
+
+项目**没有**提供 `.env.example` 模板（因为真实密钥不入库），你需要手动新建。请按以下步骤操作：
+
+1. **放在项目根目录**：`.env` 必须与 `config.py` 位于同一目录（`config.py` 会从当前工作目录的相对路径 `./.env` 加载）。因此，运行项目前请先 `cd` 到项目根目录，否则 `.env` 无法被识别。
+2. **新建文件**：在项目根目录执行 `touch .env`，或用任意编辑器新建一个名为 `.env` 的文件。
+3. **填入最小三件套**：把下面示例中的 `sk-xxxx` 替换为你的真实密钥，保存即可。
+
 ```bash
 # .env 最小示例
+# 最小只需创建这一个文件；以此文件为准即可切换任意 OpenAI 兼容厂商
 LLM_API_KEY=sk-xxxx
 LLM_BASE_URL=https://api.deepseek.com
 LLM_MODEL=deepseek-chat
 ```
+
+> 关于 `api.env`：它存放真实密钥，供命令行管线、评估入口和 Web 服务在运行时以「覆盖」方式加载。**最少时你只需建 `.env` 就够了**；只有当你要让 CLI / 评估 / Web 走与默认不同的密钥时，才需要同时提供 `api.env`（同样放在项目根目录）。
 
 > **注意：** 密钥一律以占位符 `sk-xxxx` 书写，请替换为你的真实密钥。真实密钥只存在于本地 `.env` / `api.env`，永远不要提交到 Git。
 
