@@ -24,6 +24,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional
 
+from config import Config
 from evaluation.i18n import T
 
 
@@ -158,16 +159,24 @@ class QAEvaluator:
         返回 (text, total_tokens)；usage 缺失时 total_tokens 为 0。
         """
         client = self._fresh_client()
+        # C: 推理模型（DeepSeek v4/Kimi 等）默认开启思考模式导致逐题耗时过长而超时
+        #    —— 禁用思考以加快生成/作答/评分，避免 30s 超时。
+        # E: Reasoning models default to slow thinking mode which times out on long
+        #    Q&A batches — disable it to speed up generation/answer/grading.
+        extra_body = {"thinking": {"type": "disabled"}} if Config.LLM_DISABLE_REASONING else None
         try:
-            response = client.chat.completions.create(
-                model=self.model,
-                messages=[
+            completions_kwargs = {
+                "model": self.model,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content},
                 ],
-                temperature=0.0,
-                max_tokens=max_tokens,
-            )
+                "temperature": 0.0,
+                "max_tokens": max_tokens,
+            }
+            if extra_body:
+                completions_kwargs["extra_body"] = extra_body
+            response = client.chat.completions.create(**completions_kwargs)
             text = response.choices[0].message.content.strip()
             tokens = 0
             try:

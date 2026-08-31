@@ -451,9 +451,10 @@ def polish_text(raw_text: str, detected_language: str,
             session_ts=session_ts
         )
 
-        # 自审查：计算编辑距离比率
+        # C: 自审查：计算候选与上一次的编辑距离比率
+        # E: Self-review: compute edit distance ratio between previous and candidate
         edit_ratio = _edit_distance_ratio(prev, candidate)
-        if edit_ratio < 0.05:  # 变化 < 5%，认为收敛
+        if edit_ratio < 0.05:  # C: 变化 < 5%，认为收敛 / E: change < 5%, treat as converged
             logger.info(
                 f"C: [polish_text] 迭代收敛 (edit_ratio={edit_ratio:.3f})"
             )
@@ -578,7 +579,8 @@ def _edit_distance_ratio(a: str, b: str) -> float:
         return 0.0
     if not a or not b:
         return 1.0
-    # 简易 Levenshtein
+    # C: 简易 Levenshtein（一行滚动数组，只保留上一行）
+    # E: Simple Levenshtein (rolling array, keeps previous row only)
     m, n = len(a), len(b)
     if m > n:
         a, b, m, n = b, a, n, m
@@ -645,7 +647,8 @@ def _judge_by_main_model(client, model: str, raw_text: str,
             reason = verdict_text[7:].strip()
             return {"action": "REJECT", "reason": reason}
         else:
-            # 无法解析 → 安全降级为 ACCEPT
+            # C: 无法解析裁决 → 安全降级为 ACCEPT
+            # E: Unparseable verdict → safely degrade to ACCEPT
             logger.warning(f"C: [polish_text] 终审返回无法解析: {verdict_text[:80]}")
             logger.warning(f"E: [polish_text] Unparseable review verdict: {verdict_text[:80]}")
             return {"action": "ACCEPT"}
@@ -909,6 +912,10 @@ def _call_llm_tool(system_prompt: str, user_prompt: str,
             kwargs["tool_choice"] = {
                 "type": "function", "function": {"name": tool_choice_name}
             }
+            # C: 推理模型（DeepSeek v4/Kimi 等）关闭思考模式以支持 function calling
+            # E: Disable reasoning/thinking for function calling (DeepSeek v4/Kimi etc.)
+            if Config.LLM_DISABLE_REASONING:
+                kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
         return client.chat.completions.create(**kwargs)
 
     response = _do_call([
@@ -1213,7 +1220,8 @@ def _select_llm_client(prefer_light: bool = True) -> tuple:
 # C: Helper — 术语语言检测 / E: Helper — term language detection
 # ---------------------------------------------------------
 def _detect_term_language(term: str) -> str:
-    """Detect writing system: 'zh'|'latin'|'other'."""
+    """C: 检测书写系统，返回 'zh'|'latin'|'other'。
+    E: Detect writing system: 'zh'|'latin'|'other'."""
     if not term or not term.strip():
         return 'latin'
     zh_count = sum(1 for ch in term if '一' <= ch <= '鿿' or '㐀' <= ch <= '䶿')

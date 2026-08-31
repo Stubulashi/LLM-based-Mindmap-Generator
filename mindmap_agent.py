@@ -476,6 +476,8 @@ def postprocess_map_structure(map_dict: dict) -> dict:
                 return
 
     # ---- 1) 环检测：DFS 灰/黑标记，切断触环回边（将违规 target 置为无父，稍后孤儿挂接处理） ----
+    # C: adj 由 links 生成（source→target 邻接表），供环检测遍历
+    # E: adj is built from links (source→target adjacency), used by cycle detection
     adj: dict[str, list[str]] = {nid: [] for nid in node_ids}
     for l in links:
         s, t = str(l.get('source')), str(l.get('target'))
@@ -488,7 +490,8 @@ def postprocess_map_structure(map_dict: dict) -> dict:
         color[nid] = GRAY
         for nxt in list(adj[nid]):
             if color.get(nxt) == GRAY:
-                # 触环：断开该边→把该连边从 links 移除，并把 nxt 置为无父（孤儿）
+                # C: 触环：从 links 移除该连边，把 nxt 置为无父（孤儿）
+                # E: Cycle reached: remove this edge from links, make nxt parentless (orphan)
                 links[:] = [l for l in links
                             if not (str(l.get('source')) == nid and str(l.get('target')) == nxt)]
                 _set_parent(nxt, None)
@@ -524,14 +527,15 @@ def postprocess_map_structure(map_dict: dict) -> dict:
 
     def _resolve_parent(n: dict, pmap: dict) -> str | None:
         nid = str(n.get('id'))
-        # E: prefer links-encoded/implicit parent (pmap already merges nodes.parent_id + links)
         # C: 优先采用 pmap（已合并 nodes.parent_id 与 links 回填）中的父，保留 links 层正确层级
+        # E: Prefer the parent in pmap (already merges nodes.parent_id + links backfill)
         pid = str(pmap.get(nid) or '')
         if pid and pid in node_ids and pid != nid:
             return pid
         if nid == root_id:
             return None
-        # 排除自己 + 自己的祖先 → 若挂到自己的祖先则必然成环
+        # C: 排除自己和祖先——挂到祖先必然成环
+        # E: Exclude self and ancestors — attaching to an ancestor would form a cycle
         banned = {nid} | _ancestors(nid, pmap)
         cands = [c for c in nodes if str(c.get('id')) not in banned
                  and str(c.get('id')) != root_id]
@@ -542,7 +546,7 @@ def postprocess_map_structure(map_dict: dict) -> dict:
             sim = _char_ngram_sim(n.get('label', ''), c.get('label', ''))
             if sim > best_sim:
                 best_sim, best = sim, c.get('id')
-        if best_sim >= 0.25:  # E: 相似度下界，低于则挂根 / C: 语义下界，低于则挂根
+        if best_sim >= 0.25:  # C: 语义相似度下界，低于则挂根 / E: similarity floor, below it attach to root
             return best
         return root_id
 
@@ -901,6 +905,10 @@ class _BaseAgent:
                 kwargs["tool_choice"] = {
                     "type": "function", "function": {"name": tool_choice_name}
                 }
+                # C: 推理模型（DeepSeek v4/Kimi 等）关闭思考模式以支持 function calling
+                # E: Disable reasoning/thinking for function calling (DeepSeek v4/Kimi etc.)
+                if Config.LLM_DISABLE_REASONING:
+                    kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
 
             last_err: Exception | None = None
             for attempt in range(2):
@@ -2222,7 +2230,8 @@ class MindMapPipelineOrchestrator:
         all_ids = existing_ids | new_ids
         all_links = list(delta.get('add_links', []))
 
-        # Check 1: add_links orphan references
+        # C: 检查1 — add_links 孤立引用（源/目标节点不存在）
+        # E: Check 1: add_links orphan references
         for link in all_links:
             src = str(link.get('source', ''))
             tgt = str(link.get('target', ''))
@@ -2235,7 +2244,8 @@ class MindMapPipelineOrchestrator:
                     f"add_link source '{src}' → '{tgt}': target node does not exist"
                 )
 
-        # Check 2: update_nodes invalid targets
+        # C: 检查2 — update_nodes 指向不存在的节点
+        # E: Check 2: update_nodes invalid targets
         for u in delta.get('update_nodes', []):
             uid = str(u.get('id', ''))
             if uid and uid not in existing_ids:
@@ -2243,9 +2253,11 @@ class MindMapPipelineOrchestrator:
                     f"update_nodes target '{uid}' does not exist in current map"
                 )
 
-        # Check 3: circular dependency in add_links (simple cycle detection via DFS)
+        # C: 检查3 — add_links 中的循环依赖（DFS 环检测）
+        # E: Check 3: circular dependency in add_links (simple cycle detection via DFS)
         if all_links:
-            # Build adjacency: source -> [targets]
+            # C: 邻接表由 links 生成，供 DFS 环检测使用
+            # E: Build adjacency from links, used by DFS cycle detection
             adj: dict[str, list[str]] = {}
             for link in all_links:
                 src = str(link.get('source', ''))
@@ -2687,7 +2699,8 @@ def extract_subtree_context(node_id: str, current_map: dict) -> dict:
         result['_warning'] = 'Empty map or no node_id provided'
         return result
 
-    # Step 1: 构建嵌套树
+    # C: 步骤1 — 构建嵌套树
+    # E: Step 1: build the nested tree
     tree = flatten_to_tree(nodes, links)
     if not tree:
         result = dict(current_map)
@@ -2695,8 +2708,8 @@ def extract_subtree_context(node_id: str, current_map: dict) -> dict:
         result['_warning'] = 'Failed to build tree for subtree extraction'
         return result
 
-    # Step 2: 在树中定位 node_id 并收集祖先路径
-    # E: Locate node_id in tree and collect ancestor path
+    # C: 步骤2 — 定位 node_id 并收集祖先路径
+    # E: Step 2: locate node_id in tree and collect the ancestor path
     def find_node_and_ancestors(roots, target_id, ancestors=None):
         if ancestors is None:
             ancestors = []
@@ -2719,20 +2732,20 @@ def extract_subtree_context(node_id: str, current_map: dict) -> dict:
         result['_warning'] = f'Node "{node_id}" not found in tree'
         return result
 
-    # Step 3: 从树中删除 node_id 的所有子孙节点
-    # E: Remove all descendants of node_id from the tree
+    # C: 步骤3 — 删除 node_id 的所有子孙节点
+    # E: Step 3: remove all descendants of node_id from the tree
     def prune_children(node):
         node['children'] = []
         node['_hasChildren'] = False
 
     prune_children(found_node)
 
-    # Step 4: 将修剪后的树转回 flat 格式
-    # E: Convert pruned tree back to flat format
+    # C: 步骤4 — 将修剪后的树转回 flat 格式
+    # E: Step 4: convert the pruned tree back to flat format
     flat_nodes, flat_links = flatten_from_tree(tree)
 
-    # Step 5: 组装返回结果
-    # E: Assemble return result
+    # C: 步骤5 — 组装返回结果
+    # E: Step 5: assemble the return result
     # C: 保存完整导图的所有节点 ID，供管线去重时使用
     #    子树模式下 current_map 被裁剪，缺少子孙节点 ID，
     #    会导致 _validate_concepts 无法检测已存在的子孙节点

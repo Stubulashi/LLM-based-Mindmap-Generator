@@ -7,6 +7,16 @@ from pathlib import Path
 env_path = Path('.') / '.env'
 load_dotenv(dotenv_path=env_path)
 
+
+def _first_env(*names):
+    """C: 返回第一个已设置的环境变量名；都没设置时返回 None。
+    E: Return the first environment variable name that is set, or None if none are."""
+    for n in names:
+        if os.getenv(n):
+            return n
+    return None
+
+
 class Config:
     """
     C: 配置管理类
@@ -27,27 +37,19 @@ class Config:
     #    Set in .env: LLM_API_KEY / LLM_BASE_URL / LLM_MODEL
     #    If not set, auto-fallback to DEEPSEEK_* vars (backward compatible)
     # ---------------------------------------------------------
-    # C: 配置来源追踪 — 记录 LLM_* 三件套实际命中的环境变量名，供 validate() 检测混用陷阱
-    # E: Config source tracking — record which env var each LLM_* value actually came from (for validate())
-    LLM_API_KEY_SRC = next(
-        (n for n in ('LLM_API_KEY', 'DEEPSEEK_API_KEY', 'OPENAI_API_KEY')
-         if os.getenv(n)),
-        None,
-    )
+    # C: 来源追踪——记录 LLM_* 实际命中的环境变量名，供 validate() 检查混用
+    # E: Source tracking — record the env var each LLM_* came from, for validate()
+    # C: 取自环境变量；流向 validate() 判断 key 来源
+    # E: Read from env vars; flows to validate() source checks
+    LLM_API_KEY_SRC = _first_env('LLM_API_KEY', 'DEEPSEEK_API_KEY', 'OPENAI_API_KEY')
     LLM_API_KEY = os.getenv(LLM_API_KEY_SRC) if LLM_API_KEY_SRC else None
-    LLM_BASE_URL_SRC = next(
-        (n for n in ('LLM_BASE_URL', 'DEEPSEEK_BASE_URL') if os.getenv(n)),
-        None,
-    )
+    LLM_BASE_URL_SRC = _first_env('LLM_BASE_URL', 'DEEPSEEK_BASE_URL')
     LLM_BASE_URL = (
         os.getenv(LLM_BASE_URL_SRC)
         if LLM_BASE_URL_SRC
         else 'https://api.deepseek.com'
     )
-    LLM_MODEL_SRC = next(
-        (n for n in ('LLM_MODEL', 'DEEPSEEK_MODEL') if os.getenv(n)),
-        None,
-    )
+    LLM_MODEL_SRC = _first_env('LLM_MODEL', 'DEEPSEEK_MODEL')
     LLM_MODEL = (
         os.getenv(LLM_MODEL_SRC) if LLM_MODEL_SRC else 'deepseek-chat'
     )
@@ -64,6 +66,18 @@ class Config:
     #    JSON object (parsed via _safe_json_parse)
     LLM_JSON_FALLBACK = (
         os.getenv('LLM_JSON_FALLBACK', 'true').lower()
+        in ('true', '1', 'yes')
+    )
+
+    # C: 推理类模型（DeepSeek v4/Kimi 等）在 function calling 时需关闭思考模式
+    #    —— 否则会报 "Thinking mode does not support this tool_choice"。
+    #    开启后自动在工具调用时追加 extra_body={"thinking": {"type": "disabled"}}。
+    # E: Reasoning models (DeepSeek v4/Kimi etc.) must disable thinking mode for
+    #    function calling — otherwise the API errors with "Thinking mode does not
+    #    support this tool_choice". When enabled, tool calls send
+    #    extra_body={"thinking": {"type": "disabled"}}.
+    LLM_DISABLE_REASONING = (
+        os.getenv('LLM_DISABLE_REASONING', 'true').lower()
         in ('true', '1', 'yes')
     )
     
@@ -172,13 +186,11 @@ class Config:
         os.getenv('LLM_LIGHT_API_KEY')
         or LLM_API_KEY
     )
-    LLM_LIGHT_ENABLED = (
-        os.getenv(
-            'LLM_LIGHT_ENABLED',
-            'true' if LLM_LIGHT_MODEL else 'false',
-        ).lower()
-        in ('true', '1', 'yes')
-    )
+    # C: 显式开关优先；仅当 LLM_LIGHT_ENABLED 完全未设置时才根据是否配置轻量模型回退
+    # E: Explicit switch wins; only fall back to the light-model presence when LLM_LIGHT_ENABLED is entirely unset
+    _light_env = os.getenv('LLM_LIGHT_ENABLED')
+    _light_flag = (_light_env or '').lower() in ('true', '1', 'yes')
+    LLM_LIGHT_ENABLED = _light_flag or (_light_env is None and bool(LLM_LIGHT_MODEL))
 
     # C: MCP Server 脚本绝对路径（供 Client spawn 子进程使用）
     # E: MCP Server script absolute path (for Client to spawn subprocess)
