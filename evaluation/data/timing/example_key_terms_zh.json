@@ -1,0 +1,19 @@
+{
+  "terms": [
+    {"term": "机器学习", "type": "core_concept", "category": "general"},
+    {"term": "监督学习", "type": "core_concept", "category": "learning_paradigm"},
+    {"term": "无监督学习", "type": "core_concept", "category": "learning_paradigm"},
+    {"term": "强化学习", "type": "core_concept", "category": "learning_paradigm"},
+    {"term": "分类", "type": "task", "category": "supervised"},
+    {"term": "回归", "type": "task", "category": "supervised"},
+    {"term": "聚类", "type": "task", "category": "unsupervised"},
+    {"term": "降维", "type": "task", "category": "unsupervised"},
+    {"term": "神经网络", "type": "algorithm", "category": "deep_learning"},
+    {"term": "深度学习", "type": "core_concept", "category": "subfield"},
+    {"term": "决策树", "type": "algorithm", "category": "supervised"},
+    {"term": "支持向量机", "type": "algorithm", "category": "supervised"},
+    {"term": "过拟合", "type": "challenge", "category": "evaluation"},
+    {"term": "交叉验证", "type": "method", "category": "evaluation"},
+    {"term": "特征工程", "type": "process", "category": "preprocessing"}
+  ]
+}

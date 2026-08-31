@@ -1,0 +1,40 @@
+{
+  "nodes": [
+    {
+      "id": "n0",
+      "label": "AI Instruction",
+      "parent_id": null
+    },
+    {
+      "id": "n1",
+      "label": "Efficiency",
+      "parent_id": "n0"
+    },
+    {
+      "id": "n2",
+      "label": "personalization",
+      "parent_id": "n0"
+    },
+    {
+      "id": "n3",
+      "label": "learning Experience",
+      "parent_id": "n0"
+    }
+  ],
+  "links": [
+    {"source": "n0", "target": "n1"},
+    {"source": "n0", "target": "n2"},
+    {"source": "n0", "target": "n3"}
+  ],
+  "tree": [
+    {
+      "id": "n0",
+      "label": "AI Instruction",
+      "children": [
+        {"id": "n1", "label": "Efficiency"},
+        {"id": "n2", "label": "personalization"},
+        {"id": "n3", "label": "learning Experience"}
+      ]
+    }
+  ]
+}

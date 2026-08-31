@@ -2,6 +2,23 @@
 # E: /home/akku/ai-mindmap-agent/tools.py
 # C: MindMap 工具定义 — 为 LLM function calling 提供 modify_mind_map 的 JSON Schema
 # E: MindMap tool definitions — provides modify_mind_map JSON Schema for LLM function calling
+# C: 连线类型由 schema.LINK_TYPE_SCHEMA 派生，避免此处硬编码
+# E: Link types derived from schema.LINK_TYPE_SCHEMA to avoid hardcoding here
+from schema import LINK_TYPE_SCHEMA, VALID_LINK_TYPES
+
+# C: 中英双语类型描述（供 tools schema 与提示词复用）
+# E: Bilingual link type descriptions (reused by tools schema and prompts)
+def _link_type_description() -> str:
+    parts_cn = []
+    parts_en = []
+    for t, meta in LINK_TYPE_SCHEMA.items():
+        arrow_cn = '（箭头）' if meta['arrow'] else ''
+        arrow_en = ' (arrow)' if meta['arrow'] else ''
+        parts_cn.append(f"{t}={meta['name_zh']}{arrow_cn}")
+        parts_en.append(f"{t}={meta['name_en']}{arrow_en}")
+    return "C: " + ", ".join(parts_cn) + "\nE: " + ", ".join(parts_en)
+
+
 def get_mindmap_tools():
     # C: 返回完整的工具列表，包含 add_nodes / update_nodes / add_links / delete_nodes 四个能力
     # E: Return the complete tool list, containing all four capabilities: add_nodes, update_nodes, add_links, delete_nodes
@@ -23,11 +40,9 @@ def get_mindmap_tools():
                                     "id": {"type": "string", "description": "唯一英文标识，如 'node_cat'"},
                                     "label": {"type": "string", "description": "核心名词/短语，最多2词。反例：'chicken has rabbies'；正例：'Rabies'"},
                                     "color": {"type": "string", "description": "背景色变量，如 var(--node-blue), var(--node-green), var(--node-red)"},
-                                    "details": {"type": "array", "items": {"type": "string"}, "description": "层次化详细条目。每条以简洁前缀标识来源和类型（如 '定义:'、'关键点:'、'用户原文:'、'上下文:'），前缀语言与用户输入语言一致。融合用户输入、AI解释、转录上下文等多元信息。所有非标签的描述性、解释性内容必须存入此数组"},
-                                    "x": {"type": "integer", "description": "横坐标 200-1200"},
-                                    "y": {"type": "integer", "description": "纵坐标 50-800"}
+                                    "details": {"type": "array", "items": {"type": "string"}, "description": "层次化详细条目。每条以简洁前缀标识来源和类型（如 '定义:'、'关键点:'、'用户原文:'、'上下文:'），前缀语言与用户输入语言一致。融合用户输入、AI解释、转录上下文等多元信息。所有非标签的描述性、解释性内容必须存入此数组"}
                                 },
-                                "required": ["id", "label", "color", "x", "y"]
+                                "required": ["id", "label", "color"]
                             }
                         },
                         "update_nodes": {
@@ -50,7 +65,15 @@ def get_mindmap_tools():
                                 "properties": {
                                     "source": {"type": "string", "description": "父节点ID"},
                                     "target": {"type": "string", "description": "子节点ID"},
-                                    "type": {"type": "string", "enum": ["solid", "dashed"], "description": "实线表示直接从属，虚线表示相关或参考"}
+                                    "type": {
+                                        "type": "string",
+                                        "enum": sorted(VALID_LINK_TYPES),
+                                        "description": _link_type_description()
+                                    },
+                                    "label": {
+                                        "type": "string",
+                                        "description": "C: 连线上的说明文字（可选，如'导致'、'包含'等），用于展示具体语义关系\nE: Optional label on the link (e.g. 'causes', 'includes') for showing the semantic relation"
+                                    }
                                 },
                                 "required": ["source", "target", "type"]
                             }
@@ -102,32 +125,102 @@ def get_concept_extraction_tools():
 
 
 def get_hierarchy_planning_tools():
-    # C: 阶段2 层级规划工具 — 为概念构建父子层级关系
-    # E: Stage 2 Hierarchy planning tool — build parent-child hierarchy for concepts
+    # C: 阶段2 概念分组工具 — 支持嵌套子分组以产生多级树结构
+    # E: Stage 2 Concept grouping tool — supports nested sub-groups for multi-level tree
     return [
         {
             "type": "function",
             "function": {
                 "name": "plan_hierarchy",
-                "description": "C: 为提取的概念规划父子层级关系。建立纵深结构，避免所有节点平铺在同一层。优先将新概念挂载到语义最相关的已有节点下。\nE: Plan parent-child hierarchy for extracted concepts. Establish depth structure, avoid flattening all nodes at the same level. Prioritize attaching new concepts under the most semantically relevant existing nodes.",
+                "description": "C: 为提取的概念规划多级概念分组。支持嵌套子分组以形成 3-5 级深度的树结构。\nE: Plan multi-level concept groupings. Supports nested sub-groups to form 3-5 level deep tree structures.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "relations": {
+                        "groups": {
                             "type": "array",
-                            "description": "C: 层级关系列表。每个关系表示一对父子连线。\nE: List of hierarchy relations. Each relation represents a parent-child link.",
+                            "description": "C: 概念分组列表。支持嵌套子分组 (sub_groups) 以形成多级层次。\nE: List of concept groups. Supports sub_groups for multi-level hierarchy.",
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "parent_id": {"type": "string", "description": "父节点ID（可以是已有节点或新概念）"},
-                                    "child_id": {"type": "string", "description": "子节点ID（必须是新概念或已有节点）"},
-                                    "type": {"type": "string", "enum": ["solid", "dashed"], "description": "实线表示直接从属，虚线表示相关或参考"}
+                                    "group_id": {"type": "string", "description": "分组标识，如 'group_phonetics'"},
+                                    "concept_ids": {"type": "array", "items": {"type": "string"}, "description": "C: 该分组直接包含的概念ID列表\nE: Concept IDs directly in this group"},
+                                    "semantic_label": {"type": "string", "description": "C: 该分组的语义标签（将作为父节点 label）\nE: Semantic label for this group (will be used as parent node label)"},
+                                    "sub_groups": {"type": "array", "description": "C: 【重要】嵌套子分组列表，递归结构同 groups。用于创建更深层级。\nE: [IMPORTANT] Nested sub-groups list, same structure recursively. Used for deeper hierarchy."}
                                 },
-                                "required": ["parent_id", "child_id", "type"]
+                                "required": ["group_id", "semantic_label"]
                             }
                         }
                     },
-                    "required": ["relations"]
+                    "required": ["groups"]
+                }
+            }
+        }
+    ]
+
+
+def get_annotation_tools():
+    # C: 词典标注工具 — 识别节点标签和详情中值得下划线标注的关键术语
+    #    返回 annotated_terms function calling schema，供 dict_underline_server 使用
+    # E: Dictionary annotation tool — identify key terms in node labels and details for underline annotation
+    #    Returns annotated_terms function calling schema for dict_underline_server
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "annotate_terms",
+                "description": (
+                    "C: 分析导图节点的 label 和 details 文本，识别值得下划线标注的关键术语（领域术语、专有名词、技术概念）。"
+                    "不要标注常见词汇（冠词、介词、基础动词等）。用 char_start/char_end 精确定位术语在原文中的位置。\n"
+                    "E: Analyze mind map node labels and details text, identify key terms worth underlining annotation "
+                    "(domain terminology, proper nouns, technical concepts). "
+                    "Do NOT annotate common words (articles, prepositions, basic verbs). "
+                    "Use char_start/char_end to precisely locate terms in the original text."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "annotations": {
+                            "type": "object",
+                            "description": (
+                                "C: 每个节点ID对应的标注列表（键为节点ID字符串）。"
+                                "如果某节点无关键术语，可不包含此键。\n"
+                                "E: Map of node IDs to their annotation lists (keys are node ID strings)."
+                                "If a node has no key terms, this key may be omitted."
+                            ),
+                            "additionalProperties": {
+                                "type": "array",
+                                "description": "C: 该节点的术语标注列表\nE: List of term annotations for this node",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "term": {
+                                            "type": "string",
+                                            "description": "C: 需要标注的术语文本（原始文本片段）\nE: The term text to annotate (original text substring)"
+                                        },
+                                        "source": {
+                                            "type": "string",
+                                            "enum": ["label", "details"],
+                                            "description": "C: 术语来源：label=节点主标签, details=节点详情条目\nE: Term source: label=node main label, details=node detail entry"
+                                        },
+                                        "detail_index": {
+                                            "type": ["integer", "null"],
+                                            "description": "C: 若 source=details，对应详情数组的索引（0-based）。若 source=label，此字段为 null\nE: If source=details, the index in details array (0-based). If source=label, this field is null"
+                                        },
+                                        "char_start": {
+                                            "type": "integer",
+                                            "description": "C: 术语在源文本中的起始字符位置（0-based，按 Unicode 码点计数）\nE: Starting character position in source text (0-based, counted by Unicode code points)"
+                                        },
+                                        "char_end": {
+                                            "type": "integer",
+                                            "description": "C: 术语在源文本中的结束字符位置（0-based，不包含）\nE: Ending character position in source text (0-based, exclusive)"
+                                        }
+                                    },
+                                    "required": ["term", "source", "char_start", "char_end"]
+                                }
+                            }
+                        }
+                    },
+                    "required": ["annotations"]
                 }
             }
         }

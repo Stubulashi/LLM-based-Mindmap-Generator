@@ -5,18 +5,32 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
+from pathlib import Path
 import os
 import json
 import logging
 import tempfile
 from datetime import datetime
 
+# C: 在导入 config / mindmap_agent 之前先加载 api.env（与 cli_pipeline.py 保持一致），
+#    确保 Web 服务模式能读取到 api.env 中的 API Key（override=True 优先于系统环境变量与 .env）
+# E: Load api.env BEFORE importing config / mindmap_agent (consistent with cli_pipeline.py),
+#    so the Web service mode can read API keys from api.env (override=True wins over env/.env)
+_api_env_path = Path(__file__).parent / "api.env"
+if _api_env_path.exists():
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=_api_env_path, override=True)
+
+from mindmap_agent import extract_subtree_context
 from config import Config
+from schema import VALID_LINK_TYPES  # C: 连线类型单一事实来源 / E: Link type single source of truth
 from mcp_client import MCPMindMapClient  # C: MCP Client 封装 / E: MCP Client wrapper
 
 # C: MCP Client 全局实例（在 lifespan 中启动）
 # E: MCP Client global instance (started in lifespan)
 mcp_client: MCPMindMapClient | None = None
+# C: 任务5 — dict_underline_client 已删除，全部 MCP Tool 由 mcp_client 统一调度
+# E: Task 5 — dict_underline_client removed, all MCP tools dispatched via mcp_client
 
 # C: 配置日志
 # E: Configure logging
@@ -50,7 +64,7 @@ def _validate_chat_reply(result: dict) -> tuple[bool, str]:
 def _validate_map(result: dict) -> tuple[bool, dict]:
     """C: 验证 modify_mind_map 返回。返回 (是否通过, map_dict)。
     E: Validate modify_mind_map result. Returns (passed, map_dict)."""
-    fallback = {"nodes": [], "links": []}
+    fallback = {"tree": [], "nodes": [], "links": []}
     if not isinstance(result, dict):
         logger.warning("C: [Validate] modify_mind_map 返回类型错误")
         logger.warning("E: [Validate] modify_mind_map returned wrong type")
@@ -63,6 +77,22 @@ def _validate_map(result: dict) -> tuple[bool, dict]:
         logger.warning("C: [Validate] modify_mind_map nodes/links 类型错误")
         logger.warning("E: [Validate] modify_mind_map nodes/links wrong type")
         return False, fallback
+    # C: link_type 合法性检查 — 非法值回退到 solid 并记录警告
+    # E: link_type validation — fall back to solid on invalid values
+    for link in result.get("links", []):
+        lt = link.get("link_type", "solid")
+        if lt not in VALID_LINK_TYPES:
+            logger.warning(
+                f"C: [Validate] link_type '{lt}' 非法（source={link.get('source')}, target={link.get('target')}），回退到 solid"
+            )
+            logger.warning(
+                f"E: [Validate] Invalid link_type '{lt}' (source={link.get('source')}, target={link.get('target')}), falling back to solid"
+            )
+            link["link_type"] = "solid"
+    # C: tree 字段可选（向后兼容），不存在时补空列表
+    # E: tree field optional (backward compat), fill empty list if missing
+    if "tree" not in result:
+        result["tree"] = []
     return True, result
 
 
@@ -92,12 +122,52 @@ def _validate_polish(result: dict) -> tuple[bool, dict]:
     return True, result
 
 
-async def _call_tool_with_retry(tool_name: str, arguments: dict, validator, max_retries: int = MAX_RETRIES):
+def _validate_annotations(result: dict) -> tuple[bool, dict]:
+    """C: 验证 annotate_terms 返回。返回 (是否通过, annotations_dict)。
+    E: Validate annotate_terms result. Returns (passed, annotations_dict)."""
+    fallback = {"status": "success", "annotations": {}, "detail_level": "medium"}
+    if not isinstance(result, dict):
+        logger.warning("C: [Validate] annotate_terms 返回类型错误")
+        logger.warning("E: [Validate] annotate_terms returned wrong type")
+        return False, fallback
+    if "annotations" not in result or not isinstance(result["annotations"], dict):
+        logger.warning("C: [Validate] annotate_terms 缺少 annotations 字段")
+        logger.warning("E: [Validate] annotate_terms missing annotations field")
+        return False, fallback
+    return True, result
+
+
+def _validate_definition(result: dict) -> tuple[bool, dict]:
+    """C: 验证 get_definition 返回。返回 (是否通过, definition_dict)。
+    E: Validate get_definition result. Returns (passed, definition_dict)."""
+    fallback = {
+        "definition": "Definition unavailable.",
+        "wikipedia_definition": None,
+        "wikipedia_url": None,
+        "llm_definition": None,
+        "ipa": "",
+        "literal_meaning": "",
+        "source": "none"
+    }
+    if not isinstance(result, dict):
+        logger.warning("C: [Validate] get_definition 返回类型错误")
+        logger.warning("E: [Validate] get_definition returned wrong type")
+        return False, fallback
+    if "definition" not in result:
+        logger.warning("C: [Validate] get_definition 缺少 definition 字段")
+        logger.warning("E: [Validate] get_definition missing definition field")
+        return False, fallback
+    return True, result
+
+
+async def _call_tool_with_retry(tool_name: str, arguments: dict, validator, max_retries: int = MAX_RETRIES, client=None):
     """C: 带验证和重试的工具调用封装。
     调用 MCP 工具 → 验证结果 → 不通过则重试 → 仍失败则返回降级值。
     E: Tool call wrapper with validation and retry.
     Calls MCP tool → validates result → retries on failure → returns degraded on exhaustion.
     """
+    if client is None:
+        client = mcp_client
     last_error = None
     for attempt in range(max_retries + 1):
         try:
@@ -108,7 +178,7 @@ async def _call_tool_with_retry(tool_name: str, arguments: dict, validator, max_
                 logger.warning(
                     f"E: [Retry] Retrying {tool_name} (attempt {attempt}/{max_retries})"
                 )
-            raw_result = await mcp_client.call_tool(tool_name, arguments)
+            raw_result = await client.call_tool(tool_name, arguments)
             passed, result = validator(raw_result)
             if passed:
                 if attempt > 0:
@@ -131,9 +201,13 @@ async def _call_tool_with_retry(tool_name: str, arguments: dict, validator, max_
     return degraded
 
 
-# C: 在内存中维护一下近期的对话上下文（简单版 Memory）
-# E: Maintain recent conversation context in memory (simple version of Memory)
+# C: 在内存中维护一下近期的对话上下文（简单版 Memory），限制最大消息数防内存泄漏
+# E: Maintain recent conversation context in memory (simple version of Memory), capped to prevent leaks
+MAX_MEMORY_MESSAGES = int(os.getenv('MAX_MEMORY_MESSAGES', '50'))
 session_memory = []
+# C: 子树隔离对话的独立记忆（按 subtree_root_id 隔离）
+# E: Independent memory for subtree-scoped conversations (isolated by subtree_root_id)
+subtree_session_memory: dict[str, list] = {}
 
 
 # ---------------------------------------------------------
@@ -147,6 +221,10 @@ session_memory = []
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global mcp_client
+    # C: 配置一致性校验（仅警告，不阻断）
+    # E: Config consistency check (warnings only, non-blocking)
+    for _w in Config.validate():
+        logger.warning(f"C: [Config Check] {_w}")
     logger.info("C: 正在启动 MCP Client（连接 MCP Server 子进程）...")
     logger.info("E: Starting MCP Client (connecting to MCP Server subprocess)...")
 
@@ -166,6 +244,14 @@ async def lifespan(app: FastAPI):
         mcp_client = client
         logger.info("C: MCP Client 就绪，服务启动完成")
         logger.info("E: MCP Client ready, server startup complete")
+
+        # C: 任务5 — dict_underline_client 启动逻辑已删除
+        #     annotate_terms / get_definition / lookup_dictionary 三个 Tool
+        #     已由 mcp_server.py 单进程提供，由 mcp_client 统一调度
+        # E: Task 5 — dict_underline_client startup removed
+        #     Three tools (annotate_terms / get_definition / lookup_dictionary)
+        #     are now provided by mcp_server.py single process, dispatched via mcp_client
+
         try:
             yield
         finally:
@@ -185,9 +271,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# C: 内部工具定位声明 — 仅供内部使用、不部署公网，因此无登录/认证/权限设计。
+#    CORS 白名单仅覆盖本地开发入口（前端由本服务同源提供）。
+# E: Internal-tool notice — for internal use only (no public deployment), hence no
+#    login/auth/permission design. CORS whitelist only covers local dev entry points.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -201,6 +294,7 @@ class ChatRequest(BaseModel):
     message: str
     current_map: Optional[Dict[str, Any]] = None
     transcript_context: Optional[str] = None
+    subtree_node_id: Optional[str] = None  # C: 子树隔离对话的目标节点ID / E: Target node ID for subtree-scoped conversation
 
 @app.post("/chat")
 async def handle_multimodal_chat(request: ChatRequest):
@@ -210,18 +304,74 @@ async def handle_multimodal_chat(request: ChatRequest):
     E: Pure orchestrator — contains no LLM API calls or business logic.
     Flow: Build context → MCP chat_generate → validate → MCP modify_mind_map_v2 → validate → assemble response.
     modify_mind_map_v2 internally uses 3-stage multi-model pipeline (concept extraction→hierarchy planning→delta generation) for better hierarchy clarity."""
-    global session_memory
+    global session_memory, subtree_session_memory
     try:
         # C: 生成当前请求的会话时间戳（用于跨工具共享调试目录）
         # E: Generate session timestamp for this request (for cross-tool debug dir sharing)
         session_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
+        # C: 限制转录上下文长度，防止撑爆模型上下文
+        # E: Cap transcript context length to avoid overflowing the model context
+        MAX_TRANSCRIPT_CHARS = 6000
+        transcript_ctx = request.transcript_context or ""
+        if len(transcript_ctx) > MAX_TRANSCRIPT_CHARS:
+            transcript_ctx = transcript_ctx[:MAX_TRANSCRIPT_CHARS] + "\n[truncated]"
+            logger.warning(
+                f"C: [Orchestrator] 转录上下文超过 {MAX_TRANSCRIPT_CHARS} 字符，已截断"
+            )
+            logger.warning(
+                f"E: [Orchestrator] Transcript context exceeded {MAX_TRANSCRIPT_CHARS} chars, truncated"
+            )
+
         user_msg = request.message
         current_map = request.current_map or {"nodes": [], "links": []}
+        subtree_node_id = request.subtree_node_id
 
-        # C: 将用户的话加入记忆
-        # E: Add user message to memory
-        session_memory.append({"role": "user", "content": user_msg})
+        # C: 判断是否为子树隔离对话
+        # E: Determine if this is a subtree-scoped conversation
+        is_subtree_mode = bool(subtree_node_id) and subtree_node_id in {
+            str(n['id']) for n in current_map.get('nodes', [])}
+
+        if is_subtree_mode:
+            # C: 子树模式 — 使用独立记忆，提取子树上下文
+            # E: Subtree mode — use independent memory, extract subtree context
+            if subtree_node_id not in subtree_session_memory:
+                subtree_session_memory[subtree_node_id] = []
+            active_memory = subtree_session_memory[subtree_node_id]
+
+            # C: 提取子树上下文（过滤掉子孙节点）
+            # E: Extract subtree context (filter out descendants)
+            filtered_map = extract_subtree_context(subtree_node_id, current_map)
+            if filtered_map.get('_subtree_context'):
+                current_map = filtered_map
+                logger.info(
+                    f"C: [子树模式] subtree_root={subtree_node_id}, "
+                    f"祖先={len(filtered_map.get('_ancestors', []))}级, "
+                    f"nodes={len(filtered_map.get('nodes', []))}"
+                )
+                logger.info(
+                    f"E: [Subtree Mode] subtree_root={subtree_node_id}, "
+                    f"ancestors={len(filtered_map.get('_ancestors', []))} levels, "
+                    f"nodes={len(filtered_map.get('nodes', []))}"
+                )
+            else:
+                logger.warning(
+                    f"C: [子树模式] 提取失败: {filtered_map.get('_warning')}, 降级到全局模式"
+                )
+                logger.warning(
+                    f"E: [Subtree Mode] Extraction failed: {filtered_map.get('_warning')}, "
+                    f"degrading to global mode"
+                )
+                is_subtree_mode = False
+                active_memory = session_memory
+        else:
+            active_memory = session_memory
+
+        # C: 将用户的话加入记忆，超出上限时清扫旧消息
+        # E: Add user message to memory, trim if exceeds limit
+        active_memory.append({"role": "user", "content": user_msg})
+        while len(active_memory) > MAX_MEMORY_MESSAGES:
+            active_memory.pop(0)
 
         # ---------------------------------------------------------
         # C: 阶段一：编排聊天上下文，调度到 MCP chat_generate 工具
@@ -243,16 +393,35 @@ E: [Language Rules - Must Strictly Follow]
 3. If the user uses English, you must reply in English; if the user uses German, you must reply in German; and so on.
 4. Never switch the reply language to any other language, including Chinese."""
 
-        # C: 截取最近 5 轮对话，防止上下文过长
-        # E: Truncate to the last 5 rounds to prevent context overflow
-        recent_context = [{"role": "system", "content": chat_sys_prompt}] + session_memory[-5:]
+        # C: 截取最近 5 轮对话（每轮 user+assistant 共 2 条），防止上下文过长
+        # E: Truncate to the last 5 rounds (2 messages per round) to prevent context overflow
+        recent_context = [{"role": "system", "content": chat_sys_prompt}] + active_memory[-10:]
 
-        # C: 如果前端传了转录上下文，以 system 角色注入
-        # E: If transcript context is provided, inject as system role
-        if request.transcript_context:
+        if is_subtree_mode:
+            # C: 子树模式 — 注入子树上下文到 system prompt
+            # E: Subtree mode — inject subtree context into system prompt
+            ancestors = current_map.get('_ancestors', [])
+            breadcrumb = ' > '.join(
+                [a.get('label', a['id']) for a in ancestors]
+                + [request.message[:30]]
+            )
             recent_context.insert(1, {
                 "role": "system",
-                "content": f"C: 【转录上下文 - 供参考】以下是用户提供的语音转录内容，可从中提取关键信息用于回答：\n{request.transcript_context}\n---\nE: [Transcript Context - For Reference] Below is the speech transcription provided by the user. Extract key information from it to assist in your response:\n{request.transcript_context}\n---"
+                "content": (
+                    f"C: [子树对话模式] 你正在针对导图中节点 [{breadcrumb}] 进行子话题讨论。\n"
+                    f"当前对话仅限于该节点及其祖先节点的上下文，你新增的节点将挂载到该节点下。\n"
+                    f"E: [Subtree Conversation Mode] You are discussing sub-topic [{breadcrumb}].\n"
+                    f"This conversation is scoped to this node and its ancestors. "
+                    f"New nodes will be attached under this node."
+                )
+            })
+
+        # C: 如果前端传了转录上下文，以 system 角色注入（已截断）
+        # E: If transcript context is provided, inject as system role (truncated)
+        if transcript_ctx:
+            recent_context.insert(1, {
+                "role": "system",
+                "content": f"C: 【转录上下文 - 供参考】以下是用户提供的语音转录内容，可从中提取关键信息用于回答：\n{transcript_ctx}\n---\nE: [Transcript Context - For Reference] Below is the speech transcription provided by the user. Extract key information from it to assist in your response:\n{transcript_ctx}\n---"
             })
 
         # C: 通过 MCP 调用聊天生成工具（带验证+重试）
@@ -269,7 +438,7 @@ E: [Language Rules - Must Strictly Follow]
 
         # C: 将 AI 的回复也加入记忆
         # E: Add AI reply to memory
-        session_memory.append({"role": "assistant", "content": ai_reply})
+        active_memory.append({"role": "assistant", "content": ai_reply})
 
         # ---------------------------------------------------------
         # C: 阶段二：调度绘图任务到 MCP modify_mind_map 工具
@@ -278,13 +447,13 @@ E: [Language Rules - Must Strictly Follow]
         # C: 构建绘图上下文 — 转录内容标记为「用户提供」，含具体概念可被画图
         # E: Build drawing context — transcript marked as "user-provided" for concept extraction
         transcript_block = ""
-        if request.transcript_context:
+        if transcript_ctx:
             transcript_block = (
                 f"C: 【用户提供的语音转录内容 - 请从中提取核心概念绘制导图】\n"
-                f"{request.transcript_context}\n"
+                f"{transcript_ctx}\n"
                 f"---\n"
                 f"E: [User-provided speech transcript - extract core concepts for mind map]\n"
-                f"{request.transcript_context}\n"
+                f"{transcript_ctx}\n"
                 f"---\n"
             )
 
@@ -345,6 +514,88 @@ E: [Language Rules - Must Strictly Follow]
         logger.error(f"C: 系统运行错误: {e}")
         logger.error(f"E: System runtime error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ---------------------------------------------------------
+# C: 术语标注路由 — 分析导图节点，标记需要下划线标注的关键术语
+# E: Term annotation route — analyze map nodes, mark key terms for underline annotation
+# ---------------------------------------------------------
+class AnnotateRequest(BaseModel):
+    current_map: Dict[str, Any]
+    density_mode: str = "medium"     # "low" | "medium" | "high"
+    detail_level: str = "medium"     # "brief" | "medium" | "detailed"
+    language: str = "en"             # "zh" | "en" — 用户输入语言
+
+@app.post("/annotate")
+async def annotate_map(request: AnnotateRequest):
+    """C: 纯编排器 — 分析导图节点，标记需要下划线标注的关键术语。
+    任务5: 改用 mcp_client 统一调度（dict_underline_client 已删除）。
+    E: Pure orchestrator — analyze map nodes, mark key terms for underline annotation.
+    Task 5: switched to unified mcp_client (dict_underline_client removed).
+    """
+    if mcp_client is None:
+        raise HTTPException(status_code=503, detail="C: 标注服务不可用（MCP Client 未启动）\nE: Annotation service unavailable (MCP client not started)")
+
+    session_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # C: 任务2 — 在 /annotate 请求开始时创建缓存目录
+    # E: Task 2 — create cache dir at /annotate request start
+    cache_dir = os.path.join(Config.DEBUG_OUTPUT_DIR, session_ts, "underline_cache")
+    os.makedirs(cache_dir, exist_ok=True)
+
+    logger.info("C: [Orchestrator] 调度 annotate_terms 任务...")
+    logger.info("E: [Orchestrator] Dispatching annotate_terms task...")
+    result = await _call_tool_with_retry(
+        "annotate_terms",
+        {
+            "current_map": request.current_map,
+            "density_mode": request.density_mode,
+            "detail_level": request.detail_level,
+            "user_language": request.language,
+            "session_ts": session_ts
+        },
+        _validate_annotations,
+    )
+    logger.info("C: [Orchestrator] annotate_terms 完成")
+    logger.info("E: [Orchestrator] annotate_terms complete")
+    return result
+
+
+# ---------------------------------------------------------
+# C: 术语定义查询路由 — Wikipedia 优先，LLM 回退，含 IPA + 字面含义
+# E: Term definition lookup route — Wikipedia first, LLM fallback, with IPA + literal meaning
+# ---------------------------------------------------------
+class DefineRequest(BaseModel):
+    term: str
+    detail_level: str = "medium"     # "brief" | "medium" | "detailed"
+    language: str = "en"
+
+@app.post("/define")
+async def define_term(request: DefineRequest):
+    """C: 纯编排器 — 获取术语定义。
+    任务5: 改用 mcp_client 统一调度（dict_underline_client 已删除）。
+    E: Pure orchestrator — get term definition.
+    Task 5: switched to unified mcp_client (dict_underline_client removed).
+    """
+    if mcp_client is None:
+        raise HTTPException(status_code=503, detail="C: 定义查询服务不可用\nE: Definition lookup service unavailable")
+
+    session_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    logger.info("C: [Orchestrator] 调度 get_definition 任务...")
+    logger.info("E: [Orchestrator] Dispatching get_definition task...")
+    result = await _call_tool_with_retry(
+        "get_definition",
+        {
+            "term": request.term,
+            "detail_level": request.detail_level,
+            "language": request.language,
+            "session_ts": session_ts
+        },
+        _validate_definition,
+    )
+    logger.info("C: [Orchestrator] get_definition 完成")
+    logger.info("E: [Orchestrator] get_definition complete")
+    return result
 
 # ---------------------------------------------------------
 # C: 音频上传 + MCP Whisper STT + MCP LLM 润色 路由
@@ -422,6 +673,144 @@ async def handle_audio_upload(file: UploadFile = File(...)):
             except OSError as e:
                 logger.warning(f"C: 清理临时文件失败 {tmp_path}: {e}")
                 logger.warning(f"E: Failed to remove temp file {tmp_path}: {e}")
+
+# ---------------------------------------------------------
+# C: 导图持久化 — 保存/加载/列表
+# E: Map persistence — save/load/list
+# ---------------------------------------------------------
+MAPS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'maps')
+os.makedirs(MAPS_DIR, exist_ok=True)
+
+class SaveMapRequest(BaseModel):
+    map_data: dict
+    name: str = "untitled"
+
+@app.post("/save_map")
+async def save_map(request: SaveMapRequest):
+    """C: 保存导图到文件系统。返回 map_id。
+    E: Save map to filesystem. Returns map_id."""
+    import uuid
+    map_id = str(uuid.uuid4())[:8]
+    timestamp = datetime.now().isoformat()
+    node_count = len(request.map_data.get('nodes', []))
+    link_count = len(request.map_data.get('links', []))
+
+    payload = {
+        "map_id": map_id,
+        "name": request.name,
+        "created_at": timestamp,
+        "updated_at": timestamp,
+        "node_count": node_count,
+        "link_count": link_count,
+        "data": request.map_data,
+    }
+
+    filepath = os.path.join(MAPS_DIR, f"{map_id}.json")
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    logger.info(f"C: [save_map] 已保存 map_id={map_id}, nodes={node_count}")
+    logger.info(f"E: [save_map] Saved map_id={map_id}, nodes={node_count}")
+
+    return {"status": "success", "map_id": map_id}
+
+
+@app.get("/load_map")
+async def load_map(map_id: str):
+    """C: 加载指定导图。返回 map_data。
+    E: Load a specific map. Returns map_data."""
+    filepath = os.path.join(MAPS_DIR, f"{map_id}.json")
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail=f"Map {map_id} not found")
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        payload = json.load(f)
+
+    logger.info(f"C: [load_map] 已加载 map_id={map_id}")
+    logger.info(f"E: [load_map] Loaded map_id={map_id}")
+
+    return {
+        "status": "success",
+        "map_id": payload["map_id"],
+        "name": payload["name"],
+        "updated_at": payload["updated_at"],
+        "node_count": payload["node_count"],
+        "link_count": payload["link_count"],
+        "map_data": payload["data"],
+    }
+
+
+@app.get("/list_maps")
+async def list_maps():
+    """C: 列出所有已保存的导图。
+    E: List all saved maps."""
+    maps_list = []
+    if not os.path.exists(MAPS_DIR):
+        return {"maps": []}
+
+    for fname in os.listdir(MAPS_DIR):
+        if not fname.endswith('.json'):
+            continue
+        filepath = os.path.join(MAPS_DIR, fname)
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                payload = json.load(f)
+            maps_list.append({
+                "map_id": payload["map_id"],
+                "name": payload["name"],
+                "updated_at": payload["updated_at"],
+                "node_count": payload["node_count"],
+                "link_count": payload["link_count"],
+            })
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"C: [list_maps] 跳过无效文件 {fname}: {e}")
+            logger.warning(f"E: [list_maps] Skipping invalid file {fname}: {e}")
+            continue
+
+    # C: 按更新时间降序排列 / E: Sort by update time descending
+    maps_list.sort(key=lambda m: m.get('updated_at', ''), reverse=True)
+
+    return {"maps": maps_list}
+
+
+@app.delete("/delete_map")
+async def delete_map(map_id: str):
+    """C: 删除指定导图。
+    E: Delete a specific map."""
+    filepath = os.path.join(MAPS_DIR, f"{map_id}.json")
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail=f"Map {map_id} not found")
+
+    os.remove(filepath)
+    logger.info(f"C: [delete_map] 已删除 map_id={map_id}")
+    logger.info(f"E: [delete_map] Deleted map_id={map_id}")
+    return {"status": "success", "map_id": map_id}
+
+
+class RenameMapRequest(BaseModel):
+    map_id: str
+    name: str
+
+
+@app.post("/rename_map")
+async def rename_map(request: RenameMapRequest):
+    """C: 重命名指定导图。
+    E: Rename a specific map."""
+    filepath = os.path.join(MAPS_DIR, f"{request.map_id}.json")
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail=f"Map {request.map_id} not found")
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        payload = json.load(f)
+    payload["name"] = request.name
+    payload["updated_at"] = datetime.now().isoformat()
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    logger.info(f"C: [rename_map] 已重命名 map_id={request.map_id} → {request.name}")
+    logger.info(f"E: [rename_map] Renamed map_id={request.map_id} → {request.name}")
+    return {"status": "success", "map_id": request.map_id, "updated_at": payload["updated_at"]}
+
 
 if __name__ == "__main__":
     import uvicorn

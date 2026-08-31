@@ -1,0 +1,50 @@
+{
+  "__purpose": "示例噪声测试结果 — 用于 §5.2 噪声环境稳定性评估",
+  "__purpose_en": "Example Noise Test Results — for §5.2 Noise Robustness Evaluation",
+  "__source": "在 5 个噪声水平下（p=0.00 到 p=0.20）测量 Entity Recall 和 PC-F1 的衰减情况",
+  "__source_en": "Entity Recall and PC-F1 attenuation measured across 5 noise levels (p=0.00 to p=0.20)",
+
+  "results": [
+    {
+      "noise_level": 0.00,
+      "wer": 0.000,
+      "entity_recall": 0.92,
+      "pc_f1": 0.85,
+      "label": "基线（无噪声）/ Baseline (no noise)"
+    },
+    {
+      "noise_level": 0.05,
+      "wer": 0.048,
+      "entity_recall": 0.89,
+      "pc_f1": 0.82,
+      "label": "低噪声 / Low noise"
+    },
+    {
+      "noise_level": 0.10,
+      "wer": 0.096,
+      "entity_recall": 0.83,
+      "pc_f1": 0.76,
+      "label": "中等噪声 / Medium noise"
+    },
+    {
+      "noise_level": 0.15,
+      "wer": 0.142,
+      "entity_recall": 0.74,
+      "pc_f1": 0.67,
+      "label": "较高噪声 / High noise"
+    },
+    {
+      "noise_level": 0.20,
+      "wer": 0.191,
+      "entity_recall": 0.61,
+      "pc_f1": 0.54,
+      "label": "高噪声 / Very high noise"
+    }
+  ],
+
+  "summary": {
+    "baseline_recall": 0.92,
+    "recall_drop_at_p10": 9.8,
+    "robustness_level": "中等鲁棒 / Moderate Robustness"
+  }
+}

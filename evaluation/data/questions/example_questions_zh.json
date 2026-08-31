@@ -1,0 +1,14 @@
+{
+  "questions": [
+    {"id": 1, "type": "fact_retrieval", "question": "机器学习中，用于预测离散类别标签的任务称为什么？", "answer": "分类"},
+    {"id": 2, "type": "fact_retrieval", "question": "常用的无监督学习任务有哪些？", "answer": "聚类和降维"},
+    {"id": 3, "type": "fact_retrieval", "question": "在监督学习中，标签为连续值的任务称为什么？", "answer": "回归"},
+    {"id": 4, "type": "fact_retrieval", "question": "模型对训练数据过度学习、在新数据上表现差的现象称为什么？", "answer": "过拟合"},
+    {"id": 5, "type": "relation_inference", "question": "决策树属于监督学习还是无监督学习？", "answer": "监督学习"},
+    {"id": 6, "type": "relation_inference", "question": "主成分分析（PCA）常用于哪种学习范式？", "answer": "无监督学习"},
+    {"id": 7, "type": "relation_inference", "question": "梯度下降与损失函数有什么关系？", "answer": "梯度下降通过最小化损失函数来优化模型参数"},
+    {"id": 8, "type": "relation_inference", "question": "交叉验证与过拟合之间有什么关系？", "answer": "交叉验证用于检测和防止过拟合"},
+    {"id": 9, "type": "synthesis", "question": "请描述监督学习和无监督学习的主要区别，并各举一个典型算法。", "answer": "监督学习使用带标签数据训练模型，典型算法有决策树、支持向量机；无监督学习使用无标签数据发现模式，典型算法有K-means聚类、主成分分析"},
+    {"id": 10, "type": "synthesis", "question": "在机器学习项目中，特征工程为何重要？它与模型性能有什么关系？", "answer": "特征工程通过选择、提取和转换数据特征来提升模型输入质量，好的特征工程可以显著提高模型性能和泛化能力"}
+  ]
+}

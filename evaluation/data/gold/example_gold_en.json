@@ -1,0 +1,52 @@
+{
+  "nodes": [
+    {"id": "root", "label": "Machine Learning", "parent_id": null},
+    {"id": "child1", "label": "Supervised Learning", "parent_id": "root"},
+    {"id": "child2", "label": "Unsupervised Learning", "parent_id": "root"},
+    {"id": "child3", "label": "Reinforcement Learning", "parent_id": "root"},
+    {"id": "grandchild1", "label": "Classification", "parent_id": "child1"},
+    {"id": "grandchild2", "label": "Regression", "parent_id": "child1"},
+    {"id": "grandchild3", "label": "Clustering", "parent_id": "child2"},
+    {"id": "grandchild4", "label": "Dimensionality Reduction", "parent_id": "child2"},
+    {"id": "grandchild5", "label": "Policy Optimization", "parent_id": "child3"}
+  ],
+  "links": [
+    {"source": "root", "target": "child1"},
+    {"source": "root", "target": "child2"},
+    {"source": "root", "target": "child3"},
+    {"source": "child1", "target": "grandchild1"},
+    {"source": "child1", "target": "grandchild2"},
+    {"source": "child2", "target": "grandchild3"},
+    {"source": "child2", "target": "grandchild4"},
+    {"source": "child3", "target": "grandchild5"}
+  ],
+  "tree": {
+    "id": "root",
+    "label": "Machine Learning",
+    "children": [
+      {
+        "id": "child1",
+        "label": "Supervised Learning",
+        "children": [
+          {"id": "grandchild1", "label": "Classification", "children": []},
+          {"id": "grandchild2", "label": "Regression", "children": []}
+        ]
+      },
+      {
+        "id": "child2",
+        "label": "Unsupervised Learning",
+        "children": [
+          {"id": "grandchild3", "label": "Clustering", "children": []},
+          {"id": "grandchild4", "label": "Dimensionality Reduction", "children": []}
+        ]
+      },
+      {
+        "id": "child3",
+        "label": "Reinforcement Learning",
+        "children": [
+          {"id": "grandchild5", "label": "Policy Optimization", "children": []}
+        ]
+      }
+    ]
+  }
+}

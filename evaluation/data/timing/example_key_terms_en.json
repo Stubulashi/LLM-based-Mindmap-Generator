@@ -1,0 +1,19 @@
+{
+  "terms": [
+    {"term": "Machine Learning", "type": "core_concept", "category": "general"},
+    {"term": "Supervised Learning", "type": "core_concept", "category": "learning_paradigm"},
+    {"term": "Unsupervised Learning", "type": "core_concept", "category": "learning_paradigm"},
+    {"term": "Reinforcement Learning", "type": "core_concept", "category": "learning_paradigm"},
+    {"term": "Classification", "type": "task", "category": "supervised"},
+    {"term": "Regression", "type": "task", "category": "supervised"},
+    {"term": "Clustering", "type": "task", "category": "unsupervised"},
+    {"term": "Dimensionality Reduction", "type": "task", "category": "unsupervised"},
+    {"term": "Neural Network", "type": "algorithm", "category": "deep_learning"},
+    {"term": "Deep Learning", "type": "core_concept", "category": "subfield"},
+    {"term": "Decision Tree", "type": "algorithm", "category": "supervised"},
+    {"term": "Support Vector Machine", "type": "algorithm", "category": "supervised"},
+    {"term": "Overfitting", "type": "challenge", "category": "evaluation"},
+    {"term": "Cross Validation", "type": "method", "category": "evaluation"},
+    {"term": "Feature Engineering", "type": "process", "category": "preprocessing"}
+  ]
+}

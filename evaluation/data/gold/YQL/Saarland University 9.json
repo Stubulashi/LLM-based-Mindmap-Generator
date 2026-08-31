@@ -1,0 +1,74 @@
+{
+  "nodes": [
+    { "id": "n0", "label": "Overall experience", "parent_id": null },
+    { "id": "n1", "label": "Positive", "parent_id": "n0" },
+    { "id": "n2", "label": "Great potential", "parent_id": "n1" },
+    { "id": "n3", "label": "Practical functions", "parent_id": "n1" },
+    { "id": "n4", "label": "Negative", "parent_id": "n0" },
+    { "id": "n5", "label": "Interface clutter", "parent_id": "n4" },
+    { "id": "n6", "label": "Too many options", "parent_id": "n5" },
+    { "id": "n7", "label": "Too many icons", "parent_id": "n5" },
+    { "id": "n8", "label": "Navigation issues", "parent_id": "n4" },
+    { "id": "n9", "label": "Took time to navigate", "parent_id": "n8" },
+    { "id": "n10", "label": "Struggled to find", "parent_id": "n8" },
+    { "id": "n11", "label": "Saved entries", "parent_id": "n10" },
+    { "id": "n12", "label": "Progress reports", "parent_id": "n10" }
+  ],
+  "links": [
+    { "source": "n0", "target": "n1" },
+    { "source": "n0", "target": "n4" },
+    { "source": "n1", "target": "n2" },
+    { "source": "n1", "target": "n3" },
+    { "source": "n4", "target": "n5" },
+    { "source": "n4", "target": "n8" },
+    { "source": "n5", "target": "n6" },
+    { "source": "n5", "target": "n7" },
+    { "source": "n8", "target": "n9" },
+    { "source": "n8", "target": "n10" },
+    { "source": "n10", "target": "n11" },
+    { "source": "n10", "target": "n12" }
+  ],
+  "tree": {
+    "id": "n0",
+    "label": "Overall experience",
+    "children": [
+      {
+        "id": "n1",
+        "label": "Positive",
+        "children": [
+          { "id": "n2", "label": "Great potential" },
+          { "id": "n3", "label": "Practical functions" }
+        ]
+      },
+      {
+        "id": "n4",
+        "label": "Negative",
+        "children": [
+          {
+            "id": "n5",
+            "label": "Interface clutter",
+            "children": [
+              { "id": "n6", "label": "Too many options" },
+              { "id": "n7", "label": "Too many icons" }
+            ]
+          },
+          {
+            "id": "n8",
+            "label": "Navigation issues",
+            "children": [
+              { "id": "n9", "label": "Took time to navigate" },
+              {
+                "id": "n10",
+                "label": "Struggled to find",
+                "children": [
+                  { "id": "n11", "label": "Saved entries" },
+                  { "id": "n12", "label": "Progress reports" }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

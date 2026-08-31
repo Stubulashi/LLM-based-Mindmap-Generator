@@ -1,0 +1,71 @@
+{
+  "__purpose": "问卷式人工评分 — 逐音频 0-10 双评分（系统导图 gen / 人类标注树 human），维度：树与音频内容的关联性/代表程度",
+  "__purpose_en": "Questionnaire human scoring — per-audio 0-10 dual scores (system gen / human gold); dimension: relevance/representativeness",
+  "scale": "0-10",
+  "questionnaire_id": "Q3",
+  "samples": [
+    {
+      "audio": "Saarland University 1",
+      "gen_score": 6,
+      "human_score": 7,
+      "gold_source": "YQL",
+      "questionnaire_id": "Q3"
+    },
+    {
+      "audio": "Saarland University 2",
+      "gen_score": 5,
+      "human_score": 8,
+      "gold_source": "YQL",
+      "questionnaire_id": "Q3"
+    },
+    {
+      "audio": "Saarland University 3",
+      "gen_score": 9,
+      "human_score": 10,
+      "gold_source": "YQL",
+      "questionnaire_id": "Q3"
+    },
+    {
+      "audio": "Saarland University 4",
+      "gen_score": 4,
+      "human_score": 9,
+      "gold_source": "YQL",
+      "questionnaire_id": "Q3"
+    },
+    {
+      "audio": "Saarland University 5",
+      "gen_score": 9,
+      "human_score": 10,
+      "gold_source": "YQL",
+      "questionnaire_id": "Q3"
+    },
+    {
+      "audio": "Saarland University 6",
+      "gen_score": 8,
+      "human_score": 10,
+      "gold_source": "YQL",
+      "questionnaire_id": "Q3"
+    },
+    {
+      "audio": "Saarland University 7",
+      "gen_score": 3,
+      "human_score": 8,
+      "gold_source": "YQL",
+      "questionnaire_id": "Q3"
+    },
+    {
+      "audio": "Saarland University 8",
+      "gen_score": 8,
+      "human_score": 9,
+      "gold_source": "YQL",
+      "questionnaire_id": "Q3"
+    },
+    {
+      "audio": "Saarland University 9",
+      "gen_score": 7,
+      "human_score": 9,
+      "gold_source": "YQL",
+      "questionnaire_id": "Q3"
+    }
+  ]
+}

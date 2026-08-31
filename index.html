@@ -3,9 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- C: 禁用浏览器缓存，确保每次加载最新代码 / E: Disable browser cache for latest code -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>AI MindMap Agent - Real Audio Analysis</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/@antv/g6@5/dist/g6.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -78,6 +83,160 @@
         .rendered-md li { margin: 0.125em 0; }
         .rendered-md blockquote { border-left: 3px solid #cbd5e1; padding-left: 0.75em; margin: 0.5em 0; color: #64748b; }
         .rendered-md a { color: #0b57d0; text-decoration: underline; }
+
+        /* C: 词典术语下划线标注样式 */
+        .anno-term {
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-decoration-color: #0b57d0;
+            cursor: pointer;
+            color: #0b57d0;
+            transition: background-color 0.15s;
+            font-weight: inherit;
+        }
+        .anno-term:hover {
+            background-color: rgba(11, 87, 208, 0.12);
+            border-radius: 2px;
+        }
+        /* C: HTML 节点标签容器 */
+        .g6-node-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 4px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1f2937;
+            text-align: center;
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-sizing: border-box;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+        }
+        /* C: 定义弹窗样式 — position: fixed 确保相对 viewport 定位，不受父容器 relative+overflow 影响 */
+        .definition-popup {
+            position: fixed;
+            background: white;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            border-radius: 1rem;
+            border: 1px solid #e5e7eb;
+            z-index: 60;
+            padding: 1.25rem;
+            max-width: 380px;
+            max-height: 60vh;
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+        .cache-hit-tag {
+            font-size: 0.7rem;
+            color: #10b981;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        .definition-popup .def-section {
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .definition-popup .def-section:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .definition-popup .source-tag {
+            font-size: 0.7rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+        }
+        /* C: 详情面板分类标题（加粗+emoji） */
+        .detail-header {
+            display: block;
+            font-size: 1.05em;
+            margin-bottom: 0.25rem;
+        }
+        .detail-header strong {
+            font-weight: 700;
+        }
+        /* C: 边类型图例 / E: Edge type legend */
+        .edge-legend {
+            position: fixed;
+            z-index: 50;
+            background: rgba(255,255,255,0.95);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border: 1px solid #e5e7eb;
+            padding: 12px 16px;
+            min-width: 160px;
+            pointer-events: auto;
+            user-select: none;
+        }
+        .edge-legend-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: move;
+            user-select: none;
+        }
+        .edge-legend-close {
+            cursor: pointer;
+            color: #9ca3af;
+            font-size: 1rem;
+            line-height: 1;
+        }
+        .edge-legend-close:hover {
+            color: #6b7280;
+        }
+        .edge-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            font-size: 0.8rem;
+            color: #4b5563;
+        }
+        .edge-legend-swatch {
+            display: flex;
+            align-items: center;
+            width: 36px;
+            height: 12px;
+            flex-shrink: 0;
+        }
+        .edge-legend-swatch svg {
+            width: 36px;
+            height: 12px;
+        }
+        .edge-legend-label {
+            flex: 1;
+        }
+        .edge-legend-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 49;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 0.75rem;
+            color: #6b7280;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            pointer-events: auto;
+        }
+        .edge-legend-toggle:hover {
+            background: #f9fafb;
+        }
     </style>
 </head>
 <body class="h-screen p-4 flex">
@@ -92,7 +251,7 @@
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-2">
                     <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase">{{ t('appTitle') }}</span>
-                    <span v-if="isRecording" class="text-xs text-red-500 font-bold flex items-center gap-1 animate-pulse"><span class="w-2 h-2 rounded-full bg-red-500"></span> REC</span>
+                    <span v-if="isRecording" class="text-xs text-red-500 font-bold flex items-center gap-1 animate-pulse"><span class="w-2 h-2 rounded-full bg-red-500"></span> {{ t('rec') }}</span>
                 </div>
                 <button @click="showSettings = true" class="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors text-gray-500">
                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c-.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -145,7 +304,7 @@
                 <!-- C: 音频处理中提示 / E: Audio processing indicator -->
                 <div v-if="isProcessingAudio" class="mb-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs text-amber-700">
                     <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    <span>{{ processingStatus === 'transcribing' ? 'Transcribing audio...' : 'Polishing text...' }}</span>
+                    <span>{{ processingStatus === 'transcribing' ? t('transcribing') : t('polishing') }}</span>
                 </div>
                 <div class="flex gap-2 items-end relative" ref="uploadMenuContainer">
                     <transition name="fade">
@@ -211,8 +370,8 @@
                             <div v-if="editingIndex === getTranscriptIndex(t)">
                                 <textarea v-model="editText" class="w-full bg-white border border-blue-300 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500 mt-1" rows="2"></textarea>
                                 <div class="flex gap-2 mt-1.5 justify-end">
-                                    <button @click.stop="cancelEdit" class="text-xs px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium">Cancel</button>
-                                    <button @click.stop="saveTranscript(getTranscriptIndex(t))" class="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium">Save</button>
+                                    <button @click.stop="cancelEdit" class="text-xs px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium">{{ t('cancel') }}</button>
+                                    <button @click.stop="saveTranscript(getTranscriptIndex(t))" class="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium">{{ t('save') }}</button>
                                 </div>
                             </div>
                             <!-- C: 显示模式 / E: Display mode -->
@@ -222,15 +381,15 @@
                                 <div class="flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button v-if="t.audioUrl" @click.stop="downloadAudio(t.audioUrl, t.speaker + '_' + t.time)" class="text-xs px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center gap-1">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                        Audio
+                                        {{ t('audio') }}
                                     </button>
                                     <button @click.stop="startEditTranscript(getTranscriptIndex(t))" class="text-xs px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center gap-1">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                                        Edit
+                                        {{ t('edit') }}
                                     </button>
                                     <button @click.stop="deleteTranscript(getTranscriptIndex(t))" class="text-xs px-2 py-0.5 rounded-md bg-red-50 text-red-500 hover:bg-red-100 flex items-center gap-1">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                        Delete
+                                        {{ t('delete') }}
                                     </button>
                                 </div>
                             </div>
@@ -241,38 +400,30 @@
         </div>
     </div>
 
-    <div class="flex-1 md-card relative overflow-hidden bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiNlN2U1ZTQiLz48L3N2Zz4=')]" 
-         id="canvas-container" @mousedown="startDrag" @mousemove="onDrag" @mouseup="stopDrag" @mouseleave="stopDrag">
-        <div :style="{ transform: `translate(${canvasX}px, ${canvasY}px)` }" class="absolute transition-transform duration-75 origin-top-left">
-            <!-- C: SVG 连线层 — 与节点共享同一 CSS 坐标系，无偏移 -->
-            <!-- E: SVG link layer — shares CSS coordinate space with nodes, no offset -->
-            <svg class="absolute top-0 left-0 pointer-events-none overflow-visible" 
-                 :style="{ width: svgSize.w + 'px', height: svgSize.h + 'px' }">
-                <!-- C: 连线：solid=实线 #3b82f6, dashed=虚线 #94a3b8 → 方便调试时肉眼区分 -->
-                <!-- E: Links: solid=#3b82f6, dashed=#94a3b8 → visually distinct for debugging -->
-                <path v-for="(link, idx) in computedLinks" :key="link.source + '-' + link.target" 
-                      :d="link.path" 
-                      :stroke="link.type === 'dashed' ? '#94a3b8' : '#3b82f6'"
-                      :stroke-width="link.type === 'dashed' ? 3 : 4" 
-                      :stroke-dasharray="link.type === 'dashed' ? '8,4' : 'none'"
-                      fill="none" />
-            </svg>
-            <div v-for="node in nodes" :key="node.id"
-                 @mousedown.stop="onNodePointerDown($event, node)"
-                 class="absolute cursor-pointer px-6 py-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm border border-gray-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-md min-w-[140px]"
-                 :class="{'ring-2 ring-blue-500 shadow-md': activeNode && activeNode.id === node.id}"
-                 :style="{ top: node.y+'px', left: node.x+'px', backgroundColor: node.color }">
-                <span class="font-semibold text-gray-800">{{ node.label }}</span>
-                <span v-if="node.details && node.details.length" class="text-[10px] text-gray-500 mt-1 bg-white/50 px-2 rounded-full">{{ node.details.length }} items</span>
-            </div>
+    <div class="flex-1 md-card relative overflow-hidden" 
+         id="canvas-container">
+        <!-- C: 子树模式 顶部提示条 / E: Subtree mode top banner -->
+        <div v-if="subtreeMode" 
+             class="absolute top-0 left-0 right-0 z-40 bg-blue-600 text-white px-4 py-2 flex items-center justify-between text-sm shadow-lg">
+            <span>{{ t('subtreeBanner') + ' ' + (activeNode?.label || subtreeRootId) }}</span>
+            <button @click="exitSubtreeMode" 
+                    class="bg-white text-blue-700 px-3 py-1 rounded-full text-xs font-medium hover:bg-blue-50 transition-colors">
+                {{ t('exitSubtree') }}
+            </button>
         </div>
+        <!-- C: G6 图容器 — G6 自动处理布局、连线、拖拽、缩放、展开/折叠 -->
+        <!-- E: G6 graph container — G6 handles layout, edges, drag, zoom, collapse/expand -->
+        <div id="g6-container" class="w-full h-full"></div>
         
         <transition name="fade">
             <div v-if="activeNode" class="absolute top-6 right-6 w-80 bg-white/90 backdrop-blur shadow-2xl rounded-2xl border border-gray-100 z-30 flex flex-col max-h-[80%]">
                 <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
                     <h3 class="font-bold text-lg text-gray-800">{{ activeNode.label }}</h3>
                     <div class="flex gap-2 items-center">
-                        <button @click="deleteActiveNode" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 text-red-500 transition-colors" title="Delete Node">
+                        <button @click="startSubtreeConversation" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-blue-50 text-blue-500 transition-colors" :title="t('subtreeMode')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        </button>
+                        <button @click="deleteActiveNode" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 text-red-500 transition-colors" :title="t('deleteNode')">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
                         <button @click="activeNode = null" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 transition-colors">×</button>
@@ -280,8 +431,8 @@
                 </div>
                 <div class="p-5 overflow-y-auto">
                     <ul class="space-y-3">
-                        <li v-for="p in activeNode.details" class="flex items-start gap-3 text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                            <span class="text-blue-500 mt-0.5">•</span> <span>{{ p }}</span>
+                        <li v-for="(p, detailIdx) in activeNode.details" class="text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                            <span v-html="renderDetailWithHeader(p, activeNode.id, detailIdx)"></span>
                         </li>
                     </ul>
                 </div>
@@ -290,8 +441,33 @@
 
         <div class="absolute bottom-6 right-6 flex gap-3 items-center z-20">
             <span class="bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-xs text-gray-500 shadow-sm border border-gray-100">{{ t('dragToPan') }}</span>
+
+            <!-- C: 术语标注按钮 / E: Term annotation button -->
+            <button @click="triggerAnnotation" class="w-12 h-12 bg-white rounded-full shadow-lg border border-blue-100 hover:bg-blue-50 flex items-center justify-center text-blue-500 transition-transform active:scale-95" :title="t('annotateTerms')">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+            </button>
+
+            <!-- C: 保存/加载按钮 / E: Save/Load buttons -->
+            <button @click="saveCurrentMap" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" :title="t('saveMap')">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+            </button>
+            <button @click="showMapList = true; fetchMapList()" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" :title="t('loadMap')">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            </button>
+
+            <!-- C: 导出/导入按钮 / E: Export/Import buttons -->
+            <button @click="exportPNG" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" :title="t('exportPNG')">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </button>
+            <button @click="exportJSON" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" :title="t('exportJSON')">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            </button>
+            <button @click="triggerImportJSON" class="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-transform active:scale-95" :title="t('importJSON')">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            </button>
+            <input type="file" ref="jsonImportInput" @change="handleJSONImport" accept=".json,application/json" class="hidden">
             
-            <button @click="clearAllNodes" class="w-12 h-12 bg-white rounded-full shadow-lg border border-red-100 hover:bg-red-50 flex items-center justify-center text-red-500 transition-transform active:scale-95" title="Clear All Nodes">
+            <button @click="clearAllNodes" class="w-12 h-12 bg-white rounded-full shadow-lg border border-red-100 hover:bg-red-50 flex items-center justify-center text-red-500 transition-transform active:scale-95" :title="t('clearAllNodes')">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             </button>
 
@@ -300,6 +476,34 @@
             </button>
         </div>
     </div>
+
+    <!-- C: 导图列表弹窗 / E: Map list modal -->
+    <transition name="modal">
+        <div v-if="showMapList" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm" @click.self="showMapList = false">
+            <div class="bg-white w-[450px] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[70%]">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <h2 class="text-xl font-bold text-gray-800">{{ t('mapList') }}</h2>
+                    <button @click="showMapList = false" class="text-gray-400 hover:text-gray-700">x</button>
+                </div>
+                <div class="p-4 overflow-y-auto flex-1">
+                    <div v-if="savedMaps.length === 0" class="text-center text-gray-400 py-8">{{ t('noSavedMaps') }}</div>
+                    <div v-else v-for="m in savedMaps" 
+                         @click="loadMapById(m.map_id)"
+                         class="p-4 rounded-xl border border-gray-100 mb-3 hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all">
+                        <div class="flex justify-between items-center">
+                            <div class="font-medium text-gray-800">{{ m.name }}</div>
+                            <div class="flex items-center gap-2">
+                                <div class="text-xs text-gray-400">{{ m.node_count }} {{ t('nodesUnit') }}</div>
+                                <button @click.stop="renameSavedMap(m)" class="text-xs px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 hover:bg-gray-200" :title="t('renameMap')">{{ t('renameMap') }}</button>
+                                <button @click.stop="deleteSavedMap(m)" class="text-xs px-2 py-0.5 rounded-md bg-red-50 text-red-500 hover:bg-red-100" :title="t('deleteMap')">{{ t('deleteMap') }}</button>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">{{ m.updated_at }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </transition>
 
     <transition name="modal">
         <div v-if="showSettings" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm" @click.self="showSettings = false">
@@ -313,19 +517,19 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('language') }}</label>
                         <select v-model="settings.language" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 transition-all">
-                            <option value="en">English</option>
-                            <option value="zh">简体中文</option>
+                            <option value="en">{{ t('langEn') }}</option>
+                            <option value="zh">{{ t('langZh') }}</option>
                         </select>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('typography') }}</label>
                         <select v-model="settings.fontFamily" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 transition-all">
-                            <option value="'Inter', sans-serif">Inter (Modern Sans)</option>
-                            <option value="'Roboto', sans-serif">Roboto (Android Default)</option>
-                            <option value="'Noto Sans SC', sans-serif">思源黑体 (Chinese Standard)</option>
-                            <option value="system-ui, sans-serif">System Default</option>
-                            <option value="serif">Serif (Classic)</option>
+                            <option value="'Inter', sans-serif">{{ t('fontInter') }}</option>
+                            <option value="'Roboto', sans-serif">{{ t('fontRoboto') }}</option>
+                            <option value="'Noto Sans SC', sans-serif">{{ t('fontNoto') }}</option>
+                            <option value="system-ui, sans-serif">{{ t('fontSystem') }}</option>
+                            <option value="serif">{{ t('fontSerif') }}</option>
                         </select>
                     </div>
 
@@ -335,6 +539,28 @@
                             <button @click="settings.fontSize = '14px'" :class="{'bg-white shadow text-blue-600 font-bold': settings.fontSize === '14px'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('small') }}</button>
                             <button @click="settings.fontSize = '16px'" :class="{'bg-white shadow text-blue-600 font-bold': settings.fontSize === '16px'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('medium') }}</button>
                             <button @click="settings.fontSize = '18px'" :class="{'bg-white shadow text-blue-600 font-bold': settings.fontSize === '18px'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('large') }}</button>
+                        </div>
+                    </div>
+
+                    <div class="h-px bg-gray-100"></div>
+
+                    <!-- C: 标注密度设置 / E: Annotation density setting -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('annotationDensity') }}</label>
+                        <div class="flex bg-gray-100 rounded-xl p-1">
+                            <button @click="annotationDensity = 'low'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'low'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('sparse') }}</button>
+                            <button @click="annotationDensity = 'medium'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'medium'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('mediumLevel') }}</button>
+                            <button @click="annotationDensity = 'high'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDensity === 'high'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('dense') }}</button>
+                        </div>
+                    </div>
+
+                    <!-- C: 定义详细度设置 / E: Definition detail setting -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('annotationDetail') }}</label>
+                        <div class="flex bg-gray-100 rounded-xl p-1">
+                            <button @click="annotationDetail = 'brief'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'brief'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('brief') }}</button>
+                            <button @click="annotationDetail = 'medium'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'medium'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('mediumLevel') }}</button>
+                            <button @click="annotationDetail = 'detailed'" :class="{'bg-white shadow text-blue-600 font-bold': annotationDetail === 'detailed'}" class="flex-1 py-1.5 rounded-lg text-sm transition-all">{{ t('detailed') }}</button>
                         </div>
                     </div>
 
@@ -375,6 +601,128 @@
         </div>
     </transition>
 
+    <!-- C: 术语定义弹窗 / E: Term definition popup -->
+    <!-- C: 使用 position: fixed 定位，相对于 viewport，解决之前在 #canvas-container 内坐标系偏移问题 -->
+    <!-- E: Uses position: fixed, relative to viewport, fixing coordinate offset when inside #canvas-container -->
+    <transition name="fade">
+      <div v-if="definitionPopup" class="definition-popup" :style="{left: definitionPopup.x + 'px', top: definitionPopup.y + 'px'}" @mousedown.stop>
+        <div class="flex justify-between items-start mb-3" style="cursor:move;user-select:none" @mousedown.stop="startDragPopup">
+          <h3 class="font-bold text-lg text-gray-800">{{ definitionPopup.term }}</h3>
+          <button @click="closeDefinition" class="text-gray-400 hover:text-gray-600 text-lg leading-none" @mousedown.stop>&times;</button>
+        </div>
+        <div v-if="definitionPopup.loading" class="text-gray-400 text-sm py-2">{{ t('loadingDef') }}</div>
+        <template v-else>
+          <!-- C: 📖 Wikipedia 定义 / E: 📖 Wikipedia definition -->
+          <div v-if="definitionPopup.wikipedia_definition" class="def-section">
+            <span class="detail-header">📖 <strong>{{ t('wikiDef') }}</strong></span>
+            <div class="text-sm text-gray-700 leading-relaxed" v-html="renderAnnotatedDefinition(truncatedWikiDefinition)"></div>
+            <div v-if="wikiDefinitionIsTruncated" class="mt-2 flex items-center gap-2">
+              <span class="text-xs text-gray-400">{{ wikiDefinitionFullLength }} {{ t('chars') }}</span>
+              <a v-if="definitionPopup.wikipedia_url" :href="definitionPopup.wikipedia_url" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:underline font-medium">{{ t('viewFullEntry') }}</a>
+            </div>
+            <a v-else-if="definitionPopup.wikipedia_url" :href="definitionPopup.wikipedia_url" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:underline mt-1 inline-block">{{ definitionPopup.wikipedia_url }}</a>
+          </div>
+          <!-- C: 🤖 LLM 定义 / E: 🤖 LLM definition -->
+          <div v-if="definitionPopup.llm_definition" class="def-section">
+            <span class="detail-header">🤖 <strong>{{ t('llmDef') }}</strong></span>
+            <div class="text-sm text-gray-700 leading-relaxed" v-html="renderAnnotatedDefinition(definitionPopup.llm_definition)"></div>
+          </div>
+          <!-- C: 🔊 发音 / E: Pronunciation (language-aware) -->
+          <div v-if="definitionPopup.ipa || definitionPopup.pinyin || definitionPopup.romanization" class="def-section">
+            <span class="detail-header">🔊 <strong>{{ t('pronunciation') }}</strong></span>
+            <!-- C: 中文 → 拼音 / E: Chinese → Pinyin -->
+            <div v-if="definitionPopup.pinyin" class="text-sm text-gray-700 mb-1">
+              <span class="text-xs text-gray-400">{{ t('pinyin') }}</span> {{ definitionPopup.pinyin }}
+            </div>
+            <!-- C: 非拉丁 → 罗马化 / E: Non-Latin → Romanization -->
+            <div v-if="definitionPopup.romanization" class="text-sm text-gray-700 mb-1">
+              <span class="text-xs text-gray-400">{{ t('romanization') }}</span> {{ definitionPopup.romanization }}
+            </div>
+            <!-- C: IPA 严式 / E: IPA narrow -->
+            <div v-if="definitionPopup.ipa_narrow" class="text-sm text-gray-700 mb-1">
+              <span class="text-xs text-gray-400">{{ t('ipaNarrow') }}</span> /{{ definitionPopup.ipa_narrow }}/
+            </div>
+            <!-- C: IPA 宽式 / E: IPA broad -->
+            <div v-if="definitionPopup.ipa_broad" class="text-sm text-gray-700 mb-1">
+              <span class="text-xs text-gray-400">{{ t('ipaBroad') }}</span> /{{ definitionPopup.ipa_broad }}/
+            </div>
+            <!-- C: 回退：仅显示单 IPA / E: Fallback: single IPA only -->
+            <div v-if="definitionPopup.ipa && !definitionPopup.ipa_narrow && !definitionPopup.ipa_broad && !definitionPopup.pinyin && !definitionPopup.romanization" class="text-sm text-gray-700">
+              /{{ definitionPopup.ipa }}/
+            </div>
+          </div>
+          <!-- C: 📝 字面含义 / E: 📝 Literal meaning -->
+          <div v-if="definitionPopup.literal_meaning" class="def-section">
+            <span class="detail-header">📝 <strong>{{ t('literalMeaning') }}</strong></span>
+            <div class="text-sm text-gray-700">{{ definitionPopup.literal_meaning }}</div>
+          </div>
+          <!-- C: 无任何数据时显示 / E: Show when no data available -->
+          <div v-if="!definitionPopup.wikipedia_definition && !definitionPopup.llm_definition && !definitionPopup.ipa && !definitionPopup.literal_meaning" class="text-sm text-gray-400 py-2">{{ t('noDef') }}</div>
+          <div class="source-tag">{{ t('source') }} {{ definitionPopup.source }}<span v-if="definitionPopup.from_cache" class="cache-hit-tag">{{ t('cacheHit') }}</span></div>
+        </template>
+      </div>
+    </transition>
+
+    <!-- C: 边类型图例 / E: Edge type legend -->
+    <div v-if="showEdgeLegend" class="edge-legend" :style="{left: edgeLegendPos.x + 'px', top: edgeLegendPos.y + 'px'}" @mousedown.stop>
+      <div class="edge-legend-header" @mousedown.stop="startDragEdgeLegend">
+        <span>📐 {{ t('linkLegendTitle') }}</span>
+        <span class="edge-legend-close" @click="showEdgeLegend = false">&times;</span>
+      </div>
+      <div v-for="item in edgeLegendItems" :key="item.type" class="edge-legend-item">
+        <div class="edge-legend-swatch">
+          <svg viewBox="0 0 36 12">
+            <line x1="2" y1="6" x2="34" y2="6"
+              :stroke="item.color"
+              stroke-width="2"
+              :stroke-dasharray="item.dash.join(',')"
+              :marker-end="item.arrow ? 'url(#legend-arrow-' + item.type + ')' : ''" />
+            <defs v-if="item.arrow">
+              <marker :id="'legend-arrow-' + item.type" viewBox="0 0 10 10" refX="10" refY="5"
+                markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" :fill="item.color" />
+              </marker>
+            </defs>
+          </svg>
+        </div>
+        <span class="edge-legend-label">{{ t(item.labelKey) }}</span>
+      </div>
+    </div>
+    <button v-else class="edge-legend-toggle" @click="showEdgeLegend = true">
+      📐 {{ t('linkLegendToggle') }}
+    </button>
+
+    <!-- C: 连线编辑面板 — 点击画布上的连线弹出 / E: Link edit panel — opens on edge click -->
+    <transition name="fade">
+      <div v-if="linkEditor" class="definition-popup" :style="{left: linkEditor.x + 'px', top: linkEditor.y + 'px'}" @mousedown.stop>
+        <div class="flex justify-between items-start mb-3" style="cursor:move;user-select:none" @mousedown.stop="startDragLinkPopup">
+          <h3 class="font-bold text-lg text-gray-800">{{ t('linkEdit') }}</h3>
+          <button @click="linkEditor = null" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+        </div>
+        <div class="space-y-3 text-sm">
+          <div class="text-gray-600 flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-md text-xs font-bold" :style="{backgroundColor: '#e8f0fe'}">{{ linkEditor.sourceLabel }}</span>
+            <span class="text-gray-400">→</span>
+            <span class="px-2 py-0.5 rounded-md text-xs font-bold" :style="{backgroundColor: '#e8f0fe'}">{{ linkEditor.targetLabel }}</span>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('linkType') }}</label>
+            <select v-model="linkEditor.link_type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 transition-all">
+              <option v-for="item in edgeLegendItems" :key="item.type" :value="item.type">{{ t(item.labelKey) }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('linkLabel') }}</label>
+            <input v-model="linkEditor.link_label" type="text" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 transition-all" :placeholder="t('linkLabel')">
+          </div>
+          <div class="flex gap-2 justify-end pt-1">
+            <button @click="deleteLinkFromEditor" class="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 font-medium">{{ t('linkDelete') }}</button>
+            <button @click="saveLinkFromEditor" class="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium">{{ t('linkSave') }}</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
 </div>
 
 <script>
@@ -382,44 +730,185 @@
 
     const locales = {
         en: {
-            appTitle: 'Audio Agent', totalTime: 'Total', transcript: 'Transcript', agentChat: 'Agent Chat',
+            appTitle: 'Audio Agent', browserTitle: 'AI MindMap Agent - Real Audio Analysis', totalTime: 'Total', transcript: 'Transcript', agentChat: 'Agent Chat',
             syncOn: 'Sync On', uploadAudio: 'Load Audio File', msgPlaceholder: 'Message AI...',
             allSpeakers: 'All Speakers', searchPlaceholder: 'Search keywords...', noTranscripts: 'No matching transcripts found.',
             preferences: 'Preferences', typography: 'Typography (Font Family)', interfaceSize: 'Interface Size',
             small: 'Small', medium: 'Default', large: 'Large', language: 'Interface Language',
+            langEn: 'English', langZh: 'Simplified Chinese',
             syncToMap: 'Sync Chat to Map', syncDesc: 'AI dynamically updates map based on chat.',
             autoScroll: 'Auto-scroll Chat', autoScrollDesc: 'Always scroll to newest messages.',
             done: 'Done', dragToPan: 'Drag to pan',
-            sysReady: 'System ready. Waiting for audio context.', 
+            sysReady: 'System ready. Waiting for audio context.',
             confirmClear: 'Are you sure you want to clear the canvas?',
-            includeTranscriptAsContext: 'Include as context'
+            includeTranscriptAsContext: 'Include as context',
+            subtreeMode: 'Subtree Conversation',
+            exitSubtree: 'Exit Subtree Mode',
+            subtreeBanner: 'Subtree Mode: Exploring ',
+            saveMap: 'Save Map',
+            loadMap: 'Load Map',
+            mapList: 'Saved Maps',
+            noSavedMaps: 'No saved maps yet.',
+            mapSaved: 'Map saved successfully!',
+            mapSavedId: 'Map saved successfully! (ID: {id})',
+            confirmLoad: 'Load this map? Current changes will be lost.',
+            // C: 设置面板新增项 / E: settings panel additions
+            annotationDensity: 'Annotation Density', annotationDetail: 'Definition Detail',
+            sparse: 'Sparse', mediumLevel: 'Medium', dense: 'Dense', brief: 'Brief', detailed: 'Detailed',
+            fontInter: 'Inter (Modern Sans)', fontRoboto: 'Roboto (Android Default)',
+            fontNoto: 'Noto Sans SC (Chinese Standard)', fontSystem: 'System Default', fontSerif: 'Serif (Classic)',
+            // C: 连线类型（与 schema.LINK_TYPE_SCHEMA 的 name_en 同步）/ E: link types (sync with schema name_en)
+            linkLegendTitle: 'Link Types', linkLegendToggle: 'Legend',
+            linkSolid: 'Parent-child', linkDashed: 'Indirect', linkContainment: 'Containment',
+            linkDotted: 'Weak', linkReference: 'Reference', linkContrast: 'Contrast', linkCausal: 'Causal',
+            linkType: 'Link Type', linkLabel: 'Link Label', linkEdit: 'Edit Link',
+            linkDelete: 'Delete Link', linkDeleteConfirm: 'Delete this link?', linkSave: 'Save',
+            // C: 定义弹窗 / E: definition popup
+            wikiDef: 'Wikipedia Definition', llmDef: 'LLM Definition', pronunciation: 'Pronunciation',
+            pinyin: 'Pinyin:', romanization: 'Romanization:', ipaNarrow: 'Narrow IPA:', ipaBroad: 'Broad IPA:',
+            literalMeaning: 'Literal Meaning', viewFullEntry: 'View full entry →', chars: 'chars',
+            loadingDef: 'Loading definition...', noDef: 'No definition available.',
+            defLoadFailed: 'Failed to load definition.',
+            source: 'Source:', cacheHit: '(cache hit)',
+            // C: 转录面板操作 / E: transcript actions
+            cancel: 'Cancel', save: 'Save', edit: 'Edit', delete: 'Delete', audio: 'Audio',
+            transcribing: 'Transcribing audio...', polishing: 'Polishing text...',
+            rec: 'REC',
+            deleteNode: 'Delete Node', annotateTerms: 'Annotate Terms', clearAllNodes: 'Clear All Nodes',
+            loadAudioFirst: 'Please load audio first.', micDenied: 'Microphone access denied.',
+            nodesUnit: 'nodes',
+            // C: 导图管理 / E: map management
+            mapNamePrompt: 'Map name:', renameMap: 'Rename', renameMapPrompt: 'New map name:',
+            confirmDeleteMap: 'Delete this map?', deleteMap: 'Delete',
+            // C: 导出导入 / E: export & import
+            exportPNG: 'Export PNG', exportJSON: 'Export JSON', importJSON: 'Import JSON',
+            importFailed: 'Import failed: invalid JSON format.',
+            // C: 系统消息 / E: system messages
+            sysMsgRecording: 'Recording started...',
+            sysMsgNoSpeech: '[STT] No speech detected in the audio.',
+            sysMsgSTTError: '[STT] Processing failed: {msg}. (Open F12 Console for details)',
+            sysMsgSTTSaved: '[STT ({lang})] Transcription saved to Transcript panel.',
+            sysMsgAnnotation: '[Annotation] {nodes} nodes, {terms} terms cached (density: {density}).',
+            annotationFailed: 'Annotation failed: {msg}',
+            sysMsgSubtreeFocus: '[Subtree Mode] Focused on "{label}". Your changes will be scoped to this node.',
+            sysMsgSubtreeExit: '[Subtree Mode] Exited subtree mode. Back to full map view.',
+            sysMsgCleared: 'Canvas has been cleared manually.',
+            sysMsgLoaded: 'Loaded map: {name} ({count} nodes)',
+            sysMsgSaveFailed: 'Save failed: {msg}',
+            sysMsgLoadFailed: 'Load failed: {msg}',
+            sysMsgNodeRemoved: 'Node removed manually. AI will acknowledge this change.',
+            connectionFailed: 'Connection failed.'
         },
         zh: {
-            appTitle: '语音智能体', totalTime: '总时长', transcript: '会议转录', agentChat: '智能对话',
+            appTitle: '语音智能体', browserTitle: 'AI 思维导图助手 - 实时音频分析', totalTime: '总时长', transcript: '会议转录', agentChat: '智能对话',
             syncOn: '同步已开启', uploadAudio: '上传本地音频', msgPlaceholder: '发送指令给 AI...',
             allSpeakers: '所有发言人', searchPlaceholder: '搜索关键词...', noTranscripts: '未找到匹配的转录内容。',
-            preferences: '全局参数设置', typography: '界面字体 (Font Family)', interfaceSize: '全局缩放',
+            preferences: '全局参数设置', typography: '界面字体', interfaceSize: '全局缩放',
             small: '小', medium: '标准', large: '大', language: '界面语言',
+            langEn: '英语', langZh: '简体中文',
             syncToMap: '对话同步至导图', syncDesc: 'AI 将根据您的聊天指令实时修改右侧导图。',
             autoScroll: '对话自动滚动', autoScrollDesc: '收到新消息时强制滚动到底部。',
             done: '完成设置', dragToPan: '拖拽空白处移动画布',
-            sysReady: '系统已就绪，请录音或上传音频文件。', 
+            sysReady: '系统已就绪，请录音或上传音频文件。',
             confirmClear: '确定要清空画布上的所有节点吗？',
-            includeTranscriptAsContext: '作为上下文发送'
+            includeTranscriptAsContext: '作为上下文发送',
+            subtreeMode: '子树对话',
+            exitSubtree: '退出子树模式',
+            subtreeBanner: '子树模式：正在探索 ',
+            saveMap: '保存导图',
+            loadMap: '加载导图',
+            mapList: '已保存的导图',
+            noSavedMaps: '暂无已保存的导图。',
+            mapSaved: '导图已保存！',
+            mapSavedId: '导图已保存！（ID：{id}）',
+            confirmLoad: '加载此导图？当前内容将被替换。',
+            // C: 设置面板新增项 / E: settings panel additions
+            annotationDensity: '标注密度', annotationDetail: '定义详细度',
+            sparse: '少', mediumLevel: '中', dense: '多', brief: '简要', detailed: '详细',
+            fontInter: 'Inter（现代无衬线）', fontRoboto: 'Roboto（Android 默认）',
+            fontNoto: '思源黑体（中文标准）', fontSystem: '系统默认', fontSerif: '衬线体（经典）',
+            // C: 连线类型 / E: link types
+            linkLegendTitle: '连线类型', linkLegendToggle: '图例',
+            linkSolid: '父子关系', linkDashed: '间接关联', linkContainment: '包含',
+            linkDotted: '弱关联', linkReference: '引用', linkContrast: '对比', linkCausal: '因果',
+            linkType: '连线类型', linkLabel: '连线说明', linkEdit: '编辑连线',
+            linkDelete: '删除连线', linkDeleteConfirm: '确定删除这条连线？', linkSave: '保存',
+            // C: 定义弹窗 / E: definition popup
+            wikiDef: 'Wikipedia 定义', llmDef: 'LLM 模型定义', pronunciation: '发音',
+            pinyin: '拼音：', romanization: '转写：', ipaNarrow: '严式 IPA：', ipaBroad: '宽式 IPA：',
+            literalMeaning: '字面含义', viewFullEntry: '查看完整条目 →', chars: '字符',
+            loadingDef: '正在加载定义...', noDef: '暂无可用定义。',
+            defLoadFailed: '定义加载失败。',
+            source: '来源：', cacheHit: '（缓存命中）',
+            // C: 转录面板操作 / E: transcript actions
+            cancel: '取消', save: '保存', edit: '编辑', delete: '删除', audio: '音频',
+            transcribing: '正在转写音频...', polishing: '正在润色文本...',
+            rec: '录音中',
+            deleteNode: '删除节点', annotateTerms: '标注术语', clearAllNodes: '清空全部节点',
+            loadAudioFirst: '请先加载音频。', micDenied: '麦克风访问被拒绝。',
+            nodesUnit: '个节点',
+            // C: 导图管理 / E: map management
+            mapNamePrompt: '导图名称：', renameMap: '重命名', renameMapPrompt: '新名称：',
+            confirmDeleteMap: '确定删除此导图？', deleteMap: '删除',
+            // C: 导出导入 / E: export & import
+            exportPNG: '导出 PNG', exportJSON: '导出 JSON', importJSON: '导入 JSON',
+            importFailed: '导入失败：JSON 格式无效。',
+            // C: 系统消息 / E: system messages
+            sysMsgRecording: '录音已开始...',
+            sysMsgNoSpeech: '[STT] 音频中未检测到语音。',
+            sysMsgSTTError: '[STT] 处理失败：{msg}。（请打开 F12 Console 查看详细错误）',
+            sysMsgSTTSaved: '[STT（{lang}）] 转录已保存到转录面板。',
+            sysMsgAnnotation: '[标注] 已缓存 {nodes} 个节点、{terms} 个术语（密度：{density}）。',
+            annotationFailed: '标注失败：{msg}',
+            sysMsgSubtreeFocus: '[子树模式] 正在聚焦“{label}”，本次修改将限定在该节点范围内。',
+            sysMsgSubtreeExit: '[子树模式] 已退出，恢复全图视图。',
+            sysMsgCleared: '画布已手动清空。',
+            sysMsgLoaded: '已加载导图：{name}（{count} 个节点）',
+            sysMsgSaveFailed: '保存失败：{msg}',
+            sysMsgLoadFailed: '加载失败：{msg}',
+            sysMsgNodeRemoved: '节点已手动删除，AI 将感知此变更。',
+            connectionFailed: '连接失败。'
         }
     }
 
     createApp({
         setup() {
-            const settings = reactive({ 
-                language: 'en', 
-                fontFamily: "'Inter', sans-serif", 
-                fontSize: '16px', 
-                syncToMap: true, 
-                autoScroll: true 
+            // C: 设置持久化 — localStorage 读写，刷新后保留用户偏好
+            // E: Settings persistence via localStorage — keeps user preferences across reloads
+            const _defaultSettings = () => ({
+                language: 'en', fontFamily: "'Inter', sans-serif", fontSize: '16px',
+                syncToMap: true, autoScroll: true, languageManual: false
             })
+            let _savedSettings = null
+            try { _savedSettings = JSON.parse(localStorage.getItem('mindmap-settings') || 'null') } catch (e) { _savedSettings = null }
+            const settings = reactive(Object.assign(_defaultSettings(), _savedSettings || {}))
 
-            const t = (key) => locales[settings.language][key] || key
+            // C: 设置变更即写回 localStorage
+            // E: Persist settings to localStorage on any change
+            watch(settings, (v) => {
+                try { localStorage.setItem('mindmap-settings', JSON.stringify(v)) } catch (e) {}
+            }, { deep: true })
+
+            const t = (key) => (locales[settings.language] || locales.en)[key] || key
+
+            // C: 模板替换式翻译（系统消息等含动态占位符，如 {lang}/{label}）
+            // E: Template-replacement translation (system messages with placeholders like {lang}/{label})
+            const tf = (key, vars = {}) => {
+                let s = t(key)
+                for (const [k, v] of Object.entries(vars)) s = s.split('{' + k + '}').join(v)
+                return s
+            }
+
+            // C: 手动切换语言后置 languageManual=true，自动语言检测不再覆盖用户选择
+            // E: After manual language switch, auto language detection no longer overrides the user choice
+            watch(() => settings.language, () => { settings.languageManual = true })
+
+            // C: 语言切换时重渲染 G6（连线类型标签随语言变化）+ 同步浏览器标签页标题
+            // E: Re-render G6 on language change (edge type labels follow the language) + sync document title
+            watch(() => settings.language, () => {
+                document.title = t('browserTitle')
+                nextTick(() => updateG6Data())
+            })
 
             // C: Markdown 渲染 — 使用 marked.js 将用户和 AI 文本转为 HTML
             // E: Markdown rendering — converts user and AI text to HTML using marked.js
@@ -440,11 +929,81 @@
             const showUploadMenu = ref(false);
             const showSettings = ref(false);
             const activeNode = ref(null);
+            // C: 地图列表弹窗 / E: Map list modal
+            const showMapList = ref(false);
+            const savedMaps = ref([]);
+            // C: 子树隔离对话模式状态
+            // E: Subtree-scoped conversation mode state
+            const subtreeMode = ref(false);
+            const subtreeRootId = ref(null);
+
+            // C: 词典标注状态
+            // E: Dictionary annotation state
+            const annotations = ref({});
+            const annotationDensity = ref('medium');
+            const annotationDetail = ref('medium');
+            const definitionPopup = ref(null);
+            // C: 任务2 — 术语定义本地缓存（term → {wikipedia_definition, ...}）
+            //     供 showDefinition 优先读取，避免重复调用 /define
+            // E: Task 2 — local cache for term definitions (term → {wikipedia_definition, ...})
+            //     Used by showDefinition to avoid repeated /define calls
+            const annotationCache = ref({});
+            // C: 检测到的用户输入语言
+            // E: Detected user input language
+            const detectedUserLanguage = ref('en');
+
+            // C: 边类型图例 / E: Edge type legend
+            const showEdgeLegend = ref(true);
+            // C: 图例项由 LINK_TYPE_SCHEMA 生成（定义在下方 resolveColor 之后，见 LINK_TYPE_SCHEMA 声明处）
+            // E: Legend items generated from LINK_TYPE_SCHEMA (defined after LINK_TYPE_SCHEMA below)
+            // C: 边类型图例初始位置 — 顶部右侧，避开底部操作按钮
+            // E: Edge legend initial position — top-right, away from bottom controls
+            const edgeLegendPos = reactive({ x: window.innerWidth - 210, y: 80 });
+
+            // C: Wikipedia 定义截断 — 弹窗中只显示前 2-3 句或 ~300 字符
+            // E: Wikipedia definition truncation — show first 2-3 sentences or ~300 chars in popup
+            const MAX_WIKI_CHARS = 300;
+            const truncateWikipediaDefinition = (text) => {
+                if (!text) return { short: '', isTruncated: false };
+                // C: 按句号分割取前 3 句
+                // E: Split by period, take first 3 sentences
+                const sentences = text.split(/(?<=[.!?])\s+/);
+                let short = sentences.slice(0, 3).join(' ');
+                // C: 如果前 3 句仍超过上限，按字符截断到词边界
+                // E: If first 3 sentences still exceed limit, truncate at word boundary
+                if (short.length > MAX_WIKI_CHARS) {
+                    short = short.slice(0, MAX_WIKI_CHARS);
+                    const lastSpace = short.lastIndexOf(' ');
+                    if (lastSpace > MAX_WIKI_CHARS * 0.7) short = short.slice(0, lastSpace);
+                    short += '…';
+                }
+                const isTruncated = short.length < text.length;
+                return { short, isTruncated };
+            };
+            // C: 弹窗中使用的截断后 Wikipedia 定义 / E: Truncated Wikipedia definition for popup
+            const truncatedWikiDefinition = computed(() => {
+                const full = definitionPopup.value?.wikipedia_definition;
+                if (!full) return '';
+                return truncateWikipediaDefinition(full).short;
+            });
+            const wikiDefinitionIsTruncated = computed(() => {
+                const full = definitionPopup.value?.wikipedia_definition;
+                if (!full) return false;
+                return truncateWikipediaDefinition(full).isTruncated;
+            });
+            const wikiDefinitionFullLength = computed(() => {
+                return definitionPopup.value?.wikipedia_definition?.length || 0;
+            });
 
             const userInput = ref('')
-            const chatHistory = ref([{ role: 'system', text: locales['en'].sysReady }])
+            const chatHistory = ref([{ role: 'system', text: t('sysReady') }])
+            // C: 保持 flat nodes+links 用于与后端交互 / E: Keep flat nodes+links for backend interaction
             const nodes = ref([])
             const links = ref([])
+            // C: G6 嵌套树数据（后端直接返回） / E: G6 nested tree data (returned by backend directly)
+            const treeRoots = ref([])
+            // C: G6 图实例引用 / E: G6 graph instance reference
+            let graph = null
 
             const transcripts = ref([])
 
@@ -539,7 +1098,7 @@
             // C: --- 播放/暂停控制 ---
             // E: --- Play/Pause control ---
             const togglePlay = async () => {
-                if (!audioPlayerEl.value || !audioPlayerEl.value.src) return alert("Please load audio first.");
+                if (!audioPlayerEl.value || !audioPlayerEl.value.src) return alert(t('loadAudioFirst'));
                 
                 initAudioContext();
                 
@@ -617,9 +1176,9 @@
                         if (audioPlayerEl.value) audioPlayerEl.value.pause();
                         
                         updateVisualizer();
-                        chatHistory.value.push({ role: 'system', text: "Recording started..." });
+                        chatHistory.value.push({ role: 'system', text: tf('sysMsgRecording') });
                     } catch (err) {
-                        alert("Microphone access denied.");
+                        alert(t('micDenied'));
                     }
                 }
             };
@@ -665,12 +1224,12 @@
                         showTrans.value = true;
                         chatHistory.value.push({
                             role: 'system',
-                            text: `[STT (${langLabel})] Transcription saved to Transcript panel.`
+                            text: tf('sysMsgSTTSaved', { lang: langLabel })
                         });
                     } else if (data.status === 'success' && !data.polished_text) {
                         chatHistory.value.push({
                             role: 'system',
-                            text: '[STT] No speech detected in the audio.'
+                            text: tf('sysMsgNoSpeech')
                         });
                     }
                 } catch (error) {
@@ -679,8 +1238,7 @@
                     console.error("Error stack:", error.stack);
                     chatHistory.value.push({
                         role: 'system',
-                        text: `[STT] Processing failed: ${error.message}. ` +
-                              `(请打开浏览器 F12 → Console 查看详细错误)`
+                        text: tf('sysMsgSTTError', { msg: error.message })
                     });
                 } finally {
                     isProcessingAudio.value = false;
@@ -749,29 +1307,1049 @@
                 a.click();
             };
 
-            // C: 碰撞检测：防止节点视觉重叠
-            // E: Collision detection: prevent visual node overlapping
-            const resolveOverlaps = (nodeList, maxIterations = 5) => {
-                const MIN_DX = 180, MIN_DY = 100;
-                for (let iter = 0; iter < maxIterations; iter++) {
-                    let hasOverlap = false;
-                    for (let i = 0; i < nodeList.length; i++) {
-                        for (let j = i + 1; j < nodeList.length; j++) {
-                            const a = nodeList[i], b = nodeList[j];
-                            const dx = Math.abs((a.x || 0) - (b.x || 0));
-                            const dy = Math.abs((a.y || 0) - (b.y || 0));
-                            if (dx < MIN_DX && dy < MIN_DY) {
-                                hasOverlap = true;
-                                const shiftX = (MIN_DX - dx + 20) * (Math.random() > 0.5 ? 1 : -1);
-                                const shiftY = (MIN_DY - dy + 20) * (Math.random() > 0.5 ? 1 : -1);
-                                b.x = Math.max(50, Math.min(1200, (b.x || 0) + shiftX));
-                                b.y = Math.max(30, Math.min(800, (b.y || 0) + shiftY));
+            // C: G6 初始化与数据更新（加固版 + 完整调试日志）
+            // E: G6 initialization and data update (hardened + full debug logging)
+            const G6_DEBUG = true  // C: 设为 false 关闭调试日志 / E: Set false to disable debug logs
+            const _g6log = (...args) => { if (G6_DEBUG) console.log('%c[G6]', 'color:#8b5cf6;font-weight:bold', ...args) }
+            const _g6warn = (...args) => { console.warn('%c[G6]', 'color:#f59e0b;font-weight:bold', ...args) }
+            const _g6err = (...args) => { console.error('%c[G6]', 'color:#ef4444;font-weight:bold', ...args) }
+
+            // C: 将 CSS 变量颜色解析为实际 hex 值（Canvas 不支持 CSS 变量）
+            // E: Resolve CSS variable colors to actual hex (Canvas doesn't support CSS variables)
+            const CSS_COLOR_MAP = {
+                'var(--node-blue)':   '#e8f0fe',
+                'var(--node-green)':  '#e6f4ea',
+                'var(--node-yellow)': '#fef7e0',
+                'var(--node-red)':    '#fce8e6',
+                'var(--node-purple)': '#f3e8fd',
+                'var(--node-orange)': '#fef3e0',
+                'var(--node-teal)':   '#e0f7f4',
+                'var(--node-pink)':   '#fde8f0',
+            }
+            const resolveColor = (c) => CSS_COLOR_MAP[c] || c || '#e8f0fe'
+
+            // C: 连线类型渲染表 — 必须与后端 schema.LINK_TYPE_SCHEMA 保持同步
+            // E: Link type render table — MUST stay in sync with backend schema.LINK_TYPE_SCHEMA
+            const LINK_TYPE_SCHEMA = {
+                solid:       { name_zh: '父子关系', name_en: 'Parent-child', color: '#3b82f6', dash: [],     arrow: false },
+                dashed:      { name_zh: '间接关联', name_en: 'Indirect',     color: '#94a3b8', dash: [6, 4], arrow: false },
+                containment: { name_zh: '包含',     name_en: 'Containment',  color: '#06b6d4', dash: [],     arrow: false },
+                dotted:      { name_zh: '弱关联',   name_en: 'Weak',         color: '#a78bfa', dash: [2, 4], arrow: false },
+                reference:   { name_zh: '引用',     name_en: 'Reference',    color: '#10b981', dash: [],     arrow: true },
+                contrast:    { name_zh: '对比',     name_en: 'Contrast',     color: '#f59e0b', dash: [],     arrow: true },
+                causal:      { name_zh: '因果',     name_en: 'Causal',       color: '#ef4444', dash: [6, 4], arrow: true },
+            }
+            // C: 类型 key → locales key（如 solid → linkSolid）
+            // E: type key → locale key (e.g. solid → linkSolid)
+            const linkLocaleKey = (t) => 'link' + t.charAt(0).toUpperCase() + t.slice(1)
+
+            // C: 图例项由 LINK_TYPE_SCHEMA 生成（label 经 t() 动态取当前语言文案）
+            //    必须位于 LINK_TYPE_SCHEMA 定义之后（避免 TDZ 初始化顺序错误）
+            // E: Legend items generated from LINK_TYPE_SCHEMA (labels resolved via t())
+            //    MUST be defined after LINK_TYPE_SCHEMA (avoids TDZ init-order error)
+            const edgeLegendItems = Object.entries(LINK_TYPE_SCHEMA).map(([type, meta]) => ({
+                type,
+                color: meta.color,
+                dash: meta.dash,
+                arrow: meta.arrow,
+                labelKey: linkLocaleKey(type),
+            }))
+
+            // C: 收集树中每条父子边的连线属性（source->target → {link_type, link_label}）
+            // E: Collect link props per parent-child edge (source->target → {link_type, link_label})
+            const _collectEdgeProps = (root) => {
+                const map = {}
+                const walk = (node) => {
+                    for (const child of (node.children || [])) {
+                        const key = `${node.id}->${child.id}`
+                        map[key] = {
+                            link_type: child.link_type || 'solid',
+                            link_label: child.link_label || '',
+                        }
+                        walk(child)
+                    }
+                }
+                walk(root)
+                return map
+            }
+
+            // C: 自定义 树→图 转换 — 节点保留全部顶层字段；边显式携带 link_type/link_label。
+            //    【关键】G6 v5 的 treeToGraphData 生成的边只有 {source, target}，
+            //    会丢弃子节点上的 link_type/link_label，导致连线类型无法渲染/无法区分。
+            // E: Custom tree→graph conversion — nodes keep all top-level fields;
+            //    edges explicitly carry link_type/link_label.
+            //    [KEY] G6 v5 treeToGraphData produces edges with only {source, target},
+            //    dropping link_type/link_label from children, breaking link-type rendering.
+            const _treeToGraphData = (root) => {
+                const nodes = []
+                const edges = []
+                const walk = (node, parentId) => {
+                    const { children, ...rest } = node || {}
+                    nodes.push({ ...rest, children: (children || []).map(c => c.id) })
+                    if (parentId !== undefined) {
+                        edges.push({
+                            source: parentId,
+                            target: node.id,
+                            link_type: node.link_type || 'solid',
+                            link_label: node.link_label || '',
+                        })
+                    }
+                    for (const child of (children || [])) walk(child, node.id)
+                }
+                walk(root, undefined)
+                return { nodes, edges }
+            }
+
+            // C: 防御性读取连线类型/说明 — 兼容 G6 顶层字段与 data 包装两种形态
+            // E: Defensive read of link type/label — compatible with both top-level and data-wrapped fields
+            const _edgeLinkType = (d) => (d && (d.link_type || d.data?.link_type || d.type || d.data?.type)) || 'solid'
+            const _edgeLinkLabel = (d) => (d && (d.link_label || d.data?.link_label)) || ''
+
+            // C: 按 source->target 映射给边补齐 link_type/link_label（第二遍 setData 前调用），
+            //    避免 G6 将自定义字段归一到 data 后顶层读取再次失效。
+            // E: Patch link_type/link_label onto edges by source->target (before 2nd setData),
+            //    so top-level reads survive G6's data normalization.
+            const _patchEdgeProps = (edges, root) => {
+                const propsMap = _collectEdgeProps(root)
+                return (edges || []).map(e => {
+                    const props = propsMap[`${e.source}->${e.target}`]
+                    if (props) {
+                        e.link_type = e.link_type || e.data?.link_type || props.link_type
+                        e.link_label = e.link_label || e.data?.link_label || (props.link_label || undefined)
+                    }
+                    return e
+                })
+            }
+
+            const initG6 = () => {
+                if (graph) { _g6log('graph 已存在，跳过初始化'); return }
+
+                // C: 检查 G6 是否加载 / E: Check if G6 is loaded
+                if (typeof G6 === 'undefined') {
+                    _g6err('G6 全局对象未定义！CDN 可能加载失败。请检查网络或 CDN URL。')
+                    return
+                }
+                _g6log('G6 全局对象已检测到，版本:', G6.version || 'unknown')
+
+                // C: 注册 G6 v5.1.x UMD 构建中未自动注册的扩展（备用）
+                // E: Register extensions not auto-registered (fallback)
+                const _regExt = (cat, name, ExtClass) => {
+                    try { G6.register(cat, name, ExtClass) } catch (e) {
+                        if (!e.message?.includes('exists')) _g6warn(`注册 ${name} 失败:`, e.message)
+                    }
+                }
+                if (G6.CompactBoxLayout) _regExt(G6.ExtensionCategory.LAYOUT, 'compactBox', G6.CompactBoxLayout)
+                if (G6.DragElement)        _regExt(G6.ExtensionCategory.BEHAVIOR, 'drag-node', G6.DragElement)
+                _g6log('扩展注册完成')
+
+                const container = document.getElementById('g6-container')
+                if (!container) { _g6err('找不到 #g6-container DOM 元素'); return }
+
+                // C: 获取有效容器尺寸（含降级） / E: Get valid container dimensions (with fallback)
+                let w = container.clientWidth
+                let h = container.clientHeight
+                if (!w || !h) {
+                    // C: 从父容器获取尺寸 / E: Get size from parent container
+                    const parent = document.getElementById('canvas-container')
+                    if (parent) {
+                        w = parent.clientWidth || parent.offsetWidth || 800
+                        h = parent.clientHeight || parent.offsetHeight || 600
+                    } else {
+                        w = w || 800; h = h || 600
+                    }
+                    _g6warn('容器尺寸为零，使用降级值:', w, 'x', h)
+                }
+                _g6log('容器尺寸:', w, 'x', h)
+
+                try {
+                    graph = new G6.Graph({
+                        container: 'g6-container',
+                        width: w,
+                        height: h,
+                        layout: {
+                            type: 'dagre',
+                            rankdir: 'LR',
+                            nodesep: 30,
+                            ranksep: 80,
+                        },
+                        behaviors: ['drag-canvas', 'zoom-canvas', 'collapse-expand', 'drag-element'],
+                        node: {
+                            type: (d) => {
+                                // C: 虚拟根节点用 rect，其余统一用 html 避免类型切换导致渲染异常
+                                // E: Virtual root uses rect, all others use html to avoid type-switching rendering issues
+                                if (d._isVirtual) return 'rect';
+                                return 'html';
+                            },
+                            style: {
+                                size: (d) => {
+                                    // C: 虚拟根节点尺寸为 0，不占可视空间
+                                    // E: Virtual root node size 0, occupies no visual space
+                                    if (d._isVirtual) return [0, 0];
+                                    const labelLen = (d.label || '').length
+                                    const w = Math.max(120, labelLen * 14 + 40)
+                                    return [w, 50]
+                                },
+                                radius: 12,
+                                fill: (d) => d._isVirtual ? 'transparent' : resolveColor(d.color),
+                                stroke: (d) => d._isVirtual ? 'transparent' : '#e5e7eb',
+                                lineWidth: (d) => d._isVirtual ? 0 : 1,
+                                // C: HTML 节点使用 innerHTML，rect 节点使用 labelText
+                                // E: HTML nodes use innerHTML, rect nodes use labelText
+                                innerHTML: (d) => annotatedLabelHTML(d),
+                                labelText: (d) => d._isVirtual ? '' : (d.label || ''),
+                                labelFill: '#1f2937',
+                                labelFontSize: 13,
+                                labelFontWeight: 600,
+                                labelPlacement: 'center',
+                                cursor: 'pointer',
+                            },
+                        },
+                        edge: {
+                            type: 'cubic-horizontal',
+                            style: {
+                                stroke: (d) => {
+                                    const lt = _edgeLinkType(d)
+                                    return (LINK_TYPE_SCHEMA[lt] || LINK_TYPE_SCHEMA.solid).color
+                                },
+                                lineWidth: 2,
+                                lineDash: (d) => {
+                                    const lt = _edgeLinkType(d)
+                                    const dash = (LINK_TYPE_SCHEMA[lt] || LINK_TYPE_SCHEMA.solid).dash
+                                    return dash && dash.length ? dash : undefined
+                                },
+                                endArrow: (d) => {
+                                    const lt = _edgeLinkType(d)
+                                    return (LINK_TYPE_SCHEMA[lt] || LINK_TYPE_SCHEMA.solid).arrow
+                                },
+                                labelText: (d) => {
+                                    // C: 优先显示连线说明文字（link_label），无则显示类型名（随界面语言）
+                                    // E: Prefer the link label; fall back to the localized type name
+                                    const lbl = _edgeLinkLabel(d)
+                                    if (lbl) return lbl
+                                    const lt = _edgeLinkType(d)
+                                    return t(linkLocaleKey(lt)) || ''
+                                },
+                                labelFontSize: 10,
+                                labelFill: '#64748b',
+                                labelBackground: true,
+                                labelBackgroundFill: '#ffffff',
+                                labelBackgroundOpacity: 0.85,
+                                labelPadding: [2, 6],
+                            },
+                        },
+                        data: { nodes: [], edges: [] },
+                    })
+
+                    // C: 先执行一次 render 以初始化 Canvas 上下文（使用占位数据）
+                    // E: Execute one render to initialize Canvas context (with placeholder data)
+                    graph.render()
+                    _g6log('Graph 实例创建成功，Canvas 已初始化')
+
+                    // C: 节点点击 → 打开详情面板 / E: Node click → open detail panel
+                    graph.on('node:click', (evt) => {
+                        const nodeId = evt.target?.id
+                        if (!nodeId || nodeId === '__virtual_root__' || nodeId === '__placeholder__') return
+                        const found = findNodeInTree(treeRoots.value, nodeId)
+                        if (found) activeNode.value = found
+                    })
+
+                    // C: 连线点击 → 打开连线编辑面板（查看/改类型/编辑说明/删除）
+                    // E: Edge click → open the link edit panel (view/retarget label/delete)
+                    graph.on('edge:click', (evt) => {
+                        const model = evt.item?.getModel?.()
+                        if (!model || !model.source || !model.target) return
+                        openLinkEditor(model.source, model.target, _edgeLinkType(model), _edgeLinkLabel(model), evt.canvas?.x, evt.canvas?.y)
+                    })
+
+                    // C: 展开/折叠事件 → 同步 collapsed 状态到响应式数据
+                    // E: Collapse/expand event → sync collapsed state to reactive data
+                    graph.on('collapse:after', (evt) => {
+                        const nodeId = evt.nodeId
+                        if (!nodeId) return
+                        // C: 更新 treeRoots 中对应节点的 collapsed 状态
+                        // E: Update collapsed state in treeRoots
+                        const updateCollapsed = (roots) => {
+                            for (const r of roots) {
+                                if (r.id === nodeId) {
+                                    // C: G6 的 collapse-expand 会切换 collapsed，我们同步到数据
+                                    // E: G6's collapse-expand toggles collapsed, sync to data
+                                    r.collapsed = !r.collapsed
+                                    return true
+                                }
+                                if (r.children && updateCollapsed(r.children)) return true
                             }
+                            return false
+                        }
+                        updateCollapsed(treeRoots.value)
+                        _g6log('collapse:after', nodeId, 'synced')
+                    })
+
+                    // C: 拖拽结束 → 捕获坐标并通过完整管道重绘（dagre 重新计算边路由）
+                    // E: Drag end → capture coords and redraw via full pipeline (dagre recalculates edge routing)
+                    graph.on('drag-end', (evt) => {
+                        const nodeId = evt.item?.id
+                        if (!nodeId || nodeId === '__virtual_root__') return
+                        const model = evt.item?.getModel()
+                        if (model) {
+                            _g6log('drag-end', nodeId, 'pos=', model.x?.toFixed(0), model.y?.toFixed(0))
+                            // C: 标记 userPositioned（用于 schema.x/y 回传，_setG6Data 会保留这些坐标）
+                            // E: Mark userPositioned (for schema.x/y round-trip, _setG6Data preserves these coords)
+                            const found = findNodeInTree(treeRoots.value, nodeId)
+                            if (found) {
+                                found.userPositioned = true
+                                found.x = model.x
+                                found.y = model.y
+                            }
+                            // C: 通过 _setG6Data 触发 dagre 重布局，使边路由跟随新位置
+                            // E: Trigger dagre re-layout via _setG6Data so edge routing follows new positions
+                            _setG6Data()
+                        }
+                    })
+                    _g6log('事件监听器已注册')
+
+                } catch (e) {
+                    _g6err('G6 Graph 创建失败:', e)
+                    graph = null
+                }
+            }
+
+            const updateG6Data = () => {
+                _g6log('updateG6Data 被调用, treeRoots.length=', treeRoots.value.length)
+                if (!graph) {
+                    _g6warn('graph 实例不存在，尝试初始化...')
+                    initG6()
+                    if (!graph) {
+                        _g6err('initG6 失败，无法更新数据')
+                        return
+                    }
+                }
+                _setG6Data()
+            }
+
+            // C: prompt/alert 等阻塞式对话框后强制恢复 G6 渲染
+            // E: Force G6 render recovery after blocking dialogs like prompt/alert
+            const recoverG6AfterPrompt = () => {
+                if (!graph) return;
+                // C: 检查 Canvas 上下文是否有效（尝试获取上下文，无效则重建）
+                // E: Check if Canvas context is valid (try to get context, rebuild if invalid)
+                const canvasEl = document.querySelector('#g6-container canvas');
+                if (canvasEl) {
+                    try {
+                        const ctx = canvasEl.getContext('2d');
+                        if (!ctx) {
+                            _g6warn('Canvas 上下文丢失，重建 G6 实例')
+                            graph.destroy();
+                            graph = null;
+                            nextTick(() => {
+                                initG6();
+                                updateG6Data();
+                            });
+                            return;
+                        }
+                    } catch (e) {
+                        _g6warn('Canvas 上下文检查失败，重建 G6:', e)
+                        try { graph.destroy(); } catch (_) {}
+                        graph = null;
+                        nextTick(() => {
+                            initG6();
+                            updateG6Data();
+                        });
+                        return;
+                    }
+                }
+                // C: 上下文正常 → 直接重渲染
+                // E: Context OK → re-render directly
+                nextTick(() => updateG6Data());
+            };
+
+            const _setG6Data = () => {
+                if (!graph) { _g6warn('_setG6Data: graph 为空，跳过'); return }
+                if (!treeRoots.value || !treeRoots.value.length) {
+                    _g6warn('_setG6Data: treeRoots 为空或长度为0，清空图')
+                    try {
+                        graph.setData({ nodes: [], edges: [] })
+                        graph.render()
+                    } catch (e) {
+                        _g6err('_setG6Data 清空渲染失败，重建 G6:', e)
+                        graph = null
+                        nextTick(() => { initG6(); updateG6Data(); })
+                    }
+                    return
+                }
+                // C: 深拷贝以避免 G6 修改响应式数据 / E: Deep copy to prevent G6 from mutating reactive data
+                const rawData = JSON.parse(JSON.stringify(treeRoots.value))
+
+                // C: 递归收集 userPositioned 节点的坐标
+                // E: Recursively collect coordinates of userPositioned nodes
+                const collectUserPositionedCoords = (node, map = {}) => {
+                    if (!node) return map
+                    if (node.userPositioned && typeof node.x === 'number' && typeof node.y === 'number') {
+                        map[node.id] = { x: node.x, y: node.y }
+                    }
+                    if (node.children) {
+                        for (const child of node.children) {
+                            collectUserPositionedCoords(child, map)
                         }
                     }
-                    if (!hasOverlap) break;
+                    return map
                 }
-                return nodeList;
+
+                const rootData = rawData[0]
+                _g6log('_setG6Data: 根节点 id=', rootData?.id, 'label=', rootData?.label, 'children=', rootData?.children?.length)
+                if (!rootData) {
+                    _g6warn('_setG6Data: rootData 为空')
+                    try { graph.setData({ nodes: [], edges: [] }); graph.render(); } catch (e) {
+                        _g6err('_setG6Data 空数据渲染失败:', e)
+                    }
+                } else {
+                    // C: dagre 是图布局，需要 flat {nodes, edges} 格式，不能直接消费嵌套树
+                    //    使用自定义 _treeToGraphData() 转换（G6 v5 treeToGraphData 会丢弃边上的
+                    //    link_type/link_label，导致连线类型无法渲染，故必须本地显式补齐边字段）
+                    // E: dagre is a graph layout, needs flat {nodes, edges} format
+                    //    Use custom _treeToGraphData() (G6 v5 treeToGraphData drops
+                    //    link_type/link_label on edges, so we convert locally with fields)
+                    const graphData = _treeToGraphData(rootData)
+                    _g6log('_setG6Data: _treeToGraphData → nodes=', graphData.nodes?.length, 'edges=', graphData.edges?.length)
+                    // C: 预先收集 userPositioned 节点坐标（用于布局后恢复）
+                    // E: Pre-collect userPositioned node coords (for post-layout restoration)
+                    const positionedNodes = collectUserPositionedCoords(rawData[0])
+                    try {
+                        // C: 第一遍 — dagre 布局（计算所有节点和边路由）
+                        // E: Pass 1 — dagre layout (calculate all node positions and edge routing)
+                        graph.setData(graphData)
+                        graph.render()
+                        // C: 第二遍 — 恢复 userPositioned 节点坐标（dagre 会覆盖所有位置）
+                        // E: Pass 2 — restore userPositioned node coords (dagre overrides all positions)
+                        if (Object.keys(positionedNodes).length > 0) {
+                            const nodeData = graph.getNodeData()
+                            let hasOverrides = false
+                            for (const nd of nodeData) {
+                                const pos = positionedNodes[nd.id]
+                                if (pos) {
+                                    nd.x = pos.x
+                                    nd.y = pos.y
+                                    hasOverrides = true
+                                }
+                            }
+                            if (hasOverrides) {
+                                // C: 恢复坐标后重新补齐边字段，防止 G6 data 归一化导致顶层读取失效
+                                // E: Re-patch edge fields after coord restore, guarding against G6 data normalization
+                                graph.setData({ nodes: nodeData, edges: _patchEdgeProps(graph.getEdgeData(), rootData) })
+                                graph.render()
+                                _g6log('_setG6Data: 恢复', Object.keys(positionedNodes).length, '个 userPositioned 节点坐标')
+                            }
+                        }
+                        _g6log('_setG6Data: graph.render() 完成')
+                    } catch (e) {
+                        // C: Canvas 上下文丢失 → 销毁并重建 G6
+                        // E: Canvas context lost → destroy and rebuild G6
+                        _g6err('_setG6Data 渲染失败（Canvas 上下文可能丢失），重建 G6:', e)
+                        try { graph.destroy(); } catch (_) {}
+                        graph = null
+                        nextTick(() => {
+                            initG6();
+                            updateG6Data();
+                        })
+                    }
+                }
+            }
+
+            // C: 手动 G6 测试函数 — 在浏览器控制台运行 __g6Test() 验证 G6 本身能否工作
+            // E: Manual G6 test — run __g6Test() in browser console to verify G6 works
+            window.__g6Test = () => {
+                if (typeof G6 === 'undefined') { console.error('G6 未加载'); return }
+                if (!graph) { console.error('graph 实例不存在，请先调用 initG6()'); initG6() }
+                if (!graph) return
+                const testData = G6.treeToGraphData({
+                    id: 'test_root',
+                    label: '测试根节点',
+                    color: '#e8f0fe',
+                    details: [],
+                    children: [
+                        { id: 'test_c1', label: '子节点1', color: '#e6f4ea', details: [], children: [] },
+                        { id: 'test_c2', label: '子节点2', color: '#fef7e0', details: [], children: [
+                            { id: 'test_gc1', label: '孙节点', color: '#fce8e6', details: [], children: [] }
+                        ]},
+                    ]
+                })
+                _g6log('__g6Test: 注入测试数据', testData)
+                graph.setData(testData)
+                graph.render()
+                console.log('%c✅ 测试数据已注入。如果右侧仍空白，请检查容器尺寸或 F12 Console 是否有红色错误。', 'color:#10b981;font-weight:bold')
+            }
+
+            // C: 连线类型测试函数 — 在浏览器控制台运行 __linkTypeTest() 验证 7 种连线类型的渲染
+            // E: Link-type test — run __linkTypeTest() in browser console to verify all 7 link-type renderings
+            window.__linkTypeTest = () => {
+                const mk = (id, label, link_type, link_label) => ({ id, label, color: 'var(--node-blue)', details: [], children: [], link_type, link_label })
+                treeRoots.value = [{
+                    id: 'lt_root', label: 'Root', color: 'var(--node-blue)', details: [], children: [
+                        mk('lt_c1', 'Solid', 'solid'),
+                        mk('lt_c2', 'Dashed', 'dashed'),
+                        mk('lt_c3', 'Containment', 'containment'),
+                        mk('lt_c4', 'Dotted', 'dotted'),
+                        mk('lt_c5', 'Reference', 'reference'),
+                        mk('lt_c6', 'Contrast', 'contrast'),
+                        mk('lt_c7', 'Causal', 'causal', '导致'),
+                    ]
+                }]
+                updateG6Data()
+                _g6log('__linkTypeTest: 已注入 7 种连线类型测试数据')
+            }
+
+            // C: 诊断当前G6状态 / E: Diagnose current G6 state
+            window.__g6Diag = () => {
+                console.group('%c📋 G6 状态诊断', 'color:#8b5cf6;font-weight:bold;font-size:14px')
+                console.log('G6 全局:', typeof G6 !== 'undefined' ? '已加载 v' + (G6.version || '?') : '❌ 未加载')
+                console.log('graph 实例:', graph ? '✅ 已创建' : '❌ 为空')
+                console.log('treeRoots:', treeRoots.value.length, '个根节点')
+                console.log('flat nodes:', nodes.value.length, 'flat links:', links.value.length)
+                const container = document.getElementById('g6-container')
+                if (container) {
+                    const rect = container.getBoundingClientRect()
+                    console.log('容器尺寸:', Math.round(rect.width), 'x', Math.round(rect.height))
+                    console.log('容器可见:', rect.width > 0 && rect.height > 0 ? '✅' : '❌ 尺寸为零!')
+                } else {
+                    console.log('容器: ❌ #g6-container 不存在')
+                }
+                // C: 检查 G6 Canvas 元素 / E: Check G6 Canvas element
+                const canvasEl = document.querySelector('#g6-container canvas')
+                console.log('Canvas 元素:', canvasEl ? '✅ 存在' : '❌ 不存在')
+                console.groupEnd()
+            }
+
+            // C: 树中递归查找节点 / E: Recursively find node in tree
+            const findNodeInTree = (roots, id) => {
+                for (const node of roots) {
+                    if (node.id === id) return node
+                    if (node.children) {
+                        const found = findNodeInTree(node.children, id)
+                        if (found) return found
+                    }
+                }
+                return null
+            }
+
+            // C: 从树中递归删除节点 / E: Recursively remove node from tree
+            const removeFromTree = (roots, id) => {
+                return roots.filter(node => {
+                    if (node.id === id) return false
+                    if (node.children) {
+                        node.children = removeFromTree(node.children, id)
+                    }
+                    return true
+                })
+            }
+
+            // C: 前端重建 G6 嵌套树 — 镜像后端 flatten_to_tree（多根自动包裹虚拟根）
+            //    用于本地连线编辑后重建 treeRoots，避免依赖后端往返
+            // E: Frontend rebuild of the G6 nested tree — mirrors backend flatten_to_tree
+            //    (multi-root wrapped in a virtual root). Used after local link edits.
+            const rebuildTreeFromFlat = (flatNodes, flatLinks) => {
+                if (!flatNodes || !flatNodes.length) return []
+                const dict = {}
+                flatNodes.forEach(n => {
+                    dict[String(n.id)] = {
+                        id: String(n.id), label: n.label || '', color: n.color || '#e8f0fe',
+                        details: n.details || [], parent_id: n.parent_id || null,
+                        collapsed: !!n.collapsed, children: [], _isVirtual: false,
+                        _isRoot: false, _depth: 0, _hasChildren: false,
+                        x: (n.x !== undefined && n.x !== null) ? n.x : null,
+                        y: (n.y !== undefined && n.y !== null) ? n.y : null,
+                        userPositioned: !!n.userPositioned,
+                    }
+                })
+                const childrenMap = {}
+                ;(flatLinks || []).forEach(l => {
+                    const src = String(l.source); const tgt = String(l.target)
+                    if (!dict[src] || !dict[tgt]) return
+                    if (!childrenMap[src]) childrenMap[src] = []
+                    childrenMap[src].push({ id: tgt, link_type: l.link_type || l.type || 'solid', link_label: l.label || null })
+                    if (!dict[tgt].parent_id) dict[tgt].parent_id = src
+                })
+                const visited = new Set()
+                const build = (nid) => {
+                    const node = dict[nid]
+                    if (!node || visited.has(nid)) return null
+                    visited.add(nid)
+                    ;(childrenMap[nid] || []).forEach(c => {
+                        if (visited.has(c.id)) return
+                        const child = dict[c.id]
+                        if (child) {
+                            child.link_type = c.link_type
+                            if (c.link_label) child.link_label = c.link_label
+                            const built = build(c.id)
+                            if (built) node.children.push(built)
+                        }
+                    })
+                    return node
+                }
+                const roots = []
+                Object.keys(dict).forEach(nid => {
+                    if (!visited.has(nid)) {
+                        const r = build(nid)
+                        if (r) roots.push(r)
+                    }
+                })
+                if (roots.length > 1) {
+                    return [{ id: '__virtual_root__', label: '', children: roots, _isVirtual: true, _isRoot: true, _depth: 0, _hasChildren: true, collapsed: false }]
+                }
+                return roots
+            }
+
+            // C: 连线编辑面板状态与逻辑 / E: Link editor state and logic
+            const linkEditor = ref(null)
+
+            const findNodeLabel = (id) => {
+                const n = nodes.value.find(x => String(x.id) === String(id))
+                if (n) return n.label
+                const found = findNodeInTree(treeRoots.value, id)
+                return found ? found.label : String(id)
+            }
+
+            const openLinkEditor = (source, target, link_type, link_label, clientX, clientY) => {
+                const x = Math.min((clientX || window.innerWidth / 2) + 12, window.innerWidth - 400)
+                const y = Math.min((clientY || window.innerHeight / 3) + 18, window.innerHeight - 260)
+                linkEditor.value = {
+                    source, target,
+                    sourceLabel: findNodeLabel(source),
+                    targetLabel: findNodeLabel(target),
+                    link_type, link_label: link_label || '',
+                    x: Math.max(0, x), y: Math.max(0, y),
+                }
+            }
+
+            const saveLinkFromEditor = () => {
+                if (!linkEditor.value) return
+                const { source, target, link_type, link_label } = linkEditor.value
+                const link = links.value.find(l => String(l.source) === String(source) && String(l.target) === String(target))
+                if (link) {
+                    link.link_type = link_type
+                    if (link_label && link_label.trim()) link.label = link_label.trim()
+                    else delete link.label
+                }
+                treeRoots.value = rebuildTreeFromFlat(nodes.value, links.value)
+                nextTick(() => updateG6Data())
+                linkEditor.value = null
+            }
+
+            const deleteLinkFromEditor = () => {
+                if (!linkEditor.value) return
+                if (!confirm(t('linkDeleteConfirm'))) return
+                const { source, target } = linkEditor.value
+                links.value = links.value.filter(l => !(String(l.source) === String(source) && String(l.target) === String(target)))
+                treeRoots.value = rebuildTreeFromFlat(nodes.value, links.value)
+                nextTick(() => updateG6Data())
+                linkEditor.value = null
+            }
+
+            // C: 连线编辑面板拖拽 / E: Link editor drag
+            let linkPopupDragState = null
+            const startDragLinkPopup = (e) => {
+                if (!linkEditor.value || e.button !== 0) return
+                linkPopupDragState = { startX: e.clientX, startY: e.clientY, x: linkEditor.value.x, y: linkEditor.value.y }
+                document.addEventListener('mousemove', onDragLinkPopup)
+                document.addEventListener('mouseup', stopDragLinkPopup)
+            }
+            const onDragLinkPopup = (e) => {
+                if (!linkPopupDragState || !linkEditor.value) return
+                const dx = e.clientX - linkPopupDragState.startX
+                const dy = e.clientY - linkPopupDragState.startY
+                linkEditor.value.x = Math.max(0, Math.min(linkPopupDragState.x + dx, window.innerWidth - 400))
+                linkEditor.value.y = Math.max(0, Math.min(linkPopupDragState.y + dy, window.innerHeight - 100))
+            }
+            const stopDragLinkPopup = () => {
+                linkPopupDragState = null
+                document.removeEventListener('mousemove', onDragLinkPopup)
+                document.removeEventListener('mouseup', stopDragLinkPopup)
+            }
+
+            // C: --- 词典标注辅助函数 ---
+            // E: --- Dictionary annotation helper functions ---
+            const escapeHtml = (str) => {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            };
+
+            // C: 渲染带标注下划线的文本
+            //    使用 cursor-based 构建法：在原始文本上按索引切割，非术语部分进行 HTML 转义。
+            //    避免旧版先 escapeHtml 全文再使用原始索引导致的字符偏移 bug。
+            // E: Render text with annotated term underlines
+            //    Uses cursor-based approach: splits raw text by indices, HTML-escapes only non-term parts.
+            //    Fixes old bug where full-text escapeHtml before index-based slicing caused offset.
+            const renderAnnotatedText = (text, nodeId, detailIdx) => {
+                const nodeAnn = annotations.value[nodeId];
+                if (!nodeAnn || nodeAnn.length === 0) return escapeHtml(text);
+                const detailAnnotations = nodeAnn.filter(
+                    a => a.source === 'details' && a.detail_index === detailIdx
+                );
+                if (detailAnnotations.length === 0) return escapeHtml(text);
+                // C: 按 char_start 升序排列，逐段构建
+                // E: Sort by char_start ascending for sequential build
+                detailAnnotations.sort((a, b) => a.char_start - b.char_start);
+                let result = '';
+                let cursor = 0;
+                for (const ann of detailAnnotations) {
+                    const rawTerm = text.substring(ann.char_start, ann.char_end);
+                    // C: 转义前面的非术语部分
+                    // E: Escape preceding non-term portion
+                    result += escapeHtml(text.substring(cursor, ann.char_start));
+                    // C: 术语 span：data-term 存储原始术语（与 annotationCache 键一致），显示内容进行 HTML 转义
+                    //    属性值中的引号需转义为 &quot; 避免破坏 HTML
+                    // E: Term span: data-term stores raw term (matches annotationCache keys), display content HTML-escaped
+                    //    Quote chars in attribute are escaped to &quot; to avoid breaking HTML
+                    const safeTerm = rawTerm.replace(/"/g, '&quot;');
+                    result += `<span class="anno-term" data-term="${safeTerm}" data-node="${nodeId}">${escapeHtml(rawTerm)}</span>`;
+                    cursor = ann.char_end;
+                }
+                result += escapeHtml(text.substring(cursor));
+                return result;
+            };
+
+            // C: 渲染定义弹窗中带下划线的术语
+            //    修复: 使用单次正则（所有术语 OR 组合）一次性替换，避免 for 循环中
+            //    前一轮生成的 HTML 属性被后一轮正则匹配到（如 data-node="node_X" 被 /node/ 匹配）。
+            //    data-term 存储原始术语（与 annotationCache 键一致），仅对属性值中的引号做安全转义
+            // E: Render definition popup text with underlined terms
+            //    Fix: single regex (all terms OR-ed) replaces in one pass, preventing HTML attributes
+            //    from a prior iteration being matched by a subsequent regex (e.g. data-node="node_X" matched by /node/).
+            //    data-term stores raw term (matches annotationCache keys), only quote chars escaped for attribute safety
+            const renderAnnotatedDefinition = (definitionText) => {
+                if (!definitionText) return '';
+                const escapedText = escapeHtml(definitionText);
+                // C: 收集所有已标注的术语（去重）
+                // E: Collect all unique annotated terms
+                const allTerms = [];
+                for (const [nodeId, nodeAnnotations] of Object.entries(annotations.value)) {
+                    for (const ann of nodeAnnotations) {
+                        if (!allTerms.find(t => t.term === ann.term)) {
+                            allTerms.push({ term: ann.term, nodeId });
+                        }
+                    }
+                }
+                if (allTerms.length === 0) return escapedText;
+                // C: 按长度降序排列，确保长术语优先匹配（如 "Machine Learning" 优先于 "Machine"）
+                // E: Sort by length descending, longer terms match first (e.g. "Machine Learning" before "Machine")
+                allTerms.sort((a, b) => b.term.length - a.term.length);
+                // C: 构建单次正则：所有术语的转义版本用 | 连接
+                // E: Build single regex: escaped versions of all terms joined by |
+                const escapedPatterns = allTerms.map(t => escapeHtml(t.term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                const combinedRegex = new RegExp(escapedPatterns.join('|'), 'gi');
+                // C: 构建小写查找表：小写转义术语 → {term, nodeId}
+                // E: Build lowercase lookup: lowercase escaped term → {term, nodeId}
+                const termLookup = {};
+                for (const t of allTerms) {
+                    termLookup[escapeHtml(t.term).toLowerCase()] = t;
+                }
+                // C: 单次替换 — JS String.replace 全局正则一次性扫描原文，不会对替换结果二次匹配
+                // E: Single-pass replace — JS String.replace with global regex scans original once, no re-matching on output
+                return escapedText.replace(combinedRegex, (match) => {
+                    const entry = termLookup[match.toLowerCase()];
+                    if (entry) {
+                        const attrSafe = entry.term.replace(/"/g, '&quot;');
+                        return `<span class="anno-term" data-term="${attrSafe}" data-node="${entry.nodeId}">${match}</span>`;
+                    }
+                    return match;
+                });
+            };
+
+            // C: 渲染详情条目，前缀标题加粗+emoji
+            // E: Render detail entry with bold+emoji prefix header
+            const renderDetailWithHeader = (text, nodeId, detailIdx) => {
+                const PREFIX_PATTERNS = [
+                    // C: 中文前缀 / E: Chinese prefixes
+                    { pattern: /^(定义[：:]\s*)/, emoji: '📖' },
+                    { pattern: /^(关键点[：:]\s*)/, emoji: '🔑' },
+                    { pattern: /^(用户原文[：:]\s*)/, emoji: '💬' },
+                    { pattern: /^(上下文[：:]\s*)/, emoji: '🌐' },
+                    { pattern: /^(举例[：:]\s*)/, emoji: '📝' },
+                    { pattern: /^(解释[：:]\s*)/, emoji: '💡' },
+                    // C: 英文前缀 / E: English prefixes
+                    { pattern: /^(Definition[：:]\s*)/i, emoji: '📖' },
+                    { pattern: /^(Key\s*Point[：:]\s*)/i, emoji: '🔑' },
+                    { pattern: /^(User\s*(?:Quote|Input)[：:]\s*)/i, emoji: '💬' },
+                    { pattern: /^(Context[：:]\s*)/i, emoji: '🌐' },
+                    { pattern: /^(Example[：:]\s*)/i, emoji: '📝' },
+                    { pattern: /^(Explanation[：:]\s*)/i, emoji: '💡' },
+                ];
+
+                for (const { pattern, emoji } of PREFIX_PATTERNS) {
+                    const match = text.match(pattern);
+                    if (match) {
+                        const prefix = match[1].trim();
+                        const content = text.slice(match[1].length);
+                        return `<span class="detail-header">${emoji} <strong>${escapeHtml(prefix)}</strong></span>` +
+                            renderAnnotatedText(content, nodeId, detailIdx);
+                    }
+                }
+                // C: 无前缀匹配 → 正常渲染
+                // E: No prefix match → normal rendering
+                return renderAnnotatedText(text, nodeId, detailIdx);
+            };
+
+            // C: 生成带下划线的节点标签 HTML
+            // E: Generate annotated node label HTML
+            const annotatedLabelHTML = (d) => {
+                if (d._isVirtual) return null;
+                const nodeAnn = annotations.value[d.id];
+                let label = d.label || '';
+                const bgColor = resolveColor(d.color);
+                let hasAnnotation = false;
+                if (nodeAnn && nodeAnn.length > 0) {
+                    const labelAnnotations = nodeAnn.filter(a => a.source === 'label');
+                    if (labelAnnotations.length > 0) {
+                        hasAnnotation = true;
+                        // C: 按 char_start 降序排列
+                        // E: Sort by char_start descending
+                        labelAnnotations.sort((a, b) => b.char_start - a.char_start);
+                        for (const ann of labelAnnotations) {
+                            const rawTerm = label.substring(ann.char_start, ann.char_end);
+                            // C: data-term 使用原始术语（与 annotationCache 键一致），引号转义为 &quot;
+                            // E: data-term uses raw term (matches annotationCache keys), quotes escaped to &quot;
+                            const attrSafeTerm = rawTerm.replace(/"/g, '&quot;');
+                            label = label.substring(0, ann.char_start) +
+                                `<span class="anno-term" data-term="${attrSafeTerm}" data-node="${d.id}">${escapeHtml(rawTerm)}</span>` +
+                                label.substring(ann.char_end);
+                        }
+                    }
+                }
+                // C: 有标注时 label 已含 HTML span，不再 escape
+                // E: When annotated, label already contains HTML spans, don't escape again
+                const labelHtml = hasAnnotation ? label : escapeHtml(label);
+                // C: 始终返回有效 HTML，并用 inline style 设置背景色（G6 HTML节点不继承 fill）
+                // E: Always return valid HTML with inline background (G6 HTML nodes don't inherit fill)
+                return `<div class="g6-node-label" style="background-color:${bgColor};">${labelHtml}</div>`;
+            };
+
+            // C: 触发术语标注
+            //    任务2: 接收后端预取缓存 prefetched_cache
+            // E: Trigger term annotation
+            //    Task 2: receive backend prefetched cache
+            const triggerAnnotation = async () => {
+                try {
+                    const response = await fetch('/annotate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            current_map: { nodes: nodes.value, links: links.value },
+                            density_mode: annotationDensity.value,
+                            detail_level: annotationDetail.value,
+                            language: detectedUserLanguage.value
+                        })
+                    });
+                    if (!response.ok) {
+                        const err = await response.json().catch(() => ({}));
+                        throw new Error(err.detail || `HTTP ${response.status}`);
+                    }
+                    const data = await response.json();
+                    if (data.annotations) {
+                        annotations.value = data.annotations;
+                        // C: 任务2 — 注入预取缓存到前端响应式对象
+                        // E: Task 2 — inject prefetched cache to frontend reactive object
+                        if (data.prefetched_cache) {
+                            annotationCache.value = data.prefetched_cache;
+                            _g6log(`prefetched_cache: ${Object.keys(data.prefetched_cache).length} terms`);
+                        }
+                        nextTick(() => updateG6Data());
+                    }
+                    const nodeCount = Object.keys(data.annotations || {}).length;
+                    const termCount = Object.keys(data.prefetched_cache || {}).length;
+                    chatHistory.value.push({
+                        role: 'system',
+                        text: tf('sysMsgAnnotation', {
+                            nodes: nodeCount, terms: termCount, density: annotationDensity.value
+                        })
+                    });
+                } catch (err) {
+                    chatHistory.value.push({ role: 'system', text: tf('annotationFailed', { msg: err.message }) });
+                }
+                if (settings.autoScroll) scrollChat();
+            };
+
+            // C: 显示术语定义弹窗
+            //    任务1: 坐标偏移避免遮挡术语 (+12, +18)
+            //    任务2: 优先读 annotationCache 缓存，命中后标记 from_cache=true
+            //    修复: position:fixed 确保相对于 viewport 定位（不再受 canvas 容器影响）
+            // E: Show term definition popup
+            //    Task 1: offset coords to avoid covering the term (+12, +18)
+            //    Task 2: prefer annotationCache, mark from_cache=true on hit
+            //    Fix: position:fixed ensures viewport-relative positioning (no longer affected by canvas container)
+            const showDefinition = async (term, x, y) => {
+                _g6log('[DefPopup] showDefinition 被调用', { term, x, y, cacheKeys: Object.keys(annotationCache.value || {}) });
+                // C: 避免重复点击已打开的弹窗
+                // E: Avoid re-clicking already open popup
+                if (definitionPopup.value && definitionPopup.value.term === term && !definitionPopup.value.loading) {
+                    _g6log('[DefPopup] 忽略重复点击，弹窗已打开:', term);
+                    return;
+                }
+                // C: 坐标偏移，避免弹窗压住术语本身；并约束在 viewport 内
+                //    边界计算放在 JS 层而非 Vue 模板层，因为 Vue 3 模板中 window 无法直接访问
+                // E: Offset to avoid covering the term; clamp within viewport
+                //    Boundaries computed in JS, not Vue template, because window is inaccessible in Vue 3 templates
+                const popupX = Math.min((x || 0) + 12, window.innerWidth - 380);
+                // C: 动态预估弹窗高度（与 CSS max-height: 60vh + padding 一致）
+                // E: Dynamic estimated popup height (consistent with CSS max-height: 60vh + padding)
+                const estimatedHeight = window.innerHeight * 0.6 + 60;
+                let popupY = (y || 0) + 18;
+                // C: 如果弹窗底部超出视口，则向上弹出（弹窗底部对齐术语位置上方）
+                // E: If popup bottom exceeds viewport, flip upward (popup bottom aligns above term)
+                if (popupY + estimatedHeight > window.innerHeight) {
+                    popupY = Math.max(10, (y || 0) - estimatedHeight + 10);
+                }
+
+                // C: 任务2 — 优先从本地缓存读取
+                // E: Task 2 — prefer local cache
+                const cached = annotationCache.value && annotationCache.value[term];
+                if (cached) {
+                    _g6log('[DefPopup] ✅ 缓存命中:', term, { source: cached.source, hasWiki: !!cached.wikipedia_definition, hasLLM: !!cached.llm_definition });
+                    definitionPopup.value = {
+                        term, x: popupX, y: popupY, loading: false,
+                        wikipedia_definition: cached.wikipedia_definition || null,
+                        wikipedia_url: cached.wikipedia_url || null,
+                        llm_definition: cached.llm_definition || null,
+                        ipa: cached.ipa || '',
+                        ipa_narrow: cached.ipa_narrow || '',
+                        ipa_broad: cached.ipa_broad || '',
+                        literal_meaning: cached.literal_meaning || '',
+                        pinyin: cached.pinyin || '',
+                        romanization: cached.romanization || '',
+                        source: cached.source || 'cache',
+                        from_cache: true,
+                    };
+                    return;
+                }
+
+                _g6log('[DefPopup] 🔍 缓存未命中，发起 /define API 请求:', term);
+                definitionPopup.value = {
+                    term, x: popupX, y: popupY, loading: true,
+                    wikipedia_definition: null, wikipedia_url: null,
+                    llm_definition: null, ipa: '', ipa_narrow: '', ipa_broad: '',
+                    literal_meaning: '', pinyin: '', romanization: '', source: ''
+                };
+                try {
+                    const response = await fetch('/define', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            term: term,
+                            detail_level: annotationDetail.value,
+                            language: detectedUserLanguage.value
+                        })
+                    });
+                    const data = await response.json();
+                    _g6log('[DefPopup] ✅ API 返回:', {
+                        term,
+                        source: data.source,
+                        hasWiki: !!data.wikipedia_definition,
+                        hasLLM: !!data.llm_definition,
+                        hasIPA: !!data.ipa,
+                        wikiUrl: data.wikipedia_url,
+                        pinyin: data.pinyin,
+                        romanization: data.romanization,
+                        definitionLen: (data.wikipedia_definition || data.llm_definition || '').length
+                    });
+                    definitionPopup.value = {
+                        term, x: popupX, y: popupY, loading: false,
+                        wikipedia_definition: data.wikipedia_definition || null,
+                        wikipedia_url: data.wikipedia_url || null,
+                        llm_definition: data.llm_definition || null,
+                        ipa: data.ipa || '',
+                        ipa_narrow: data.ipa_narrow || '',
+                        ipa_broad: data.ipa_broad || '',
+                        literal_meaning: data.literal_meaning || '',
+                        pinyin: data.pinyin || '',
+                        romanization: data.romanization || '',
+                        source: data.source || 'unknown',
+                        from_cache: false,
+                    };
+                    // C: 任务2 — 写回本地缓存供下次使用
+                    // E: Task 2 — write back to local cache for next time
+                    if (!annotationCache.value) annotationCache.value = {};
+                    annotationCache.value[term] = {
+                        wikipedia_definition: data.wikipedia_definition || null,
+                        wikipedia_url: data.wikipedia_url || null,
+                        llm_definition: data.llm_definition || null,
+                        ipa: data.ipa || '',
+                        ipa_narrow: data.ipa_narrow || '',
+                        ipa_broad: data.ipa_broad || '',
+                        literal_meaning: data.literal_meaning || '',
+                        pinyin: data.pinyin || '',
+                        romanization: data.romanization || '',
+                        source: data.source || 'unknown',
+                    };
+                    _g6log('[DefPopup] 📝 已写回缓存:', term);
+                } catch (err) {
+                    _g6err('[DefPopup] ❌ API 请求失败:', term, err.message);
+                    definitionPopup.value = {
+                        term, x: popupX, y: popupY, loading: false,
+                        wikipedia_definition: null, wikipedia_url: null,
+                        llm_definition: t('defLoadFailed'),
+                        ipa: '', literal_meaning: '', source: 'error',
+                        from_cache: false,
+                    };
+                }
+            };
+
+            // C: 关闭定义弹窗
+            // E: Close definition popup
+            const closeDefinition = () => {
+                definitionPopup.value = null;
+            };
+
+            // C: 弹窗拖动功能
+            // E: Popup drag functionality
+            let dragState = null;
+            const startDragPopup = (e) => {
+                if (!definitionPopup.value || e.button !== 0) return;
+                dragState = {
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    popupX: definitionPopup.value.x,
+                    popupY: definitionPopup.value.y,
+                };
+                document.addEventListener('mousemove', onDragPopup);
+                document.addEventListener('mouseup', stopDragPopup);
+            };
+            const onDragPopup = (e) => {
+                if (!dragState || !definitionPopup.value) return;
+                const dx = e.clientX - dragState.startX;
+                const dy = e.clientY - dragState.startY;
+                const newX = Math.max(0, Math.min(dragState.popupX + dx, window.innerWidth - 400));
+                const newY = Math.max(0, Math.min(dragState.popupY + dy, window.innerHeight - 100));
+                definitionPopup.value.x = newX;
+                definitionPopup.value.y = newY;
+            };
+            const stopDragPopup = () => {
+                dragState = null;
+                document.removeEventListener('mousemove', onDragPopup);
+                document.removeEventListener('mouseup', stopDragPopup);
+            };
+
+            // C: 边类型图例拖拽功能 / E: Edge legend drag functionality
+            let edgeLegendDragState = null;
+            const startDragEdgeLegend = (e) => {
+                if (e.button !== 0) return;
+                edgeLegendDragState = {
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    popupX: edgeLegendPos.x,
+                    popupY: edgeLegendPos.y,
+                };
+                document.addEventListener('mousemove', onDragEdgeLegend);
+                document.addEventListener('mouseup', stopDragEdgeLegend);
+            };
+            const onDragEdgeLegend = (e) => {
+                if (!edgeLegendDragState) return;
+                const dx = e.clientX - edgeLegendDragState.startX;
+                const dy = e.clientY - edgeLegendDragState.startY;
+                edgeLegendPos.x = Math.max(0, Math.min(edgeLegendDragState.popupX + dx, window.innerWidth - 200));
+                edgeLegendPos.y = Math.max(0, Math.min(edgeLegendDragState.popupY + dy, window.innerHeight - 120));
+            };
+            const stopDragEdgeLegend = () => {
+                edgeLegendDragState = null;
+                document.removeEventListener('mousemove', onDragEdgeLegend);
+                document.removeEventListener('mouseup', stopDragEdgeLegend);
             };
 
             const sendMessage = async () => {
@@ -785,6 +2363,12 @@
                     current_map: { nodes: nodes.value, links: links.value }
                 };
                 
+                // C: 子树模式 — 传递子树节点ID
+                // E: Subtree mode — pass subtree node ID
+                if (subtreeMode.value && subtreeRootId.value) {
+                    requestBody.subtree_node_id = subtreeRootId.value;
+                }
+                
                 // C: 如果开启了"转录作为上下文"，通过独立字段传递给后端
                 // E: If "include transcript as context" is on, pass as separate field
                 if (includeTranscriptContext.value && transcripts.value.length > 0) {
@@ -795,6 +2379,17 @@
                 
                 chatHistory.value.push({ role: 'user', text: text });
                 userInput.value = '';
+                // C: 首次用户消息时检测语言
+                // E: Detect language on first user message
+                if (chatHistory.value.filter(m => m.role === 'user').length === 1) {
+                    const hasCJK = /[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff]/.test(text);
+                    detectedUserLanguage.value = hasCJK ? 'zh' : 'en';
+                    // C: 自动语言联动 — 用户未手动选择界面语言时，界面语言跟随输入语言
+                    // E: Auto language sync — follow input language unless the user picked one manually
+                    if (!settings.languageManual) {
+                        settings.language = detectedUserLanguage.value;
+                    }
+                }
                 if (settings.autoScroll) scrollChat();
 
                 try {
@@ -806,12 +2401,65 @@
                     const data = await response.json();
                     chatHistory.value.push({ role: 'ai', text: data.answer });
                     if (data.map) {
-                        nodes.value = resolveOverlaps(data.map.nodes);
-                        links.value = data.map.links;
+                        if (subtreeMode.value) {
+                            // C: 子树模式 — 局部合并：保留全局树，仅替换子树根以下内容
+                            // E: Subtree mode — local merge: preserve full tree, replace under subtree root
+                            _g6log('子树模式: 局部合并 nodes=', data.map.nodes?.length, 'links=', data.map.links?.length)
+                            // C: 从完整 flat 数据中移除旧的子树节点
+                            // E: Remove old subtree nodes from full flat data
+                            const newIds = new Set((data.map.nodes || []).map(n => n.id))
+                            nodes.value = nodes.value.filter(n => !newIds.has(n.id) || n.id === subtreeRootId.value)
+                            // C: 保留不在新数据中的旧链接
+                            // E: Keep old links not in new data
+                            const newLinkKeys = new Set((data.map.links || []).map(l => `${l.source}->${l.target}`))
+                            links.value = links.value.filter(l => !newLinkKeys.has(`${l.source}->${l.target}`))
+                            // C: 合并新数据
+                            // E: Merge new data
+                            nodes.value.push(...(data.map.nodes || []).filter(n => n.id !== subtreeRootId.value))
+                            links.value.push(...(data.map.links || []))
+                            // C: 重建完整树 — 用后端返回的子树树替换旧子树
+                            // E: Rebuild full tree — replace old subtree with backend's
+                            const rebuildTree = (roots) => {
+                                for (let i = 0; i < roots.length; i++) {
+                                    if (roots[i].id === subtreeRootId.value) {
+                                        // C: 用后端的新子树替换
+                                        // E: Replace with backend's new subtree
+                                        if (data.map.tree && data.map.tree.length > 0) {
+                                            const newRoot = JSON.parse(JSON.stringify(data.map.tree[0]))
+                                            roots[i] = newRoot
+                                        }
+                                        return true
+                                    }
+                                    if (roots[i].children) {
+                                        if (rebuildTree(roots[i].children)) return true
+                                    }
+                                }
+                                return false
+                            }
+                            const treeCopy = JSON.parse(JSON.stringify(treeRoots.value))
+                            if (!rebuildTree(treeCopy)) {
+                                // C: 降级：全量替换
+                                // E: Fallback: full replacement
+                                treeRoots.value = data.map.tree || []
+                            } else {
+                                treeRoots.value = treeCopy
+                            }
+                        } else {
+                            // C: 全局模式 — 全量替换
+                            // E: Global mode — full replacement
+                            nodes.value = data.map.nodes || [];
+                            links.value = data.map.links || [];
+                            treeRoots.value = data.map.tree || [];
+                        }
+                        _g6log('sendMessage 收到数据: tree=', treeRoots.value.length, 'nodes=', nodes.value.length, 'links=', links.value.length)
+                        if (treeRoots.value.length) {
+                            _g6log('tree 第一个根节点:', JSON.stringify(treeRoots.value[0]).substring(0, 200))
+                        }
+                        nextTick(() => updateG6Data());
                     }
                     if (settings.autoScroll) scrollChat();
                 } catch (error) {
-                    chatHistory.value.push({ role: 'ai', text: "Connection failed." });
+                    chatHistory.value.push({ role: 'ai', text: tf('connectionFailed') });
                 }
             };
 
@@ -820,11 +2468,56 @@
                     showUploadMenu.value = false;
                 }
             };
+
+            const onMountedWithG6 = () => {
+                document.addEventListener('click', handleClickOutside);
+                document.title = t('browserTitle')
+                nextTick(() => initG6());
+                // C: 窗口大小变化时自适应 / E: Resize G6 on window resize
+                window.addEventListener('resize', () => {
+                    if (graph) {
+                        const container = document.getElementById('g6-container')
+                        if (container) {
+                            graph.setSize(container.clientWidth, container.clientHeight)
+                            graph.render()
+                        }
+                    }
+                })
+                // C: 委托点击事件 — 处理下划线术语点击（任务1 Bug 修复）
+                //    使用 document 级别 capture 阶段 + e.target.closest('.anno-term') 精准拦截。
+                //    原因：G6 v5 HTML 节点把 HTML 渲染到内部 foreignObject，
+                //    不在 #g6-container 子树内，原委托无法接收事件。
+                // E: Delegate click events — handle annotated term clicks (Task 1 Bug fix)
+                //    Use document-level capture phase + e.target.closest('.anno-term') for precision.
+                //    Reason: G6 v5 HTML nodes render HTML into internal foreignObject,
+                //    NOT inside #g6-container subtree, original delegation can't receive events.
+                const handleAnnoTermClick = (e) => {
+                    const annoEl = e.target?.closest?.('.anno-term');
+                    if (!annoEl) return;
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const term = annoEl.dataset.term;
+                    if (!term) return;
+                    showDefinition(term, e.clientX, e.clientY);
+                };
+                document.addEventListener('click', handleAnnoTermClick, true);
+                // C: pointerdown 同步拦截，避免 G6 mousedown 提前消耗事件
+                // E: pointerdown sync intercept to prevent G6 mousedown from consuming events
+                document.addEventListener('pointerdown', (e) => {
+                    if (e.target?.closest?.('.anno-term')) {
+                        e.stopPropagation();
+                    }
+                }, true);
+            };
             
-            onMounted(() => document.addEventListener('click', handleClickOutside));
+            onMounted(() => onMountedWithG6());
             onUnmounted(() => {
                 document.removeEventListener('click', handleClickOutside);
                 cancelAnimationFrame(animationFrameId);
+                if (graph) {
+                    graph.destroy()
+                    graph = null
+                }
             });
 
             const scrollChat = () => nextTick(() => { if(chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight });
@@ -835,372 +2528,277 @@
             const uniqueSpeakers = computed(() => [...new Set(transcripts.value.map(t => t.speaker))]);
             const filteredTranscripts = computed(() => transcripts.value.filter(t => (selectedSpeaker.value === 'All' || t.speaker === selectedSpeaker.value) && t.text.toLowerCase().includes(searchQuery.value.toLowerCase())));
 
-            const canvasX = ref(200); const canvasY = ref(150); const isDragging = ref(false); const startX = ref(0); const startY = ref(0)
-            
-            // C: 保留平移画布的起点记录功能
-            // E: Preserve the canvas pan starting point recording functionality
-            const startDrag = (e) => { 
-                isDragging.value = true; 
-                startX.value = e.clientX - canvasX.value; 
-                startY.value = e.clientY - canvasY.value; 
+            const resetCanvas = () => {
+                if (graph) {
+                    graph.fitView()
+                    activeNode.value = null
+                }
             }
-            
-            const resetCanvas = () => { canvasX.value = 200; canvasY.value = 150; activeNode.value = null }
 
-            // C: --- 动态连线计算（全覆盖诊断版） ---
-            // E: --- Dynamic link computation (full diagnostic version) ---
-            // C: SVG 与节点共享同一 CSS 坐标系（top:0 left:0），无需偏移
-            // E: SVG shares CSS coordinate space with nodes (top:0 left:0), no offset needed
-            // C: 节点近似半宽/半高（用于计算节点中心点，含 px-6 padding = 24px）
-            //    min-w-[140px] / 2 = 70px, 但实际含 px-6 padding = 24px → 70+24 = 94
-            // E: Approximate half-width (70+24=94 accounting for px-6 padding)
-            const NODE_HALF_W = 94;
-            const NODE_HALF_H = 40;
-
-            // C: SVG 画布动态尺寸 — 根据所有节点坐标自动计算
-            // E: SVG canvas dynamic size — computed from all node positions
-            const svgSize = computed(() => {
-                if (nodes.value.length === 0) return { w: 1400, h: 900 };
-                let maxX = 0, maxY = 0;
-                nodes.value.forEach(n => {
-                    if ((n.x || 0) + 200 > maxX) maxX = (n.x || 0) + 200;
-                    if ((n.y || 0) + 120 > maxY) maxY = (n.y || 0) + 120;
-                });
-                return { w: Math.max(1400, maxX), h: Math.max(900, maxY) };
-            });
-
-            // C: 诊断状态标记（可在控制台通过 __diag 访问）
-            // E: Diagnostic state flags (accessible via __diag in console)
-            const __diag = { lastRun: 0, totalRuns: 0, lastReport: null };
-            window.__diag = __diag;
-
-            const computedLinks = computed(() => {
-                __diag.totalRuns++;
-                const now = Date.now();
-                const isFirstRun = __diag.totalRuns === 1;
-                const throttlePassed = (now - __diag.lastRun) > 5000;
-
-                // === 诊断 1: links 数组状态 ===
-                if (isFirstRun || throttlePassed) {
-                    console.group(
-                        `%c🔗 连线诊断 #${__diag.totalRuns} %c| nodes=${nodes.value.length} links=${links.value.length}`,
-                        'color:#8b5cf6;font-weight:bold;font-size:14px', 'color:inherit'
-                    );
-                    
-                    if (links.value.length === 0) {
-                        console.log('%c⚠️  links 数组为空 — 后端未返回连线数据，非前端渲染问题', 'color:#f59e0b;font-weight:bold');
-                    } else {
-                        console.log(`   links 数据类型: ${typeof links.value[0]}, 第一条:`, JSON.stringify(links.value[0]));
-                    }
-                    
-                    // === 诊断 2: nodes ID 格式 ===
-                    if (nodes.value.length > 0) {
-                        const sampleIds = nodes.value.slice(0, 3).map(n => `${typeof n.id}:${n.id}`);
-                        console.log(`   nodes ID 格式 (前3):`, sampleIds);
-                    }
-                }
-
-                const result = links.value.map((link, idx) => {
-                    // === 诊断 3: link 中 source/target 存在性 ===
-                    if (link.source === undefined || link.target === undefined) {
-                        if (isFirstRun || throttlePassed) {
-                            console.error(
-                                `%c❌ link#${idx} 缺少 source 或 target 字段!%c link=`, 
-                                'color:#ef4444;font-weight:bold', 'color:inherit', link
-                            );
-                        }
-                        return link;
-                    }
-
-                    const sourceNode = nodes.value.find(n => n.id === link.source);
-                    const targetNode = nodes.value.find(n => n.id === link.target);
-                    
-                    // === 诊断 4: ID 匹配详情 ===
-                    if (!sourceNode || !targetNode) {
-                        if (isFirstRun || throttlePassed) {
-                            const allIds = nodes.value.map(n => `${typeof n.id}:${n.id}`);
-                            console.warn(
-                                `%c⚠️  link#${idx} ID不匹配 %c${link.source}→${link.target}
-                                   %c源节点=${sourceNode ? '✓' : '✗'} 目标节点=${targetNode ? '✓' : '✗'}
-                                   nodes所有ID: [${allIds.join(', ')}]
-                                   link.source类型=${typeof link.source} 值="${link.source}"
-                                   link.target类型=${typeof link.target} 值="${link.target}"`,
-                                'color:#f59e0b;font-weight:bold', 'color:#ef4444', 'color:inherit'
-                            );
-                        }
-                        return link;
-                    }
-                    
-                    // === 诊断 5: 路径坐标计算（无偏移，与节点共用CSS坐标系）===
-                    const sx = (sourceNode.x || 0) + NODE_HALF_W;
-                    const sy = (sourceNode.y || 0) + NODE_HALF_H;
-                    const tx = (targetNode.x || 0) + NODE_HALF_W;
-                    const ty = (targetNode.y || 0) + NODE_HALF_H;
-                    
-                    // C: 检查坐标是否为 NaN
-                    // E: Check if coordinates are NaN
-                    if (isNaN(sx) || isNaN(sy) || isNaN(tx) || isNaN(ty)) {
-                        console.error(
-                            `%c❌ link#${idx} 坐标NaN! %c源(${sourceNode.x},${sourceNode.y})→(${sx},${sy}) 目标(${targetNode.x},${targetNode.y})→(${tx},${ty})`,
-                            'color:#ef4444;font-weight:bold', 'color:inherit'
-                        );
-                        return link;
-                    }
-                    
-                    // C: 检查坐标是否在 SVG 范围内
-                    // E: Check if coordinates are within SVG range
-                    const svgw = svgSize.value.w, svgh = svgSize.value.h;
-                    const inRange = (v, max) => v >= -10 && v <= max + 10;
-                    const srcInRange = inRange(sx, svgw) && inRange(sy, svgh);
-                    const tgtInRange = inRange(tx, svgw) && inRange(ty, svgh);
-                    if (!srcInRange || !tgtInRange) {
-                        if (isFirstRun || throttlePassed) {
-                            console.warn(
-                                `%c⚠️  link#${idx} 坐标超出SVG范围(${svgw}x${svgh})! %c源SVG(${sx},${sy}) 目标SVG(${tx},${ty})`,
-                                'color:#f59e0b', 'color:inherit'
-                            );
-                        }
-                    }
-                    
-                    const path = `M ${sx} ${sy} C ${sx} ${(sy + ty) / 2}, ${tx} ${(sy + ty) / 2}, ${tx} ${ty}`;
-                    
-                    // === 诊断 6: 最终路径字符串 ===
-                    if (isFirstRun || throttlePassed) {
-                        console.log(
-                            `%c✅ link#${idx} %c${link.source}→${link.target}%c | ` +
-                            `源CSS(${sourceNode.x},${sourceNode.y})→SVG(${Math.round(sx)},${Math.round(sy)}) | ` +
-                            `目标CSS(${targetNode.x},${targetNode.y})→SVG(${Math.round(tx)},${Math.round(ty)}) | ` +
-                            `d="${path.substring(0,60)}..."`,
-                            'color:#10b981;font-weight:bold', 'color:#0ea5e9;font-weight:bold', 'color:inherit'
-                        );
-                    }
-                    
-                    return { ...link, path };
-                });
-
-                if (isFirstRun || throttlePassed) {
-                    const withPath = result.filter(l => l.path).length;
-                    const withoutPath = result.length - withPath;
-                    __diag.lastReport = { 
-                        time: new Date().toISOString(), 
-                        totalLinks: result.length, 
-                        withPath, 
-                        withoutPath,
-                        totalNodes: nodes.value.length 
-                    };
-                    console.log(
-                        `%c📊 汇总: ${withPath}/${result.length} 条连线有有效路径, ${withoutPath} 条缺失`,
-                        'color:#6366f1;font-weight:bold'
-                    );
-                    console.groupEnd();
-                    __diag.lastRun = now;
-                }
-
-                return result;
-            });
-
-            // ============================================================
-            // C: 浏览器控制台诊断工具 — 在 F12 Console 中运行以排查连线问题
-            // E: Browser console diagnostic tool — run in F12 Console to debug links
-            // ============================================================
-            window.__testLines = function(scenario) {
-                // C: 预定义测试场景
-                // E: Predefined test scenarios
-                const scenarios = {
-                    // C: 场景A — 两个节点，坐标在常见范围内
-                    // E: Scenario A — two nodes, typical coordinates
-                    simple: {
-                        nodes: [
-                            { id: '__test_root', label: 'Root', color: 'var(--node-blue)', x: 400, y: 100, details: [] },
-                            { id: '__test_child', label: 'Child', color: 'var(--node-green)', x: 400, y: 300, details: [] },
-                        ],
-                        links: [
-                            { source: '__test_root', target: '__test_child', type: 'solid' }
-                        ]
-                    },
-                    // C: 场景B — 三个节点三角形，测试多条连线
-                    // E: Scenario B — three nodes triangle, test multiple lines
-                    triangle: {
-                        nodes: [
-                            { id: '__test_a', label: 'A', color: 'var(--node-blue)', x: 300, y: 100, details: [] },
-                            { id: '__test_b', label: 'B', color: 'var(--node-green)', x: 150, y: 350, details: [] },
-                            { id: '__test_c', label: 'C', color: 'var(--node-red)', x: 450, y: 350, details: [] },
-                        ],
-                        links: [
-                            { source: '__test_a', target: '__test_b', type: 'solid' },
-                            { source: '__test_a', target: '__test_c', type: 'solid' },
-                            { source: '__test_b', target: '__test_c', type: 'dashed' },
-                        ]
-                    },
-                    // C: 场景C — 坐标在极端位置（接近0和接近1500）
-                    // E: Scenario C — extreme coordinates (near 0 and near 1500)
-                    extreme: {
-                        nodes: [
-                            { id: '__test_top', label: 'TopLeft', color: 'var(--node-blue)', x: 0, y: 0, details: [] },
-                            { id: '__test_bot', label: 'BotRight', color: 'var(--node-red)', x: 800, y: 600, details: [] },
-                        ],
-                        links: [
-                            { source: '__test_top', target: '__test_bot', type: 'solid' }
-                        ]
-                    }
-                };
-                
-                const s = scenarios[scenario] || scenarios.simple;
-                const name = scenario || 'simple';
-                
-                console.group(`%c🧪 注入测试场景: ${name} %c(nodes=${s.nodes.length} links=${s.links.length})`,
-                    'color:#8b5cf6;font-weight:bold;font-size:14px', 'color:inherit');
-                
-                // C: 保留已有数据，追加测试节点
-                // E: Preserve existing data, append test nodes
-                nodes.value = [...nodes.value, ...s.nodes];
-                links.value = [...links.value, ...s.links];
-                
-                console.log('注入后 nodes:', nodes.value.length, 'links:', links.value.length);
-                
-                // C: 等待 Vue 响应式更新后检查 SVG DOM
-                // E: Check SVG DOM after Vue reactive update
-                nextTick(() => {
-                    const svgPaths = document.querySelectorAll('#canvas-container svg path');
-                    console.log(`SVG <path> 元素数量: ${svgPaths.length}`);
-                    
-                    svgPaths.forEach((p, i) => {
-                        const d = p.getAttribute('d');
-                        const cs = getComputedStyle(p);
-                        console.log(
-                            `  path#${i}: d="${d ? d.substring(0, 50) + '...' : '(空)'}" ` +
-                            `stroke="${cs.stroke}" strokeWidth="${cs.strokeWidth}" ` +
-                            `display="${cs.display}" visibility="${cs.visibility}" opacity="${cs.opacity}"`
-                        );
-                    });
-                    
-                    if (svgPaths.length === 0) {
-                        console.warn('%c⚠️ SVG 中无 <path> 元素 — 检查 v-for 是否生成了元素', 'color:#f59e0b;font-weight:bold');
-                        console.log('检查 computedLinks 返回值:', computedLinks.value);
-                    }
-                    
-                    console.groupEnd();
-                });
-            };
-
-            // C: 一键移除测试节点
-            // E: One-click remove test nodes
-            window.__clearTest = function() {
-                nodes.value = nodes.value.filter(n => !String(n.id).startsWith('__test_'));
-                links.value = links.value.filter(l => 
-                    !String(l.source).startsWith('__test_') && 
-                    !String(l.target).startsWith('__test_')
-                );
-                console.log('%c🧹 测试节点已清除', 'color:#10b981;font-weight:bold');
-            };
-
-            // C: 诊断：打印当前完整状态
-            // E: Diagnostic: print current full state
-            window.__diagFull = function() {
-                console.group('%c📋 完整连线状态诊断', 'color:#8b5cf6;font-weight:bold;font-size:14px');
-                console.log('nodes:', nodes.value.length, nodes.value.map(n => ({id:n.id, label:n.label, x:n.x, y:n.y})));
-                console.log('links:', links.value.length, links.value);
-                console.log('computedLinks:', computedLinks.value.length, computedLinks.value.map(l => ({source:l.source, target:l.target, hasPath:!!l.path, pathPreview: (l.path||'').substring(0,40)})));
-                console.log('lastReport:', __diag.lastReport);
-                
-                // C: 检查 SVG DOM
-                // E: Check SVG DOM
-                const svgEl = document.querySelector('#canvas-container svg');
-                if (svgEl) {
-                    const rect = svgEl.getBoundingClientRect();
-                    console.log('SVG元素:', { 
-                        width: svgEl.getAttribute('width'), 
-                        height: svgEl.getAttribute('height'),
-                        boundingRect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
-                        pathCount: svgEl.querySelectorAll('path').length 
-                    });
-                } else {
-                    console.warn('⚠️ 未找到 SVG 元素!');
-                }
-                console.groupEnd();
-            };
-
-            // C: --- 节点拖拽状态变量 ---
-            // E: --- Node drag state variables ---
-            const draggingNode = ref(null);
-            let startMouseX = 0; let startMouseY = 0;
-            let initialNodeX = 0; let initialNodeY = 0;
-
-            const onNodePointerDown = (e, node) => {
-                activeNode.value = node; 
-                draggingNode.value = node; 
-                startMouseX = e.clientX;
-                startMouseY = e.clientY;
-                initialNodeX = node.x;
-                initialNodeY = node.y;
-            };
-
-            // C: --- 整合后的拖拽功能核心 ---
-            // E: --- Integrated drag function core ---
-            const onDrag = (e) => {
-                if (draggingNode.value) {
-                    // C: 如果正在拖拽节点，更新节点坐标
-                    // E: If dragging a node, update node coordinates
-                    const dx = e.clientX - startMouseX;
-                    const dy = e.clientY - startMouseY;
-                    draggingNode.value.x = initialNodeX + dx;
-                    draggingNode.value.y = initialNodeY + dy;
-                } else if (isDragging.value) {
-                    // C: 如果拖拽的是画布空白处，平移整体画布
-                    // E: If dragging canvas empty area, pan the entire canvas
-                    canvasX.value = e.clientX - startX.value;
-                    canvasY.value = e.clientY - startY.value;
-                }
-            };
-
-            const stopDrag = () => {
-                isDragging.value = false;
-                draggingNode.value = null; // C: 释放拖拽 / E: release drag
-            };
-
-            // C: --- 一键清空功能 ---
-            // E: --- Clear all nodes function ---
+            // C: --- 一键清空功能（G6版） ---
+            // E: --- Clear all nodes function (G6 version) ---
             const clearAllNodes = () => {
                 if(confirm(t('confirmClear'))) {
                     nodes.value = [];
                     links.value = [];
+                    treeRoots.value = [];
                     activeNode.value = null;
-                    chatHistory.value.push({ role: 'system', text: 'Canvas has been cleared manually.' });
+                    subtreeMode.value = false;
+                    subtreeRootId.value = null;
+                    chatHistory.value.push({ role: 'system', text: tf('sysMsgCleared') });
+                    if (graph) {
+                        try {
+                            graph.setData({ nodes: [], edges: [] })
+                            graph.render()
+                        } catch (e) {
+                            _g6err('clearAllNodes 渲染失败，重建 G6:', e)
+                            try { graph.destroy(); } catch (_) {}
+                            graph = null
+                            nextTick(() => initG6())
+                        }
+                    }
                     if (settings.autoScroll) scrollChat();
+                } else {
+                    // C: 用户取消 → 恢复可能因 confirm() 丢失的 Canvas 上下文
+                    // E: User cancelled → recover Canvas context possibly lost by confirm()
+                    recoverG6AfterPrompt();
                 }
             };
 
-            // C: --- 手动删除节点逻辑 ---
-            // E: --- Manual node deletion logic ---
+            // C: --- 启动子树隔离对话 ---
+            // E: --- Start subtree-scoped conversation ---
+            const startSubtreeConversation = () => {
+                if (!activeNode.value) return;
+                subtreeRootId.value = activeNode.value.id;
+                subtreeMode.value = true;
+                chatHistory.value.push({
+                    role: 'system',
+                    text: tf('sysMsgSubtreeFocus', { label: activeNode.value.label })
+                });
+                if (settings.autoScroll) scrollChat();
+            };
+
+            // C: --- 退出子树模式 ---
+            // E: --- Exit subtree mode ---
+            const exitSubtreeMode = () => {
+                subtreeMode.value = false;
+                subtreeRootId.value = null;
+                activeNode.value = null;
+                chatHistory.value.push({
+                    role: 'system',
+                    text: tf('sysMsgSubtreeExit')
+                });
+                if (settings.autoScroll) scrollChat();
+            };
+
+            // C: --- 保存当前导图 ---
+            // E: --- Save current map ---
+            const saveCurrentMap = async () => {
+                const mapData = { nodes: nodes.value, links: links.value };
+                const name = prompt(t('mapNamePrompt'), `mindmap_${new Date().toISOString().slice(0,10)}`);
+                // C: prompt() 是阻塞式对话框，可能导致 Canvas 上下文丢失。
+                //    无论用户确认或取消，都强制恢复 G6 渲染。
+                // E: prompt() is a blocking dialog that may cause Canvas context loss.
+                //    Force G6 render recovery regardless of confirm or cancel.
+                recoverG6AfterPrompt();
+                if (!name) return;
+                try {
+                    const response = await fetch('/save_map', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ map_data: mapData, name })
+                    });
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        chatHistory.value.push({ role: 'system', text: tf('mapSavedId', { id: data.map_id }) });
+                    }
+                } catch (err) {
+                    chatHistory.value.push({ role: 'system', text: tf('sysMsgSaveFailed', { msg: err.message }) });
+                }
+                if (settings.autoScroll) scrollChat();
+            };
+
+            // C: --- 获取已保存的导图列表 ---
+            // E: --- Fetch saved maps list ---
+            const fetchMapList = async () => {
+                try {
+                    const response = await fetch('/list_maps');
+                    const data = await response.json();
+                    savedMaps.value = data.maps || [];
+                } catch (err) {
+                    console.error('Failed to list maps:', err);
+                }
+            };
+
+            // C: 删除/重命名已保存导图 / E: Delete/Rename saved maps
+            const deleteSavedMap = async (m) => {
+                if (!confirm(t('confirmDeleteMap'))) return;
+                try {
+                    const response = await fetch(`/delete_map?map_id=${m.map_id}`, { method: 'DELETE' });
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        savedMaps.value = savedMaps.value.filter(x => x.map_id !== m.map_id);
+                    }
+                } catch (err) {
+                    console.error('Delete map failed:', err);
+                }
+            };
+
+            const renameSavedMap = async (m) => {
+                const newName = prompt(t('renameMapPrompt'), m.name);
+                if (!newName || newName === m.name) return;
+                try {
+                    const response = await fetch('/rename_map', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ map_id: m.map_id, name: newName })
+                    });
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        m.name = newName;
+                        m.updated_at = data.updated_at || m.updated_at;
+                    }
+                } catch (err) {
+                    console.error('Rename map failed:', err);
+                }
+            };
+
+            // C: 导图导出 — PNG 截图 / JSON 文件 / JSON 导入
+            // E: Map export — PNG snapshot / JSON file / JSON import
+            const exportPNG = () => {
+                if (!graph) return;
+                try {
+                    const dataUrl = graph.toDataURL({ mode: 'cover', pixelRatio: 2 });
+                    const a = document.createElement('a');
+                    a.href = dataUrl;
+                    a.download = `mindmap_${new Date().toISOString().slice(0, 10)}.png`;
+                    a.click();
+                } catch (e) {
+                    _g6err('Export PNG failed:', e);
+                }
+            };
+
+            const exportJSON = () => {
+                const payload = { nodes: nodes.value, links: links.value };
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `mindmap_${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            };
+
+            const jsonImportInput = ref(null);
+            const triggerImportJSON = () => { if (jsonImportInput.value) jsonImportInput.value.click(); };
+            const handleJSONImport = (e) => {
+                const file = e.target.files && e.target.files[0];
+                e.target.value = '';
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const data = JSON.parse(reader.result);
+                        if (!Array.isArray(data.nodes) || !Array.isArray(data.links)) throw new Error('bad format');
+                        nodes.value = data.nodes;
+                        links.value = data.links;
+                        treeRoots.value = rebuildTreeFromFlat(nodes.value, links.value);
+                        annotations.value = {};
+                        nextTick(() => updateG6Data());
+                        chatHistory.value.push({ role: 'system', text: tf('sysMsgLoaded', { name: file.name, count: nodes.value.length }) });
+                    } catch (err) {
+                        alert(t('importFailed'));
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            // C: --- 加载指定导图 ---
+            // E: --- Load specific map ---
+            const loadMapById = async (mapId) => {
+                if (!confirm(t('confirmLoad'))) {
+                    // C: 用户取消 → 恢复可能因 confirm() 丢失的 Canvas 上下文
+                    // E: User cancelled → recover Canvas context possibly lost by confirm()
+                    recoverG6AfterPrompt();
+                    return;
+                }
+                // C: 用户确认 → 也先恢复上下文再加载
+                // E: User confirmed → recover context first then load
+                recoverG6AfterPrompt();
+                try {
+                    const response = await fetch(`/load_map?map_id=${mapId}`);
+                    const data = await response.json();
+                    if (data.status === 'success' && data.map_data) {
+                        nodes.value = data.map_data.nodes || [];
+                        links.value = data.map_data.links || [];
+                        treeRoots.value = data.map_data.tree || [];
+                        showMapList.value = false;
+                        activeNode.value = null;
+                        chatHistory.value.push({ role: 'system', text: tf('sysMsgLoaded', { name: data.name, count: data.node_count }) });
+                        nextTick(() => updateG6Data());
+                    }
+                } catch (err) {
+                    chatHistory.value.push({ role: 'system', text: tf('sysMsgLoadFailed', { msg: err.message }) });
+                }
+                if (settings.autoScroll) scrollChat();
+            };
+
+            // C: --- 手动删除节点逻辑（G6版） ---
+            // E: --- Manual node deletion logic (G6 version) ---
             const deleteActiveNode = () => {
                 if (!activeNode.value) return;
                 const idToDelete = activeNode.value.id;
                 
                 nodes.value = nodes.value.filter(n => n.id !== idToDelete);
                 links.value = links.value.filter(l => l.source !== idToDelete && l.target !== idToDelete);
+                treeRoots.value = removeFromTree(treeRoots.value, idToDelete);
                 
                 activeNode.value = null;
+                nextTick(() => updateG6Data());
 
-                chatHistory.value.push({ role: 'system', text: `Node removed manually. AI will acknowledge this change.` });
+                chatHistory.value.push({ role: 'system', text: tf('sysMsgNodeRemoved') });
                 if (settings.autoScroll) scrollChat();
             };
 
             return {
                 t, audioPlayerEl, uploadMenuContainer, fileInput, chatBox,
-                showTrans, showUploadMenu, showSettings, activeNode, settings,
+                showTrans, showUploadMenu, showSettings, showMapList, activeNode, settings,
+                savedMaps,
                 searchQuery, selectedSpeaker, uniqueSpeakers, filteredTranscripts, transcripts,
-                nodes, links, chatHistory, userInput,
+                nodes, links, treeRoots, chatHistory, userInput,
                 isPlaying, isRecording, currentTime, duration, progress, visualizerData, formatTime, 
                 onTimeUpdate, onLoadedMetadata, onEnded, seekAudio, togglePlay, toggleRecording,
                 triggerFileUpload, handleFileChange, getBubbleClass, sendMessage, toggleTrans,
-                canvasX, canvasY, startDrag, onDrag, stopDrag, resetCanvas,
-                svgSize,
+                resetCanvas,
                 deleteActiveNode,
                 renderMarkdown,
-                computedLinks, onNodePointerDown, clearAllNodes,
+                clearAllNodes,
+                saveCurrentMap,
+                fetchMapList,
+                loadMapById,
+                startSubtreeConversation,
+                exitSubtreeMode,
+                subtreeMode,
                 isProcessingAudio, processingStatus, includeTranscriptContext,
                 editingIndex, editText,
-                getTranscriptIndex, deleteTranscript, startEditTranscript, saveTranscript, cancelEdit, downloadAudio
+                getTranscriptIndex, deleteTranscript, startEditTranscript, saveTranscript, cancelEdit, downloadAudio,
+                // C: 词典标注相关
+                // E: Dictionary annotation related
+                annotations, annotationDensity, annotationDetail,
+                annotationCache,
+                definitionPopup, detectedUserLanguage,
+                triggerAnnotation, renderAnnotatedText,
+                renderAnnotatedDefinition, renderDetailWithHeader,
+                showDefinition, closeDefinition, startDragPopup,
+                showEdgeLegend, edgeLegendItems, edgeLegendPos,
+                startDragEdgeLegend,
+                // C: 连线编辑面板 / E: link editor
+                linkEditor, saveLinkFromEditor, deleteLinkFromEditor, startDragLinkPopup,
+                // C: 导出导入与导图管理 / E: export/import and map management
+                exportPNG, exportJSON, triggerImportJSON, handleJSONImport, jsonImportInput,
+                deleteSavedMap, renameSavedMap,
+                // C: Wikipedia 定义截断相关
+                // E: Wikipedia definition truncation helpers
+                truncatedWikiDefinition, wikiDefinitionIsTruncated, wikiDefinitionFullLength
             }
         }
     }).mount('#app')

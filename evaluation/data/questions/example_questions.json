@@ -1,0 +1,71 @@
+{
+  "__purpose": "示例问答问题集 — 用于 §3 下游 QA 测试",
+  "__purpose_en": "Example Question Set — for §3 Downstream QA Evaluation",
+  "__source": "基于 Evaluation_Schema.md §3.2 的题型分布：40%事实检索 + 40%关系推理 + 20%综合应用",
+  "__source_en": "Based on Evaluation_Schema.md §3.2 question distribution: 40% fact retrieval + 40% relation inference + 20% synthesis",
+  "__note": "所有题目均可仅通过原始逐字稿回答，每道题有且仅有一个客观正确答案",
+  "__note_en": "All questions can be answered from the transcript alone, each has exactly one objective correct answer",
+
+  "questions": [
+    {
+      "id": 1,
+      "type": "fact_retrieval",
+      "question": "MCP 协议的全称是什么？",
+      "answer": "Model Context Protocol"
+    },
+    {
+      "id": 2,
+      "type": "fact_retrieval",
+      "question": "监督学习需要哪种类型的训练数据？",
+      "answer": "带标签的训练数据"
+    },
+    {
+      "id": 3,
+      "type": "fact_retrieval",
+      "question": "K-Means 是什么类型的算法？",
+      "answer": "无监督学习聚类算法"
+    },
+    {
+      "id": 4,
+      "type": "fact_retrieval",
+      "question": "强化学习中智能体通过什么信号来学习最优策略？",
+      "answer": "奖励信号"
+    },
+    {
+      "id": 5,
+      "type": "relation_inference",
+      "question": "线性回归和决策树都属于同一学习范式吗？请说明。",
+      "answer": "是的，它们都属于监督学习"
+    },
+    {
+      "id": 6,
+      "type": "relation_inference",
+      "question": "Agent 和 MCP 之间是什么关系？",
+      "answer": "Agent 通过 MCP 协议与外部工具和服务进行通信"
+    },
+    {
+      "id": 7,
+      "type": "relation_inference",
+      "question": "如果去掉 Embedding 层，哪些下游任务会受影响？",
+      "answer": "所有依赖向量表示的任务都会受影响，包括文本分类、语义搜索和聚类"
+    },
+    {
+      "id": 8,
+      "type": "relation_inference",
+      "question": "Q-Learning 和策略梯度方法在强化学习中的核心区别是什么？",
+      "answer": "Q-Learning 是基于价值的方法，策略梯度是基于策略的方法"
+    },
+    {
+      "id": 9,
+      "type": "synthesis",
+      "question": "根据本课内容，设计一个基于 ReAct 模式的智能问答系统架构。",
+      "answer": "ReAct 模式结合推理和行动：LLM 接收问题，推理需要哪些步骤，调用工具获取信息，基于观察继续推理，最终生成答案"
+    },
+    {
+      "id": 10,
+      "type": "synthesis",
+      "question": "如果要构建一个多语言文档分类系统，应该如何结合监督学习和无监督学习？",
+      "answer": "使用无监督学习的 Embedding 方法对文档进行向量化，再使用监督学习的分类器（如 SVM 或决策树）对向量进行分类"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "nodes": [
+    { "id": "n0", "label": "AI extracting knowledge", "parent_id": null },
+    { "id": "n1", "label": "Powerful", "parent_id": "n0" },
+    { "id": "n2", "label": "Efficiency", "parent_id": "n1" },
+    { "id": "n3", "label": "No manual", "parent_id": "n2" },
+    { "id": "n4", "label": "Efficiently", "parent_id": "n2" },
+    { "id": "n5", "label": "Adaptivity", "parent_id": "n1" },
+    { "id": "n6", "label": "Learning style", "parent_id": "n5" },
+    { "id": "n7", "label": "Knowledge level", "parent_id": "n5" },
+    { "id": "n8", "label": "Outcomes", "parent_id": "n1" },
+    { "id": "n9", "label": "Vocabulary & reading", "parent_id": "n8" },
+    { "id": "n10", "label": "Experience & knowledge", "parent_id": "n8" }
+  ],
+  "links": [
+    { "source": "n0", "target": "n1" },
+    { "source": "n1", "target": "n2" },
+    { "source": "n1", "target": "n5" },
+    { "source": "n1", "target": "n8" },
+    { "source": "n2", "target": "n3" },
+    { "source": "n2", "target": "n4" },
+    { "source": "n5", "target": "n6" },
+    { "source": "n5", "target": "n7" },
+    { "source": "n8", "target": "n9" },
+    { "source": "n8", "target": "n10" }
+  ],
+  "tree": {
+    "id": "n0",
+    "label": "AI extracting knowledge",
+    "children": [
+      {
+        "id": "n1",
+        "label": "Powerful",
+        "children": [
+          {
+            "id": "n2",
+            "label": "Efficiency",
+            "children": [
+              { "id": "n3", "label": "No manual" },
+              { "id": "n4", "label": "Efficiently" }
+            ]
+          },
+          {
+            "id": "n5",
+            "label": "Adaptivity",
+            "children": [
+              { "id": "n6", "label": "Learning style" },
+              { "id": "n7", "label": "Knowledge level" }
+            ]
+          },
+          {
+            "id": "n8",
+            "label": "Outcomes",
+            "children": [
+              { "id": "n9", "label": "Vocabulary & reading" },
+              { "id": "n10", "label": "Experience & knowledge" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "nodes": [
+    {"id": "root", "label": "机器学习", "parent_id": null},
+    {"id": "child1", "label": "监督学习", "parent_id": "root"},
+    {"id": "child2", "label": "无监督学习", "parent_id": "root"},
+    {"id": "child3", "label": "强化学习", "parent_id": "root"},
+    {"id": "grandchild1", "label": "分类", "parent_id": "child1"},
+    {"id": "grandchild2", "label": "回归", "parent_id": "child1"},
+    {"id": "grandchild3", "label": "聚类", "parent_id": "child2"},
+    {"id": "grandchild4", "label": "降维", "parent_id": "child2"},
+    {"id": "grandchild5", "label": "策略优化", "parent_id": "child3"}
+  ],
+  "links": [
+    {"source": "root", "target": "child1"},
+    {"source": "root", "target": "child2"},
+    {"source": "root", "target": "child3"},
+    {"source": "child1", "target": "grandchild1"},
+    {"source": "child1", "target": "grandchild2"},
+    {"source": "child2", "target": "grandchild3"},
+    {"source": "child2", "target": "grandchild4"},
+    {"source": "child3", "target": "grandchild5"}
+  ],
+  "tree": {
+    "id": "root",
+    "label": "机器学习",
+    "children": [
+      {
+        "id": "child1",
+        "label": "监督学习",
+        "children": [
+          {"id": "grandchild1", "label": "分类", "children": []},
+          {"id": "grandchild2", "label": "回归", "children": []}
+        ]
+      },
+      {
+        "id": "child2",
+        "label": "无监督学习",
+        "children": [
+          {"id": "grandchild3", "label": "聚类", "children": []},
+          {"id": "grandchild4", "label": "降维", "children": []}
+        ]
+      },
+      {
+        "id": "child3",
+        "label": "强化学习",
+        "children": [
+          {"id": "grandchild5", "label": "策略优化", "children": []}
+        ]
+      }
+    ]
+  }
+}
